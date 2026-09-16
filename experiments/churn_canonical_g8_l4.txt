@@ -1,0 +1,1228 @@
+Filters: "94_contact_density_probe"
+RNG seed: 767662151
+[2026-09-16 19:05:13.675] [info] Synchronize backend module [cuda]'s Polymorphic Memory Resource: 0x7ffd49d75000->0x7ffd49d75000
+[2026-09-16 19:05:13.675] [info] [cuda] Initializing Cuda Backend...
+[2026-09-16 19:05:13.687] [info] [cuda] Device: [0] NVIDIA GeForce RTX 3060 Ti
+[2026-09-16 19:05:13.687] [info] [cuda] Compute Capability: 8.6
+[2026-09-16 19:05:13.687] [info] [cuda] Total Global Memory: 8191 MB
+CUDA Backend Kernel Console Init Success!
+[2026-09-16 19:05:13.819] [info] [cuda] Cuda Backend Init Success.
+[2026-09-16 19:05:13.820] [info] Synchronize module [uipc_sanity_check]'s Polymorphic Memory Resource: 0x7ffd49d75000->0x7ffd49d75000
+[2026-09-16 19:05:13.820] [info] Backend [cuda] insert_sanity_checkers: 3 registered checker(s)
+[2026-09-16 19:05:13.825] [info] SanityCheck Summary: 0 errors, 0 warns, 0 infos
+[2026-09-16 19:05:13.916] [info] [cuda] LinearFusedPCG: max_iter_ratio = 2, tol_rate = 0.001, check_interval = 5, graph_mode = 1
+[2026-09-16 19:05:13.925] [info] [cuda] System info dumped to C:\Users\zuotian\Desktop\zengruotian\libuipc\output\tests\sim_case\94_contact_density_probe.cpp\systems.json
+[2026-09-16 19:05:13.928] [info] [cuda] Scene diagonal: 0.7348468899726868
+[2026-09-16 19:05:13.928] [info] [cuda] Adaptive kappa corridor: [1.661538e+03, 1.661538e+05] (meanMass=1.230769e-03, diag=0.7348468899726868, d_hat=0.01, scale=1.000000e-16, dt=0.01)
+[2026-09-16 19:05:13.928] [warning] [cuda] Contact default kappa 1000000000 is clamped to [166153.83129290753] (valid range: [1661.5383129290753, 166153.83129290753])
+[2026-09-16 19:05:13.928] [info] [cuda] >>> Begin Frame: 1
+[2026-09-16 19:05:13.930] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.930] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.930] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.930] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.930] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.938] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.938] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.939] [info] [cuda] LinearFusedPCG: captured CUDA graph (interval = 5, n = 972)
+[2026-09-16 19:05:13.939] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.941] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 1 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0009800000004148224/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.941] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.941] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.943] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.943] [info] [cuda] PROBE_CHURN,scope=within,frame=1,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.943] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.943] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.943] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.943] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.945] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.945] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.945] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.946] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 1 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.4347160143030414e-12/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.947] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.947] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.947] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.947] [info] [cuda] <<< End Frame: 1
+[2026-09-16 19:05:13.947] [info] [cuda] >>> Begin Frame: 2
+[2026-09-16 19:05:13.948] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.948] [info] [cuda] PROBE_CHURN,scope=across,frame=2,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.948] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.948] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.948] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.948] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.950] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.950] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.950] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.951] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 2 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.001960000001044069/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.951] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.951] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.953] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.953] [info] [cuda] PROBE_CHURN,scope=within,frame=2,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.953] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.953] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.953] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.953] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.954] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.954] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.954] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.955] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 2 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 5.856412675152232e-12/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.955] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.956] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.956] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.956] [info] [cuda] <<< End Frame: 2
+[2026-09-16 19:05:13.956] [info] [cuda] >>> Begin Frame: 3
+[2026-09-16 19:05:13.957] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.957] [info] [cuda] PROBE_CHURN,scope=across,frame=3,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.957] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.957] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.957] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.957] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.959] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.959] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.959] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.961] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 3 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0029400000017212645/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.961] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.961] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.962] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.963] [info] [cuda] PROBE_CHURN,scope=within,frame=3,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.963] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.963] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.963] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.963] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.964] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.964] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.964] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.965] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 3 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 6.278337314161567e-12/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.965] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.966] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.966] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.966] [info] [cuda] <<< End Frame: 3
+[2026-09-16 19:05:13.966] [info] [cuda] >>> Begin Frame: 4
+[2026-09-16 19:05:13.967] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.967] [info] [cuda] PROBE_CHURN,scope=across,frame=4,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.967] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.967] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.967] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.967] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.968] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.968] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.969] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.970] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 4 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.003920000002437088/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.970] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.970] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.971] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.971] [info] [cuda] PROBE_CHURN,scope=within,frame=4,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.971] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.971] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.971] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.971] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.973] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.973] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.973] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.974] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 4 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 5.6989148607385395e-12/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.974] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.974] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.975] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.975] [info] [cuda] <<< End Frame: 4
+[2026-09-16 19:05:13.975] [info] [cuda] >>> Begin Frame: 5
+[2026-09-16 19:05:13.977] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.977] [info] [cuda] PROBE_CHURN,scope=across,frame=5,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.977] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.977] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.977] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.977] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.978] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.978] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.978] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.980] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 5 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.004900000002994286/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.980] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.980] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.981] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.981] [info] [cuda] PROBE_CHURN,scope=within,frame=5,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.981] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.981] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.981] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.981] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.982] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.982] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.983] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.984] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 5 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 9.824018383803034e-12/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.984] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.984] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.984] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.984] [info] [cuda] <<< End Frame: 5
+[2026-09-16 19:05:13.984] [info] [cuda] >>> Begin Frame: 6
+[2026-09-16 19:05:13.986] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.986] [info] [cuda] PROBE_CHURN,scope=across,frame=6,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.986] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.986] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.986] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.986] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.987] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.987] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.987] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.988] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 6 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.005880000002416016/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.988] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.989] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.990] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.990] [info] [cuda] PROBE_CHURN,scope=within,frame=6,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.990] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.990] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.990] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.990] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.991] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.991] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.992] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.994] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 6 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.9238482215132884e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.994] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.994] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.994] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:13.994] [info] [cuda] <<< End Frame: 6
+[2026-09-16 19:05:13.994] [info] [cuda] >>> Begin Frame: 7
+[2026-09-16 19:05:13.996] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.996] [info] [cuda] PROBE_CHURN,scope=across,frame=7,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:13.996] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:13.996] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:13.996] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.996] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:13.997] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.997] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:13.997] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:13.999] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 7 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.006860000004029507/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:13.999] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:13.999] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.000] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.000] [info] [cuda] PROBE_CHURN,scope=within,frame=7,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.000] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.000] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.000] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.000] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.001] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.001] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.002] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.003] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 7 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 2.2161806491892664e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.003] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.003] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.003] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.003] [info] [cuda] <<< End Frame: 7
+[2026-09-16 19:05:14.004] [info] [cuda] >>> Begin Frame: 8
+[2026-09-16 19:05:14.005] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.005] [info] [cuda] PROBE_CHURN,scope=across,frame=8,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.005] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.005] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.005] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.005] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.006] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.006] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.006] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.008] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 8 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00784000000209281/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.008] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.008] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.010] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.010] [info] [cuda] PROBE_CHURN,scope=within,frame=8,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.010] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.010] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.010] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.010] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.012] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.012] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.012] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.013] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 8 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 2.5297245620788256e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.013] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.013] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.014] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.014] [info] [cuda] <<< End Frame: 8
+[2026-09-16 19:05:14.014] [info] [cuda] >>> Begin Frame: 9
+[2026-09-16 19:05:14.015] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.015] [info] [cuda] PROBE_CHURN,scope=across,frame=9,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.015] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.015] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.015] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.015] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.016] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.016] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.017] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.018] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 9 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00882000000407018/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.018] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.018] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.019] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.019] [info] [cuda] PROBE_CHURN,scope=within,frame=9,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.019] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.019] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.019] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.019] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.021] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.021] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.021] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.022] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 9 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.0542012412170656e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.022] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.023] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.023] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.023] [info] [cuda] <<< End Frame: 9
+[2026-09-16 19:05:14.023] [info] [cuda] >>> Begin Frame: 10
+[2026-09-16 19:05:14.024] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.024] [info] [cuda] PROBE_CHURN,scope=across,frame=10,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.024] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.024] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.024] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.024] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.026] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.026] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.027] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.028] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 10 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.009800000003465469/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.028] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.029] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.030] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.030] [info] [cuda] PROBE_CHURN,scope=within,frame=10,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.030] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.030] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.030] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.030] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.031] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.031] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.032] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.033] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 10 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 3.2153226955237633e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.033] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.033] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.034] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.034] [info] [cuda] <<< End Frame: 10
+[2026-09-16 19:05:14.034] [info] [cuda] >>> Begin Frame: 11
+[2026-09-16 19:05:14.035] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.035] [info] [cuda] PROBE_CHURN,scope=across,frame=11,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.035] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.035] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.035] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.035] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.036] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.036] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.036] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.038] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 11 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.010780000005024066/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.038] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.038] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.039] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.039] [info] [cuda] PROBE_CHURN,scope=within,frame=11,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.039] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.039] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.039] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.039] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.041] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.041] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.041] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.043] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 11 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.9242314886613618e-11/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.043] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.044] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.044] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.044] [info] [cuda] <<< End Frame: 11
+[2026-09-16 19:05:14.044] [info] [cuda] >>> Begin Frame: 12
+[2026-09-16 19:05:14.045] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 0.
+[2026-09-16 19:05:14.045] [info] [cuda] PROBE_CHURN,scope=across,frame=12,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.045] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.045] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.045] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.045] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.047] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.047] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.047] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.048] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 12 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.01176000000524094/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.048] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.048] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.049] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.049] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.050] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.050] [info] [cuda] PROBE_CHURN,scope=within,frame=12,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.050] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.050] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.050] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.050] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.052] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.052] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.052] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.053] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 12 Newton Iteration 1 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.005880000014698158/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.053] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.054] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.055] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.055] [info] [cuda] PROBE_CHURN,scope=within,frame=12,newton=2,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.055] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.055] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.055] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.055] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.056] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.056] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.057] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.058] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 12 Newton Iteration 2 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00010082368963090233/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.058] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.058] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.058] [info] [cuda] Newton Iteration Converged with Iteration Count: 2, Max: 1024
+[2026-09-16 19:05:14.058] [info] [cuda] <<< End Frame: 12
+[2026-09-16 19:05:14.058] [info] [cuda] >>> Begin Frame: 13
+[2026-09-16 19:05:14.061] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.061] [info] [cuda] PROBE_CHURN,scope=across,frame=13,newton=2,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.061] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.061] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.061] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.061] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.062] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.062] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.062] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.064] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 13 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.012740000563033592/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.064] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.064] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.067] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.067] [info] [cuda] PROBE_CHURN,scope=within,frame=13,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.067] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.067] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.067] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.067] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.069] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.069] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.069] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.071] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 13 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.4558118995970706e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.071] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.071] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.071] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.071] [info] [cuda] <<< End Frame: 13
+[2026-09-16 19:05:14.071] [info] [cuda] >>> Begin Frame: 14
+[2026-09-16 19:05:14.074] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.074] [info] [cuda] PROBE_CHURN,scope=across,frame=14,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.074] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.074] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.074] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.074] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.076] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.076] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.077] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.079] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 14 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.013720012123161346/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.079] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.079] [info] [cuda] SimplexTrajectoryFilter PTs: 128, EEs: 918, PEs: 1152, PPs: 600
+[2026-09-16 19:05:14.081] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.081] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.083] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.084] [info] [cuda] PROBE_CHURN,scope=within,frame=14,newton=1,previous=0,current=0,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.084] [info] [cuda] SimplexTrajectoryFilter PTs: 0, EEs: 0, PEs: 0, PPs: 0
+[2026-09-16 19:05:14.084] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.084] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 0, DyTopo Hess3x3 count: 0
+[2026-09-16 19:05:14.084] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.085] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.085] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 1156
+[2026-09-16 19:05:14.085] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.087] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 14 Newton Iteration 1 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0068600156252113026/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.087] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.087] [info] [cuda] SimplexTrajectoryFilter PTs: 142, EEs: 918, PEs: 1150, PPs: 588
+[2026-09-16 19:05:14.088] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.088] [info] [cuda] SimplexTrajectoryFilter PTs: 125, EEs: 902, PEs: 1142, PPs: 629
+[2026-09-16 19:05:14.091] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.092] [info] [cuda] PROBE_CHURN,scope=within,frame=14,newton=2,previous=0,current=1517,new=1517,r_new=1,r_churn=1
+[2026-09-16 19:05:14.092] [info] [cuda] SimplexTrajectoryFilter PTs: 125, EEs: 902, PEs: 1142, PPs: 629
+[2026-09-16 19:05:14.092] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.092] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8792, DyTopo Hess3x3 count: 19009
+[2026-09-16 19:05:14.092] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.122] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2059
+[2026-09-16 19:05:14.122] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2059
+[2026-09-16 19:05:14.122] [info] [cuda] LinearFusedPCG: captured CUDA graph (interval = 5, n = 972)
+[2026-09-16 19:05:14.122] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.125] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 14 Newton Iteration 2 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0034314692184646612/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.125] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.125] [info] [cuda] SimplexTrajectoryFilter PTs: 111, EEs: 866, PEs: 1091, PPs: 730
+[2026-09-16 19:05:14.129] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.129] [info] [cuda] PROBE_CHURN,scope=within,frame=14,newton=3,previous=1517,current=1434,new=342,r_new=0.2384937238493724,r_churn=0.4125874125874126
+[2026-09-16 19:05:14.129] [info] [cuda] SimplexTrajectoryFilter PTs: 111, EEs: 866, PEs: 1091, PPs: 730
+[2026-09-16 19:05:14.129] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.129] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8641, DyTopo Hess3x3 count: 18506
+[2026-09-16 19:05:14.129] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.133] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2037
+[2026-09-16 19:05:14.133] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2037
+[2026-09-16 19:05:14.133] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.136] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 14 Newton Iteration 3 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00029649097220600825/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.136] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.136] [info] [cuda] SimplexTrajectoryFilter PTs: 136, EEs: 902, PEs: 1224, PPs: 536
+[2026-09-16 19:05:14.137] [info] [cuda] Newton Iteration Converged with Iteration Count: 3, Max: 1024
+[2026-09-16 19:05:14.137] [info] [cuda] <<< End Frame: 14
+[2026-09-16 19:05:14.137] [info] [cuda] >>> Begin Frame: 15
+[2026-09-16 19:05:14.139] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.140] [info] [cuda] PROBE_CHURN,scope=across,frame=15,newton=3,previous=1434,current=1539,new=443,r_new=0.28784925276153345,r_churn=0.4160895045285029
+[2026-09-16 19:05:14.140] [info] [cuda] SimplexTrajectoryFilter PTs: 136, EEs: 902, PEs: 1224, PPs: 536
+[2026-09-16 19:05:14.140] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.140] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8896, DyTopo Hess3x3 count: 19332
+[2026-09-16 19:05:14.140] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.145] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2063
+[2026-09-16 19:05:14.145] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2063
+[2026-09-16 19:05:14.145] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.148] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 15 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.014698010695407963/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.148] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.149] [info] [cuda] SimplexTrajectoryFilter PTs: 130, EEs: 885, PEs: 1251, PPs: 532
+[2026-09-16 19:05:14.151] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.152] [info] [cuda] PROBE_CHURN,scope=within,frame=15,newton=1,previous=1539,current=1520,new=172,r_new=0.11315789473684211,r_churn=0.21215663354763292
+[2026-09-16 19:05:14.152] [info] [cuda] SimplexTrajectoryFilter PTs: 130, EEs: 885, PEs: 1251, PPs: 532
+[2026-09-16 19:05:14.152] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.152] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8877, DyTopo Hess3x3 count: 19252
+[2026-09-16 19:05:14.152] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.156] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2055
+[2026-09-16 19:05:14.156] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2055
+[2026-09-16 19:05:14.156] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.158] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 15 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.000222037389678622/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.159] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.159] [info] [cuda] SimplexTrajectoryFilter PTs: 125, EEs: 902, PEs: 1231, PPs: 540
+[2026-09-16 19:05:14.160] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.160] [info] [cuda] <<< End Frame: 15
+[2026-09-16 19:05:14.160] [info] [cuda] >>> Begin Frame: 16
+[2026-09-16 19:05:14.163] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.163] [info] [cuda] PROBE_CHURN,scope=across,frame=16,newton=1,previous=1520,current=1532,new=124,r_new=0.08093994778067885,r_churn=0.14355231143552316
+[2026-09-16 19:05:14.163] [info] [cuda] SimplexTrajectoryFilter PTs: 125, EEs: 902, PEs: 1231, PPs: 540
+[2026-09-16 19:05:14.163] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.163] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8881, DyTopo Hess3x3 count: 19276
+[2026-09-16 19:05:14.163] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.167] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2061
+[2026-09-16 19:05:14.167] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2061
+[2026-09-16 19:05:14.167] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.171] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 16 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.015678206434317398/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.171] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.171] [info] [cuda] SimplexTrajectoryFilter PTs: 262, EEs: 1784, PEs: 2315, PPs: 1235
+[2026-09-16 19:05:14.172] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.172] [info] [cuda] SimplexTrajectoryFilter PTs: 135, EEs: 882, PEs: 1204, PPs: 577
+[2026-09-16 19:05:14.176] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.177] [info] [cuda] PROBE_CHURN,scope=within,frame=16,newton=1,previous=1532,current=1507,new=120,r_new=0.07962840079628401,r_churn=0.160411622276029
+[2026-09-16 19:05:14.177] [info] [cuda] SimplexTrajectoryFilter PTs: 135, EEs: 882, PEs: 1204, PPs: 577
+[2026-09-16 19:05:14.177] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.177] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 8834, DyTopo Hess3x3 count: 19125
+[2026-09-16 19:05:14.177] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.181] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2048
+[2026-09-16 19:05:14.181] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2048
+[2026-09-16 19:05:14.181] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.185] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 16 Newton Iteration 1 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.007839304599430314/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.185] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.185] [info] [cuda] SimplexTrajectoryFilter PTs: 258, EEs: 1818, PEs: 2313, PPs: 1207
+[2026-09-16 19:05:14.186] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.186] [info] [cuda] SimplexTrajectoryFilter PTs: 258, EEs: 1801, PEs: 2301, PPs: 1236
+[2026-09-16 19:05:14.187] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.187] [info] [cuda] SimplexTrajectoryFilter PTs: 159, EEs: 1078, PEs: 1481, PPs: 700
+[2026-09-16 19:05:14.190] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.191] [info] [cuda] PROBE_CHURN,scope=within,frame=16,newton=2,previous=1507,current=1881,new=445,r_new=0.23657628920786816,r_churn=0.264344262295082
+[2026-09-16 19:05:14.191] [info] [cuda] SimplexTrajectoryFilter PTs: 159, EEs: 1078, PEs: 1481, PPs: 700
+[2026-09-16 19:05:14.191] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.191] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 10791, DyTopo Hess3x3 count: 23356
+[2026-09-16 19:05:14.191] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.197] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2349
+[2026-09-16 19:05:14.197] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2349
+[2026-09-16 19:05:14.197] [info] [cuda] LinearFusedPCG: captured CUDA graph (interval = 5, n = 972)
+[2026-09-16 19:05:14.197] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.201] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 16 Newton Iteration 2 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.005887680846516681/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.201] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.201] [info] [cuda] SimplexTrajectoryFilter PTs: 262, EEs: 1786, PEs: 2334, PPs: 1214
+[2026-09-16 19:05:14.202] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.202] [info] [cuda] SimplexTrajectoryFilter PTs: 253, EEs: 1787, PEs: 2296, PPs: 1260
+[2026-09-16 19:05:14.203] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.203] [info] [cuda] SimplexTrajectoryFilter PTs: 257, EEs: 1765, PEs: 2329, PPs: 1245
+[2026-09-16 19:05:14.207] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.208] [info] [cuda] PROBE_CHURN,scope=within,frame=16,newton=3,previous=1881,current=2990,new=1203,r_new=0.4023411371237458,r_churn=0.4205577172503242
+[2026-09-16 19:05:14.208] [info] [cuda] SimplexTrajectoryFilter PTs: 257, EEs: 1765, PEs: 2329, PPs: 1245
+[2026-09-16 19:05:14.208] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.208] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 17565, DyTopo Hess3x3 count: 37929
+[2026-09-16 19:05:14.208] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.216] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2928
+[2026-09-16 19:05:14.216] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2928
+[2026-09-16 19:05:14.216] [info] [cuda] LinearFusedPCG: captured CUDA graph (interval = 5, n = 972)
+[2026-09-16 19:05:14.216] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.219] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 16 Newton Iteration 3 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00441384119926/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.220] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.220] [info] [cuda] SimplexTrajectoryFilter PTs: 267, EEs: 1802, PEs: 2417, PPs: 1110
+[2026-09-16 19:05:14.223] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.224] [info] [cuda] PROBE_CHURN,scope=within,frame=16,newton=4,previous=2990,current=3080,new=245,r_new=0.07954545454545454,r_churn=0.1236476043276662
+[2026-09-16 19:05:14.224] [info] [cuda] SimplexTrajectoryFilter PTs: 267, EEs: 1802, PEs: 2417, PPs: 1110
+[2026-09-16 19:05:14.224] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.224] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 17747, DyTopo Hess3x3 count: 38522
+[2026-09-16 19:05:14.224] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.230] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2956
+[2026-09-16 19:05:14.230] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2956
+[2026-09-16 19:05:14.231] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.234] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 16 Newton Iteration 4 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00012536370229665987/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.234] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.234] [info] [cuda] SimplexTrajectoryFilter PTs: 264, EEs: 1783, PEs: 2434, PPs: 1115
+[2026-09-16 19:05:14.235] [info] [cuda] Newton Iteration Converged with Iteration Count: 4, Max: 1024
+[2026-09-16 19:05:14.235] [info] [cuda] <<< End Frame: 16
+[2026-09-16 19:05:14.235] [info] [cuda] >>> Begin Frame: 17
+[2026-09-16 19:05:14.238] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.240] [info] [cuda] PROBE_CHURN,scope=across,frame=17,newton=4,previous=3080,current=3041,new=129,r_new=0.042420256494574156,r_churn=0.09255219694608907
+[2026-09-16 19:05:14.240] [info] [cuda] SimplexTrajectoryFilter PTs: 264, EEs: 1783, PEs: 2434, PPs: 1115
+[2026-09-16 19:05:14.240] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.240] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 17720, DyTopo Hess3x3 count: 38419
+[2026-09-16 19:05:14.240] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.245] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2951
+[2026-09-16 19:05:14.245] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2951
+[2026-09-16 19:05:14.246] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.249] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 17 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0166560097910664/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.249] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.250] [info] [cuda] SimplexTrajectoryFilter PTs: 258, EEs: 1778, PEs: 2412, PPs: 1148
+[2026-09-16 19:05:14.254] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.255] [info] [cuda] PROBE_CHURN,scope=within,frame=17,newton=1,previous=3041,current=3026,new=291,r_new=0.09616655651024454,r_churn=0.17917166866746703
+[2026-09-16 19:05:14.255] [info] [cuda] SimplexTrajectoryFilter PTs: 258, EEs: 1778, PEs: 2412, PPs: 1148
+[2026-09-16 19:05:14.255] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.255] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 17676, DyTopo Hess3x3 count: 38276
+[2026-09-16 19:05:14.255] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.260] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2951
+[2026-09-16 19:05:14.260] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2951
+[2026-09-16 19:05:14.261] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.265] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 17 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00022945676315568256/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.265] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.265] [info] [cuda] SimplexTrajectoryFilter PTs: 264, EEs: 1766, PEs: 2428, PPs: 1138
+[2026-09-16 19:05:14.266] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.266] [info] [cuda] <<< End Frame: 17
+[2026-09-16 19:05:14.266] [info] [cuda] >>> Begin Frame: 18
+[2026-09-16 19:05:14.271] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.272] [info] [cuda] PROBE_CHURN,scope=across,frame=18,newton=1,previous=3026,current=3022,new=151,r_new=0.0499669093315685,r_churn=0.09631728045325783
+[2026-09-16 19:05:14.272] [info] [cuda] SimplexTrajectoryFilter PTs: 264, EEs: 1766, PEs: 2428, PPs: 1138
+[2026-09-16 19:05:14.272] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.272] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 17680, DyTopo Hess3x3 count: 38282
+[2026-09-16 19:05:14.272] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.276] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2942
+[2026-09-16 19:05:14.276] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 2942
+[2026-09-16 19:05:14.276] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.282] [info] [cuda] CCD Filter: 0.7919934577859311 < 1
+[2026-09-16 19:05:14.282] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 18 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.01763222776876726/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.282] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.282] [info] [cuda] SimplexTrajectoryFilter PTs: 377, EEs: 2684, PEs: 3531, PPs: 1802
+[2026-09-16 19:05:14.283] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.283] [info] [cuda] SimplexTrajectoryFilter PTs: 407, EEs: 2716, PEs: 3524, PPs: 1747
+[2026-09-16 19:05:14.288] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.289] [info] [cuda] PROBE_CHURN,scope=within,frame=18,newton=1,previous=3022,current=4620,new=1648,r_new=0.3567099567099567,r_churn=0.3635974304068522
+[2026-09-16 19:05:14.289] [info] [cuda] SimplexTrajectoryFilter PTs: 407, EEs: 2716, PEs: 3524, PPs: 1747
+[2026-09-16 19:05:14.289] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.289] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26558, DyTopo Hess3x3 count: 57615
+[2026-09-16 19:05:14.289] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.297] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.297] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.297] [info] [cuda] LinearFusedPCG: captured CUDA graph (interval = 5, n = 972)
+[2026-09-16 19:05:14.298] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.302] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 18 Newton Iteration 1 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.006025840335922152/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.302] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.302] [info] [cuda] SimplexTrajectoryFilter PTs: 394, EEs: 2642, PEs: 3683, PPs: 1675
+[2026-09-16 19:05:14.303] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.303] [info] [cuda] SimplexTrajectoryFilter PTs: 390, EEs: 2737, PEs: 3556, PPs: 1711
+[2026-09-16 19:05:14.304] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.304] [info] [cuda] SimplexTrajectoryFilter PTs: 374, EEs: 2724, PEs: 3421, PPs: 1875
+[2026-09-16 19:05:14.305] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.305] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2647, PEs: 3545, PPs: 1814
+[2026-09-16 19:05:14.310] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.312] [info] [cuda] PROBE_CHURN,scope=within,frame=18,newton=2,previous=4620,current=4499,new=347,r_new=0.07712825072238275,r_churn=0.16408294745319107
+[2026-09-16 19:05:14.312] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2647, PEs: 3545, PPs: 1814
+[2026-09-16 19:05:14.312] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.312] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26403, DyTopo Hess3x3 count: 57062
+[2026-09-16 19:05:14.312] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.317] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3831
+[2026-09-16 19:05:14.317] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3831
+[2026-09-16 19:05:14.318] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.321] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 18 Newton Iteration 2 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.000621581622124842/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.322] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.322] [info] [cuda] SimplexTrajectoryFilter PTs: 393, EEs: 2646, PEs: 3672, PPs: 1683
+[2026-09-16 19:05:14.327] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.328] [info] [cuda] PROBE_CHURN,scope=within,frame=18,newton=3,previous=4499,current=4529,new=473,r_new=0.10443806579818944,r_churn=0.18423169750603374
+[2026-09-16 19:05:14.328] [info] [cuda] SimplexTrajectoryFilter PTs: 393, EEs: 2646, PEs: 3672, PPs: 1683
+[2026-09-16 19:05:14.328] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.328] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26538, DyTopo Hess3x3 count: 57471
+[2026-09-16 19:05:14.328] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.333] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3817
+[2026-09-16 19:05:14.333] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3817
+[2026-09-16 19:05:14.334] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.338] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 18 Newton Iteration 3 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00011376553922311041/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.338] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.338] [info] [cuda] SimplexTrajectoryFilter PTs: 384, EEs: 2682, PEs: 3616, PPs: 1712
+[2026-09-16 19:05:14.339] [info] [cuda] Newton Iteration Converged with Iteration Count: 3, Max: 1024
+[2026-09-16 19:05:14.339] [info] [cuda] <<< End Frame: 18
+[2026-09-16 19:05:14.339] [info] [cuda] >>> Begin Frame: 19
+[2026-09-16 19:05:14.344] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.346] [info] [cuda] PROBE_CHURN,scope=across,frame=19,newton=3,previous=4529,current=4557,new=464,r_new=0.10182137371077463,r_churn=0.18025235329461242
+[2026-09-16 19:05:14.346] [info] [cuda] SimplexTrajectoryFilter PTs: 384, EEs: 2682, PEs: 3616, PPs: 1712
+[2026-09-16 19:05:14.346] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.346] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26536, DyTopo Hess3x3 count: 57492
+[2026-09-16 19:05:14.346] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.350] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3837
+[2026-09-16 19:05:14.350] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3837
+[2026-09-16 19:05:14.350] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.354] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 19 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00019849226572979698/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.354] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.355] [info] [cuda] SimplexTrajectoryFilter PTs: 384, EEs: 2674, PEs: 3620, PPs: 1716
+[2026-09-16 19:05:14.355] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.355] [info] [cuda] <<< End Frame: 19
+[2026-09-16 19:05:14.356] [info] [cuda] >>> Begin Frame: 20
+[2026-09-16 19:05:14.359] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.361] [info] [cuda] PROBE_CHURN,scope=across,frame=20,newton=0,previous=4557,current=4549,new=14,r_new=0.003077599472411519,r_churn=0.007875738350470396
+[2026-09-16 19:05:14.361] [info] [cuda] SimplexTrajectoryFilter PTs: 384, EEs: 2674, PEs: 3620, PPs: 1716
+[2026-09-16 19:05:14.361] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.361] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26524, DyTopo Hess3x3 count: 57448
+[2026-09-16 19:05:14.361] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.365] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.366] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.366] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.370] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 20 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0009277615905413954/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.371] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.371] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2663, PEs: 3640, PPs: 1703
+[2026-09-16 19:05:14.375] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.376] [info] [cuda] PROBE_CHURN,scope=within,frame=20,newton=1,previous=4549,current=4541,new=40,r_new=0.008808632459810615,r_churn=0.019176291130965306
+[2026-09-16 19:05:14.376] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2663, PEs: 3640, PPs: 1703
+[2026-09-16 19:05:14.376] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.376] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26530, DyTopo Hess3x3 count: 57459
+[2026-09-16 19:05:14.376] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.382] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3823
+[2026-09-16 19:05:14.382] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3823
+[2026-09-16 19:05:14.382] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.386] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 20 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00027546744082953/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.386] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.387] [info] [cuda] SimplexTrajectoryFilter PTs: 381, EEs: 2665, PEs: 3609, PPs: 1739
+[2026-09-16 19:05:14.387] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.387] [info] [cuda] <<< End Frame: 20
+[2026-09-16 19:05:14.387] [info] [cuda] >>> Begin Frame: 21
+[2026-09-16 19:05:14.391] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.393] [info] [cuda] PROBE_CHURN,scope=across,frame=21,newton=1,previous=4541,current=4540,new=100,r_new=0.022026431718061675,r_churn=0.04330963154492562
+[2026-09-16 19:05:14.393] [info] [cuda] SimplexTrajectoryFilter PTs: 381, EEs: 2665, PEs: 3609, PPs: 1739
+[2026-09-16 19:05:14.393] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.393] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26489, DyTopo Hess3x3 count: 57331
+[2026-09-16 19:05:14.393] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.399] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3822
+[2026-09-16 19:05:14.399] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3822
+[2026-09-16 19:05:14.399] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.403] [info] [cuda] >> Newton Tolerance Checker
+============================= [x] Frame 21 Newton Iteration 0 ============================
+    [x] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.0007308417930190196/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.403] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.403] [info] [cuda] SimplexTrajectoryFilter PTs: 412, EEs: 2653, PEs: 3660, PPs: 1669
+[2026-09-16 19:05:14.408] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.409] [info] [cuda] PROBE_CHURN,scope=within,frame=21,newton=1,previous=4540,current=4559,new=222,r_new=0.04869488923009432,r_churn=0.08924821503569924
+[2026-09-16 19:05:14.409] [info] [cuda] SimplexTrajectoryFilter PTs: 412, EEs: 2653, PEs: 3660, PPs: 1669
+[2026-09-16 19:05:14.409] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.410] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26578, DyTopo Hess3x3 count: 57617
+[2026-09-16 19:05:14.410] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.415] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3813
+[2026-09-16 19:05:14.415] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3813
+[2026-09-16 19:05:14.416] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.419] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 21 Newton Iteration 1 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00013047800082489517/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.419] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.419] [info] [cuda] SimplexTrajectoryFilter PTs: 411, EEs: 2657, PEs: 3644, PPs: 1682
+[2026-09-16 19:05:14.420] [info] [cuda] Newton Iteration Converged with Iteration Count: 1, Max: 1024
+[2026-09-16 19:05:14.420] [info] [cuda] <<< End Frame: 21
+[2026-09-16 19:05:14.420] [info] [cuda] >>> Begin Frame: 22
+[2026-09-16 19:05:14.424] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.426] [info] [cuda] PROBE_CHURN,scope=across,frame=22,newton=1,previous=4559,current=4564,new=186,r_new=0.04075372480280456,r_churn=0.07734457323498423
+[2026-09-16 19:05:14.426] [info] [cuda] SimplexTrajectoryFilter PTs: 411, EEs: 2657, PEs: 3644, PPs: 1682
+[2026-09-16 19:05:14.426] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.426] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26568, DyTopo Hess3x3 count: 57590
+[2026-09-16 19:05:14.426] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.431] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3824
+[2026-09-16 19:05:14.431] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3824
+[2026-09-16 19:05:14.432] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.435] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 22 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00031498780868588266/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.435] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.436] [info] [cuda] SimplexTrajectoryFilter PTs: 392, EEs: 2649, PEs: 3723, PPs: 1630
+[2026-09-16 19:05:14.436] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.437] [info] [cuda] <<< End Frame: 22
+[2026-09-16 19:05:14.437] [info] [cuda] >>> Begin Frame: 23
+[2026-09-16 19:05:14.440] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.442] [info] [cuda] PROBE_CHURN,scope=across,frame=23,newton=0,previous=4564,current=4542,new=508,r_new=0.11184500220167327,r_churn=0.20465299684542582
+[2026-09-16 19:05:14.442] [info] [cuda] SimplexTrajectoryFilter PTs: 392, EEs: 2649, PEs: 3723, PPs: 1630
+[2026-09-16 19:05:14.442] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.442] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26593, DyTopo Hess3x3 count: 57638
+[2026-09-16 19:05:14.442] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.447] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.447] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.448] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.451] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 23 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00019082788207550248/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.452] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.452] [info] [cuda] SimplexTrajectoryFilter PTs: 393, EEs: 2670, PEs: 3717, PPs: 1614
+[2026-09-16 19:05:14.453] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.453] [info] [cuda] <<< End Frame: 23
+[2026-09-16 19:05:14.453] [info] [cuda] >>> Begin Frame: 24
+[2026-09-16 19:05:14.456] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.458] [info] [cuda] PROBE_CHURN,scope=across,frame=24,newton=0,previous=4542,current=4559,new=1014,r_new=0.22241719675367405,r_churn=0.3619510439164867
+[2026-09-16 19:05:14.458] [info] [cuda] SimplexTrajectoryFilter PTs: 393, EEs: 2670, PEs: 3717, PPs: 1614
+[2026-09-16 19:05:14.458] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.458] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26631, DyTopo Hess3x3 count: 57774
+[2026-09-16 19:05:14.458] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.464] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.464] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.464] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.468] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 24 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.00026271336130953213/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.468] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.468] [info] [cuda] SimplexTrajectoryFilter PTs: 394, EEs: 2659, PEs: 3700, PPs: 1641
+[2026-09-16 19:05:14.469] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.469] [info] [cuda] <<< End Frame: 24
+[2026-09-16 19:05:14.469] [info] [cuda] >>> Begin Frame: 25
+[2026-09-16 19:05:14.473] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.475] [info] [cuda] PROBE_CHURN,scope=across,frame=25,newton=0,previous=4559,current=4543,new=938,r_new=0.20647149460708783,r_churn=0.3441877387665999
+[2026-09-16 19:05:14.475] [info] [cuda] SimplexTrajectoryFilter PTs: 394, EEs: 2659, PEs: 3700, PPs: 1641
+[2026-09-16 19:05:14.475] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.475] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26594, DyTopo Hess3x3 count: 57653
+[2026-09-16 19:05:14.475] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.481] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3835
+[2026-09-16 19:05:14.481] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3835
+[2026-09-16 19:05:14.481] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.485] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 25 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 0.000197959370479052/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.485] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.485] [info] [cuda] SimplexTrajectoryFilter PTs: 376, EEs: 2677, PEs: 3626, PPs: 1715
+[2026-09-16 19:05:14.486] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.486] [info] [cuda] <<< End Frame: 25
+[2026-09-16 19:05:14.486] [info] [cuda] >>> Begin Frame: 26
+[2026-09-16 19:05:14.490] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.492] [info] [cuda] PROBE_CHURN,scope=across,frame=26,newton=0,previous=4543,current=4539,new=590,r_new=0.12998457810090328,r_churn=0.23066432885252286
+[2026-09-16 19:05:14.492] [info] [cuda] SimplexTrajectoryFilter PTs: 376, EEs: 2677, PEs: 3626, PPs: 1715
+[2026-09-16 19:05:14.492] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.492] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26520, DyTopo Hess3x3 count: 57431
+[2026-09-16 19:05:14.492] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.497] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3838
+[2026-09-16 19:05:14.497] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3838
+[2026-09-16 19:05:14.497] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.501] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 26 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 5.667873377895797e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.501] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.501] [info] [cuda] SimplexTrajectoryFilter PTs: 381, EEs: 2668, PEs: 3641, PPs: 1704
+[2026-09-16 19:05:14.502] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.502] [info] [cuda] <<< End Frame: 26
+[2026-09-16 19:05:14.502] [info] [cuda] >>> Begin Frame: 27
+[2026-09-16 19:05:14.506] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.507] [info] [cuda] PROBE_CHURN,scope=across,frame=27,newton=0,previous=4539,current=4540,new=48,r_new=0.010572687224669603,r_churn=0.020710704163941607
+[2026-09-16 19:05:14.507] [info] [cuda] SimplexTrajectoryFilter PTs: 381, EEs: 2668, PEs: 3641, PPs: 1704
+[2026-09-16 19:05:14.507] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.507] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26527, DyTopo Hess3x3 count: 57448
+[2026-09-16 19:05:14.507] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.512] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.512] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.513] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.517] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 27 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 6.099938104415202e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.517] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.517] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2668, PEs: 3654, PPs: 1684
+[2026-09-16 19:05:14.518] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.518] [info] [cuda] <<< End Frame: 27
+[2026-09-16 19:05:14.518] [info] [cuda] >>> Begin Frame: 28
+[2026-09-16 19:05:14.521] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.523] [info] [cuda] PROBE_CHURN,scope=across,frame=28,newton=0,previous=4540,current=4551,new=26,r_new=0.005713030103274006,r_churn=0.008979413053000429
+[2026-09-16 19:05:14.523] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2668, PEs: 3654, PPs: 1684
+[2026-09-16 19:05:14.523] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.523] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26554, DyTopo Hess3x3 count: 57536
+[2026-09-16 19:05:14.523] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.528] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.528] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.529] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.533] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 28 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 5.9125852243751225e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.533] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.533] [info] [cuda] SimplexTrajectoryFilter PTs: 390, EEs: 2666, PEs: 3650, PPs: 1688
+[2026-09-16 19:05:14.534] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.534] [info] [cuda] <<< End Frame: 28
+[2026-09-16 19:05:14.534] [info] [cuda] >>> Begin Frame: 29
+[2026-09-16 19:05:14.538] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.539] [info] [cuda] PROBE_CHURN,scope=across,frame=29,newton=0,previous=4551,current=4551,new=12,r_new=0.0026367831245880024,r_churn=0.005259697567389865
+[2026-09-16 19:05:14.539] [info] [cuda] SimplexTrajectoryFilter PTs: 390, EEs: 2666, PEs: 3650, PPs: 1688
+[2026-09-16 19:05:14.539] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.539] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26550, DyTopo Hess3x3 count: 57524
+[2026-09-16 19:05:14.539] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.545] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.545] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3821
+[2026-09-16 19:05:14.545] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.549] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 29 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 3.821092393933228e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.549] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.549] [info] [cuda] SimplexTrajectoryFilter PTs: 387, EEs: 2674, PEs: 3605, PPs: 1728
+[2026-09-16 19:05:14.550] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.550] [info] [cuda] <<< End Frame: 29
+[2026-09-16 19:05:14.550] [info] [cuda] >>> Begin Frame: 30
+[2026-09-16 19:05:14.554] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.556] [info] [cuda] PROBE_CHURN,scope=across,frame=30,newton=0,previous=4551,current=4554,new=46,r_new=0.010101010101010102,r_churn=0.019360452469001532
+[2026-09-16 19:05:14.556] [info] [cuda] SimplexTrajectoryFilter PTs: 387, EEs: 2674, PEs: 3605, PPs: 1728
+[2026-09-16 19:05:14.556] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.556] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26515, DyTopo Hess3x3 count: 57424
+[2026-09-16 19:05:14.556] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.561] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.561] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.562] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.566] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 30 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 9.957384354414521e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.566] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.566] [info] [cuda] SimplexTrajectoryFilter PTs: 391, EEs: 2665, PEs: 3630, PPs: 1708
+[2026-09-16 19:05:14.567] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.567] [info] [cuda] <<< End Frame: 30
+[2026-09-16 19:05:14.567] [info] [cuda] >>> Begin Frame: 31
+[2026-09-16 19:05:14.571] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.573] [info] [cuda] PROBE_CHURN,scope=across,frame=31,newton=0,previous=4554,current=4551,new=25,r_new=0.005493298176225006,r_churn=0.011574579602533275
+[2026-09-16 19:05:14.573] [info] [cuda] SimplexTrajectoryFilter PTs: 391, EEs: 2665, PEs: 3630, PPs: 1708
+[2026-09-16 19:05:14.573] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.573] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26530, DyTopo Hess3x3 count: 57464
+[2026-09-16 19:05:14.573] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.578] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.578] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3833
+[2026-09-16 19:05:14.579] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.583] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 31 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.3389915255532294e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.583] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.583] [info] [cuda] SimplexTrajectoryFilter PTs: 390, EEs: 2666, PEs: 3613, PPs: 1725
+[2026-09-16 19:05:14.584] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.584] [info] [cuda] <<< End Frame: 31
+[2026-09-16 19:05:14.584] [info] [cuda] >>> Begin Frame: 32
+[2026-09-16 19:05:14.588] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.589] [info] [cuda] PROBE_CHURN,scope=across,frame=32,newton=0,previous=4551,current=4550,new=14,r_new=0.003076923076923077,r_churn=0.00635268346111717
+[2026-09-16 19:05:14.589] [info] [cuda] SimplexTrajectoryFilter PTs: 390, EEs: 2666, PEs: 3613, PPs: 1725
+[2026-09-16 19:05:14.589] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.589] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26513, DyTopo Hess3x3 count: 57413
+[2026-09-16 19:05:14.589] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.595] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3836
+[2026-09-16 19:05:14.595] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3836
+[2026-09-16 19:05:14.595] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.599] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 32 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.2898180894557215e-05/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.599] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.599] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2665, PEs: 3642, PPs: 1699
+[2026-09-16 19:05:14.600] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.600] [info] [cuda] <<< End Frame: 32
+[2026-09-16 19:05:14.600] [info] [cuda] >>> Begin Frame: 33
+[2026-09-16 19:05:14.604] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.605] [info] [cuda] PROBE_CHURN,scope=across,frame=33,newton=0,previous=4550,current=4547,new=13,r_new=0.0028590279305036287,r_churn=0.0063554678939293785
+[2026-09-16 19:05:14.605] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2665, PEs: 3642, PPs: 1699
+[2026-09-16 19:05:14.605] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.605] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26536, DyTopo Hess3x3 count: 57479
+[2026-09-16 19:05:14.605] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.610] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3836
+[2026-09-16 19:05:14.610] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3836
+[2026-09-16 19:05:14.611] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.615] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 33 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 7.565714476127419e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.615] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.615] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2658, PEs: 3636, PPs: 1712
+[2026-09-16 19:05:14.616] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.616] [info] [cuda] <<< End Frame: 33
+[2026-09-16 19:05:14.616] [info] [cuda] >>> Begin Frame: 34
+[2026-09-16 19:05:14.620] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.621] [info] [cuda] PROBE_CHURN,scope=across,frame=34,newton=0,previous=4547,current=4537,new=5,r_new=0.001102049812651532,r_churn=0.004393673110720586
+[2026-09-16 19:05:14.621] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2658, PEs: 3636, PPs: 1712
+[2026-09-16 19:05:14.621] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.621] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26516, DyTopo Hess3x3 count: 57412
+[2026-09-16 19:05:14.621] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.626] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.626] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.627] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.631] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 34 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 2.617756327039417e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.631] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.632] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2658, PEs: 3636, PPs: 1712
+[2026-09-16 19:05:14.632] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.632] [info] [cuda] <<< End Frame: 34
+[2026-09-16 19:05:14.632] [info] [cuda] >>> Begin Frame: 35
+[2026-09-16 19:05:14.636] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.637] [info] [cuda] PROBE_CHURN,scope=across,frame=35,newton=0,previous=4537,current=4537,new=0,r_new=0,r_churn=0
+[2026-09-16 19:05:14.637] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2658, PEs: 3636, PPs: 1712
+[2026-09-16 19:05:14.637] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.637] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26516, DyTopo Hess3x3 count: 57412
+[2026-09-16 19:05:14.637] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.642] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.642] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.642] [info] [cuda] Iterative linear solver iteration count: 10
+[2026-09-16 19:05:14.646] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 35 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 3.1200152715096807e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.647] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.647] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2664, PEs: 3634, PPs: 1708
+[2026-09-16 19:05:14.648] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.648] [info] [cuda] <<< End Frame: 35
+[2026-09-16 19:05:14.648] [info] [cuda] >>> Begin Frame: 36
+[2026-09-16 19:05:14.651] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.652] [info] [cuda] PROBE_CHURN,scope=across,frame=36,newton=0,previous=4537,current=4545,new=11,r_new=0.0024202420242024204,r_churn=0.0030782761653473933
+[2026-09-16 19:05:14.652] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2664, PEs: 3634, PPs: 1708
+[2026-09-16 19:05:14.652] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.652] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26526, DyTopo Hess3x3 count: 57448
+[2026-09-16 19:05:14.652] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.657] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.657] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.657] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.661] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 36 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 2.7861094872964824e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.661] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.661] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2664, PEs: 3634, PPs: 1708
+[2026-09-16 19:05:14.662] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.662] [info] [cuda] <<< End Frame: 36
+[2026-09-16 19:05:14.662] [info] [cuda] >>> Begin Frame: 37
+[2026-09-16 19:05:14.666] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.667] [info] [cuda] PROBE_CHURN,scope=across,frame=37,newton=0,previous=4545,current=4545,new=1,r_new=0.00022002200220022002,r_churn=0.0004399472063352228
+[2026-09-16 19:05:14.667] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2664, PEs: 3634, PPs: 1708
+[2026-09-16 19:05:14.667] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.667] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26526, DyTopo Hess3x3 count: 57448
+[2026-09-16 19:05:14.667] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.671] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.671] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.671] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.675] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 37 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 1.4565504786187348e-06/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.675] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.675] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2663, PEs: 3633, PPs: 1710
+[2026-09-16 19:05:14.676] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.676] [info] [cuda] <<< End Frame: 37
+[2026-09-16 19:05:14.676] [info] [cuda] >>> Begin Frame: 38
+[2026-09-16 19:05:14.680] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.682] [info] [cuda] PROBE_CHURN,scope=across,frame=38,newton=0,previous=4545,current=4543,new=1,r_new=0.00022011886418666079,r_churn=0.0008798944126704455
+[2026-09-16 19:05:14.682] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2663, PEs: 3633, PPs: 1710
+[2026-09-16 19:05:14.682] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.682] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26523, DyTopo Hess3x3 count: 57438
+[2026-09-16 19:05:14.682] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.686] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.686] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.686] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.690] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 38 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 6.630445373274113e-07/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.690] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.690] [info] [cuda] SimplexTrajectoryFilter PTs: 389, EEs: 2660, PEs: 3633, PPs: 1712
+[2026-09-16 19:05:14.691] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.691] [info] [cuda] <<< End Frame: 38
+[2026-09-16 19:05:14.691] [info] [cuda] >>> Begin Frame: 39
+[2026-09-16 19:05:14.695] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.696] [info] [cuda] PROBE_CHURN,scope=across,frame=39,newton=0,previous=4543,current=4540,new=2,r_new=0.0004405286343612335,r_churn=0.0015401540154015292
+[2026-09-16 19:05:14.696] [info] [cuda] SimplexTrajectoryFilter PTs: 389, EEs: 2660, PEs: 3633, PPs: 1712
+[2026-09-16 19:05:14.696] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.696] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26519, DyTopo Hess3x3 count: 57424
+[2026-09-16 19:05:14.696] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.700] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.700] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.701] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.704] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 39 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 6.931710745210851e-07/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.704] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.704] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2660, PEs: 3634, PPs: 1712
+[2026-09-16 19:05:14.705] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.705] [info] [cuda] <<< End Frame: 39
+[2026-09-16 19:05:14.705] [info] [cuda] >>> Begin Frame: 40
+[2026-09-16 19:05:14.709] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.710] [info] [cuda] PROBE_CHURN,scope=across,frame=40,newton=0,previous=4540,current=4539,new=1,r_new=0.0002203128442388191,r_churn=0.0006606474344857949
+[2026-09-16 19:05:14.710] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2660, PEs: 3634, PPs: 1712
+[2026-09-16 19:05:14.710] [info] [cuda] DyTopo Effect Assembly: GradientOnly=false, ComponentFlags=Contact|Complement
+[2026-09-16 19:05:14.710] [info] [cuda] <class uipc::backend::cuda::IPCSimplexNormalContact> DyTopo Grad3 count: 26518, DyTopo Hess3x3 count: 57420
+[2026-09-16 19:05:14.710] [info] [cuda] <class uipc::backend::cuda::IPCVertexHalfPlaneNormalContact> DyTopo Grad3 count: 81, DyTopo Hess3x3 count: 81
+[2026-09-16 19:05:14.715] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.715] [info] [cuda] GlobalLinearSystem has 972 DoFs, Unique Triplet Count: 3829
+[2026-09-16 19:05:14.715] [info] [cuda] Iterative linear solver iteration count: 5
+[2026-09-16 19:05:14.719] [info] [cuda] >> Newton Tolerance Checker
+============================= [*] Frame 40 Newton Iteration 0 ============================
+    [*] <class uipc::backend::cuda::MaxTranslationChecker> Residual/AbsTol: 5.93561032462694e-07/0.0005
+--------------------------------------------------------------------------------------------
+[2026-09-16 19:05:14.719] [info] [cuda] VertexHalfPlaneTrajectoryFilter PHs: 81.
+[2026-09-16 19:05:14.719] [info] [cuda] SimplexTrajectoryFilter PTs: 388, EEs: 2659, PEs: 3635, PPs: 1712
+[2026-09-16 19:05:14.719] [info] [cuda] Newton Iteration Converged with Iteration Count: 0, Max: 1024
+[2026-09-16 19:05:14.720] [info] [cuda] <<< End Frame: 40
+[2026-09-16 19:05:14.720] [info] Cuda Backend Shutdown Success.
+PROBE_FRAME,4,1,8,1,19.248500,2,10,2,1,1.000000000,0.079020000,0.040000000
+PROBE_FRAME,4,1,8,2,8.753200,2,10,2,1,1.000000000,0.077060000,0.040000000
+PROBE_FRAME,4,1,8,3,9.852800,2,10,2,1,1.000000000,0.074120000,0.040000000
+PROBE_FRAME,4,1,8,4,8.764700,2,10,2,1,1.000000000,0.070200000,0.040000000
+PROBE_FRAME,4,1,8,5,9.770900,2,10,2,1,1.000000000,0.065300000,0.040000000
+PROBE_FRAME,4,1,8,6,9.984500,2,10,2,1,1.000000000,0.059420000,0.040000000
+PROBE_FRAME,4,1,8,7,9.059700,2,15,2,1,1.000000000,0.052560000,0.040000000
+PROBE_FRAME,4,1,8,8,10.232300,2,15,2,1,1.000000000,0.044720000,0.040000000
+PROBE_FRAME,4,1,8,9,9.117100,2,15,2,1,1.000000000,0.035900000,0.040000000
+PROBE_FRAME,4,1,8,10,10.634400,2,15,2,1,1.000000000,0.026100000,0.040000000
+PROBE_FRAME,4,1,8,11,10.311800,2,15,2,1,1.000000000,0.015320000,0.040000000
+PROBE_FRAME,4,1,8,12,14.406500,3,15,4,1,1.000000000,0.009014294,0.033713902
+PROBE_FRAME,4,1,8,13,12.891800,2,10,2,1,1.000000000,0.008838822,0.020976079
+PROBE_FRAME,4,1,8,14,65.802400,4,20,6,1,1.000000000,0.009083361,0.011185123
+PROBE_FRAME,4,1,8,15,23.195000,2,10,2,1,1.000000000,0.008514423,0.011149210
+PROBE_FRAME,4,1,8,16,74.698500,5,25,10,1,1.000000000,0.008712317,0.011284036
+PROBE_FRAME,4,1,8,17,31.152400,2,15,2,1,1.000000000,0.008408539,0.011111635
+PROBE_FRAME,4,1,8,18,72.840200,4,30,8,1,1.000000000,0.008311150,0.011070277
+PROBE_FRAME,4,1,8,19,16.293700,1,10,1,1,1.000000000,0.008372927,0.011112694
+PROBE_FRAME,4,1,8,20,31.837900,2,20,2,1,1.000000000,0.008864111,0.011336095
+PROBE_FRAME,4,1,8,21,32.783000,2,20,2,1,1.000000000,0.009306213,0.011496742
+PROBE_FRAME,4,1,8,22,16.313400,1,10,1,1,1.000000000,0.009481648,0.011536363
+PROBE_FRAME,4,1,8,23,16.033200,1,10,1,1,1.000000000,0.009432551,0.011498244
+PROBE_FRAME,4,1,8,24,16.530900,1,5,1,1,1.000000000,0.009297334,0.011437782
+PROBE_FRAME,4,1,8,25,16.968300,1,5,1,1,1.000000000,0.009188291,0.011413386
+PROBE_FRAME,4,1,8,26,15.799300,1,5,1,1,1.000000000,0.009155929,0.011421338
+PROBE_FRAME,4,1,8,27,15.552300,1,10,1,1,1.000000000,0.009175968,0.011434901
+PROBE_FRAME,4,1,8,28,15.932000,1,10,1,1,1.000000000,0.009208495,0.011442996
+PROBE_FRAME,4,1,8,29,16.651900,1,5,1,1,1.000000000,0.009229308,0.011445226
+PROBE_FRAME,4,1,8,30,16.751400,1,10,1,1,1.000000000,0.009234048,0.011443082
+PROBE_FRAME,4,1,8,31,16.608800,1,10,1,1,1.000000000,0.009228775,0.011440471
+PROBE_FRAME,4,1,8,32,15.926200,1,5,1,1,1.000000000,0.009221767,0.011439117
+PROBE_FRAME,4,1,8,33,16.041300,1,5,1,1,1.000000000,0.009217614,0.011439241
+PROBE_FRAME,4,1,8,34,16.474000,1,10,1,1,1.000000000,0.009216995,0.011439839
+PROBE_FRAME,4,1,8,35,15.181900,1,10,1,1,1.000000000,0.009218352,0.011440290
+PROBE_FRAME,4,1,8,36,14.551500,1,5,1,1,1.000000000,0.009219869,0.011440437
+PROBE_FRAME,4,1,8,37,13.521600,1,5,1,1,1.000000000,0.009220669,0.011440351
+PROBE_FRAME,4,1,8,38,14.794400,1,5,1,1,1.000000000,0.009220707,0.011440223
+PROBE_FRAME,4,1,8,39,14.504000,1,5,1,1,1.000000000,0.009220381,0.011440151
+PROBE_FRAME,4,1,8,40,14.430500,1,5,1,1,1.000000000,0.009220056,0.011440153
+All tests passed (369 assertions in 1 test case)
