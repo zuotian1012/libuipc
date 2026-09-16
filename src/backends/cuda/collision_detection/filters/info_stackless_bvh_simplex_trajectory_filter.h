@@ -5,6 +5,8 @@
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/info_stackless_bvh.h>
 #include <collision_detection/simplex_trajectory_filter.h>
+#include <array>
+#include <vector>
 
 namespace uipc::backend::cuda
 {
@@ -16,9 +18,10 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
     class Impl
     {
       public:
-        void detect(DetectInfo& info);
-        void filter_active(FilterActiveInfo& info);
-        void filter_toi(FilterTOIInfo& info);
+        void  detect(DetectInfo& info);
+        void  filter_active(FilterActiveInfo& info);
+        void  filter_toi(FilterTOIInfo& info);
+        Float last_detect_alpha = 1.0;
 
         /****************************************************
         *                   Broad Phase
@@ -81,7 +84,9 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
     virtual cuda_tool::CBufferView<Float> toi_EEs() const noexcept override;
 
   private:
-    Impl m_impl;
+    Impl                               m_impl;
+    std::vector<std::array<IndexT, 5>> m_previous_pair_keys;
+    SizeT                              m_previous_pair_frame = ~SizeT{0};
 
     virtual void do_build(BuildInfo& info) override final;
     virtual void do_detect(DetectInfo& info) override final;

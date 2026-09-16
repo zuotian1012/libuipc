@@ -1575,3 +1575,17 @@ regression).
   repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
   real Python 3.14 CUDA doctor probe, and the complete documentation build all
   passed.
+
+## 2026-09-16 contact bottleneck research probe
+
+- Added an opt-in procedural cloth-stack simulation case and opt-in CUDA
+  candidate-count / canonical active-pair churn diagnostics. Default contact
+  behavior is unchanged when the research environment variables are unset.
+- Three-run throughput controls on an RTX 3060 Ti showed a 3.53x contact-on
+  versus contact-off frame-time ratio for the four-layer, 16x16-grid scene.
+  Synchronized stage timing found material DCD and trajectory-detection cost.
+  During contact formation, within-frame pair churn was substantial; in settled
+  frames, across-frame pair churn was very low. This does not yet justify
+  skipping a collision search. See
+  `agent_docs/performance/2026-09-16-contact-bottleneck-probe.md` for the
+  evidence boundary and next gate.

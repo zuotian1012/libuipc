@@ -10,7 +10,9 @@
 #include <uipc/common/zip.h>
 #include <utils/primitive_d_hat.h>
 #include <array>
+#include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 namespace uipc::backend::cuda
 {
@@ -1211,6 +1213,79 @@ void InfoStacklessBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
 void InfoStacklessBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
 {
     m_impl.filter_active(info);
+    if(!std::getenv("UIPC_PROBE_PAIR_CHURN") || m_impl.last_detect_alpha != 0.0)
+        return;
+
+    std::vector<Vector2i> pps;
+    std::vector<Vector3i> pes;
+    std::vector<Vector4i> pts;
+    std::vector<Vector4i> ees;
+    m_impl.PPs.copy_to(pps);
+    m_impl.PEs.copy_to(pes);
+    m_impl.PTs.copy_to(pts);
+    m_impl.EEs.copy_to(ees);
+
+    std::vector<std::array<IndexT, 5>> keys;
+    keys.reserve(pps.size() + pes.size() + pts.size() + ees.size());
+    for(const auto& pair : pps)
+        keys.push_back({0, std::min(pair[0], pair[1]), std::max(pair[0], pair[1]), -1, -1});
+    for(const auto& pair : pes)
+        keys.push_back(
+            {1, pair[0], std::min(pair[1], pair[2]), std::max(pair[1], pair[2]), -1});
+    for(const auto& pair : pts)
+    {
+        std::array<IndexT, 3> triangle{pair[1], pair[2], pair[3]};
+        std::sort(triangle.begin(), triangle.end());
+        keys.push_back({2, pair[0], triangle[0], triangle[1], triangle[2]});
+    }
+    for(const auto& pair : ees)
+    {
+        std::array<IndexT, 2> first{pair[0], pair[1]};
+        std::array<IndexT, 2> second{pair[2], pair[3]};
+        std::sort(first.begin(), first.end());
+        std::sort(second.begin(), second.end());
+        if(second < first)
+            std::swap(first, second);
+        keys.push_back({3, first[0], first[1], second[0], second[1]});
+    }
+    std::sort(keys.begin(), keys.end());
+    keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+
+    const SizeT frame = engine().frame();
+    if(m_previous_pair_frame != ~SizeT{0})
+    {
+        SizeT intersection = 0;
+        auto  old_it       = m_previous_pair_keys.begin();
+        auto  new_it       = keys.begin();
+        while(old_it != m_previous_pair_keys.end() && new_it != keys.end())
+        {
+            if(*old_it < *new_it)
+                ++old_it;
+            else if(*new_it < *old_it)
+                ++new_it;
+            else
+            {
+                ++intersection;
+                ++old_it;
+                ++new_it;
+            }
+        }
+        const SizeT newly_discovered = keys.size() - intersection;
+        const SizeT union_size = m_previous_pair_keys.size() + keys.size() - intersection;
+        const Float r_new = keys.empty() ? 0.0 : Float(newly_discovered) / keys.size();
+        const Float r_churn = union_size == 0 ? 0.0 : 1.0 - Float(intersection) / union_size;
+        logger::info("PROBE_CHURN,scope={},frame={},newton={},previous={},current={},new={},r_new={},r_churn={}",
+                     m_previous_pair_frame == frame ? "within" : "across",
+                     frame,
+                     engine().newton_iter(),
+                     m_previous_pair_keys.size(),
+                     keys.size(),
+                     newly_discovered,
+                     r_new,
+                     r_churn);
+    }
+    m_previous_pair_frame = frame;
+    m_previous_pair_keys  = std::move(keys);
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
@@ -1248,6 +1323,7 @@ cuda_tool::CBufferView<Float> InfoStacklessBVHSimplexTrajectoryFilter::toi_EEs()
 void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     auto alpha                = info.alpha();
+    last_detect_alpha         = alpha;
     auto Ps                   = info.positions();
     auto dxs                  = info.displacements();
     auto codimVs              = info.codim_vertices();
@@ -1480,6 +1556,14 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         launch_alle_alle();
     if(lbvh_T.prepare_query_result(candidate_AllP_AllT_pairs, host_counts[3]))
         launch_allp_allt(false);
+
+    if(std::getenv("UIPC_PROBE_PAIR_COUNTS"))
+        logger::info("PROBE_CANDIDATES,alpha={},pp={},pe={},pt={},ee={}",
+                     alpha,
+                     candidate_AllP_CodimP_pairs.size(),
+                     candidate_CodimP_AllE_pairs.size(),
+                     candidate_AllP_AllT_pairs.size(),
+                     candidate_AllE_AllE_pairs.size());
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
@@ -1646,6 +1730,13 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveIn
     info.PEs(PEs);
     info.PTs(PTs);
     info.EEs(EEs);
+
+    if(std::getenv("UIPC_PROBE_PAIR_COUNTS"))
+        logger::info("PROBE_ACTIVE,pp={},pe={},pt={},ee={}",
+                     PPs.size(),
+                     PEs.size(),
+                     PTs.size(),
+                     EEs.size());
 
     if constexpr(PrintDebugInfo)
     {

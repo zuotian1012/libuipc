@@ -23,6 +23,7 @@ when iteration counts change. Report both and state which is the primary signal.
 | Record | Status | Scope |
 |---|---|---|
 | [2026-09-01 cross-domain main baseline](2026-09-01-cross-domain-baseline.md) | Current reference | Three-run ABD, FEM/MAS, cloth/contact envelope and synchronized stage diagnostics |
+| [2026-09-16 contact bottleneck probe](2026-09-16-contact-bottleneck-probe.md) | Preliminary research probe | Small cloth-stack control, stage timing, and active-pair churn; no causal or novelty claim |
 | [2026-08-30 case2 assembly roll-up](2026-08-30-case2-assembly-rollup.md) | Accepted with caveats | Buffer growth, collision readback, line-search aggregation, contact/FEM assembly, rejected split |
 | [`handoff.md`](../handoff.md) | Historical source | Earlier MAS, CUDA graph, CUB, DyTopo, lifecycle, and detailed command history |
 

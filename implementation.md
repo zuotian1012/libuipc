@@ -1,5 +1,103 @@
 # IPC / Contact Bottleneck Investigation — Implementation Plan
 
+## Execution contract (2026-09-16)
+
+This section is the operational protocol. The experiments below are a menu;
+run them in the order dictated by evidence, not as a mandatory checklist.
+
+### Immediate milestone: group meeting, 2026-09-17 10:30 China time
+
+Deliver exactly three slides and a short written report. A valid preliminary
+result may be a measured scaling pattern plus an explicit open causal question.
+Do not present a code-path observation, one run, or an oracle upper bound as a
+confirmed research contribution.
+
+1. Freeze the current `libuipc` commit, build mode, GPU, CUDA, scene source,
+   contact constitution, solver settings, and run command in `experiments/env.md`.
+2. Run a no-contact control and at least two contact densities with identical
+   mesh resolution, gravity, frame count, and solver settings. Start with the
+   in-repository `94_contact_density_probe` when sample assets are unavailable.
+3. Require every measured frame to complete and converge. For ground-contact
+   scenes, check the minimum vertex height against the ground within a stated
+   numerical tolerance. Preserve raw logs including failures.
+4. Repeat each condition in three fresh processes. Exclude initialization and
+   the first five frames from the main frame-time window; label contact-formation
+   and settled intervals separately. Report median and range, not a single FPS.
+5. Show both total frame time and Newton/linear iteration counts. Claim a
+   contact-induced scaling cliff only if the control and contact runs differ
+   consistently across repetitions; otherwise report the measurement as
+   inconclusive.
+
+Current-machine constraint: an RTX 3060 Ti has 8 GiB of VRAM. Start with
+small scenes; increase resolution/layers only after checking peak allocation.
+The original 100k–500k DOF sweeps are later stress experiments, not a
+prerequisite for the first meeting.
+
+### Measurement definitions and controls
+
+- `T_frame`: wall time of `advance()` plus `retrieve()`, measured without
+  synchronized stage timers. Record initialization separately. Keep frame
+  indices and all settings identical between variants.
+- Stage attribution: run a separate diagnostic with the repository's `Timer`
+  scopes enabled. These synchronize GPU work and can change `T_frame`; never
+  substitute their sum for the timer-free throughput measurement.
+- `N_candidates`: final broad-phase primitive pairs passed to the next stage,
+  counted separately by primitive type. Distinguish raw BVH overlaps from
+  filtered pairs; never divide one by active contacts under an ambiguous name.
+- `C_k`: canonical DCD/contact primitive-pair keys after active filtering at
+  the start of Newton iteration `k`, including pair type and global primitive
+  IDs. Compare sets within a frame only. Sort/unique for analysis without
+  changing the solver's original GPU ordering.
+- Empty-set convention: if both `C_k` and `C_{k+1}` are empty, churn is zero;
+  if only the next set is empty, `R_new` is zero and Jaccard churn is one.
+- `R_new` and `R_churn` describe observed set change. Low churn does **not**
+  prove a missed pair cannot appear; a conservative validity certificate is
+  required before any production refresh is skipped.
+- Measure per-query CCD cost in a separate diagnostic. On the GPU, per-thread
+  wall time is misleading because of warp divergence and concurrent execution;
+  first collect iteration/refinement counts and query features, then profile
+  representative kernels with an appropriate GPU profiler.
+- Contact correctness: `world.is_valid()`, completed/converged frame stats,
+  finite energies/steps, no iteration-limit flags, and minimum separation or
+  intersection checks appropriate to each scene. Compare physical observables
+  with unchanged-run variability; bitwise equality is not required.
+
+### Decision gates
+
+**Gate A — Can we measure it?** Reproducible build and three valid runs per
+condition. If not, repair the harness before claiming a bottleneck.
+
+**Gate B — Is work growing faster than useful contact?** For the same scene
+family, sweep one variable at a time. Plot candidate count, active pair count,
+Newton count, linear iterations, and timer-free wall time per frame. Record
+uncertainty and the frame interval where the event occurs.
+
+**Gate C — What causes the extra time?** Use stage timing and a diagnostic
+intervention only on a regime that passed Gate B. An oracle may be physically
+incorrect and must be labeled `diagnostic only`; it bounds possible speedup,
+not a deployable algorithm. Rerun the untouched baseline as the correctness
+reference. Any proposed production algorithm must preserve conservative
+collision guarantees and pass the same correctness checks.
+
+**Gate D — Is this a research seed?** Replicate the failure in at least three
+different scene families and compare against relevant published methods before
+claiming novelty. If the upper-bound speedup is below 1.2x, or the effect is
+limited to one geometry, archive the result and move to another mechanism.
+
+### Concrete first-week sequence
+
+| Order | Experiment | Deliverable | Advance when |
+|---|---|---|---|
+| 1 | No contact vs 1/2/4 cloth layers | Valid raw logs and frame-level CSV | All runs converge and show actual contact |
+| 2 | Repeat with two mesh resolutions | Count/iteration/time scaling plot | A stable cliff survives three runs |
+| 3 | Add DCD and trajectory candidate counts | Candidate inflation plot | Counts explain a material part of the cliff |
+| 4 | Export canonical contact-pair keys per Newton step | `R_new`/`R_churn` distributions | Logging overhead is measured separately |
+| 5 | Stage timing and safe offline oracle | Causal bound with correctness caveat | Stage cost and oracle agree |
+
+If step 2 has no cliff, inspect existing mixed FEM/ABD and thin-shell cases
+before adding deeper instrumentation. Do not preselect collision refresh as
+the answer merely because the IPC source calls detection each Newton step.
+
 ## 0. Objective
 
 本阶段的目标不是直接提出新的 contact / collision algorithm，而是系统定位当前 IPC / libuipc pipeline 中仍然存在的 **causal bottleneck**，并判断是否存在足够 general、可复现、可解释的 research opportunity。
