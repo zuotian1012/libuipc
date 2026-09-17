@@ -1,0 +1,266 @@
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "count": 70,
+                      "duration": 0.12997500000000003,
+                      "name": "Detect Trajectory Candidates",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [],
+                          "count": 83,
+                          "duration": 0.0721921,
+                          "name": "Compute Energy",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search/Line Search Iteration"
+                        },
+                        {
+                          "children": [],
+                          "count": 83,
+                          "duration": 0.025067200000000005,
+                          "name": "Filter Contact Candidates",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search/Line Search Iteration"
+                        }
+                      ],
+                      "count": 83,
+                      "duration": 0.09974949999999999,
+                      "name": "Line Search Iteration",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    },
+                    {
+                      "children": [],
+                      "count": 70,
+                      "duration": 0.060765700000000006,
+                      "name": "Compute Energy",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    },
+                    {
+                      "children": [],
+                      "count": 70,
+                      "duration": 0.03334270000000001,
+                      "name": "Filter CCD TOI",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    },
+                    {
+                      "children": [],
+                      "count": 70,
+                      "duration": 0.010441500000000001,
+                      "name": "Compute Feasible Step",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    },
+                    {
+                      "children": [],
+                      "count": 1,
+                      "duration": 5e-07,
+                      "name": "Compute CFL Condition",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Line Search"
+                    }
+                  ],
+                  "count": 70,
+                  "duration": 0.34072139999999995,
+                  "name": "Line Search",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [],
+                          "count": 70,
+                          "duration": 0.0074607,
+                          "name": "Scan and Allocate",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Compute DyTopo Effect/Assemble Dytopo Effect"
+                        },
+                        {
+                          "children": [],
+                          "count": 70,
+                          "duration": 0.0004027000000000001,
+                          "name": "Report Extent",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Compute DyTopo Effect/Assemble Dytopo Effect"
+                        }
+                      ],
+                      "count": 70,
+                      "duration": 0.25568409999999997,
+                      "name": "Assemble Dytopo Effect",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Compute DyTopo Effect"
+                    },
+                    {
+                      "children": [],
+                      "count": 70,
+                      "duration": 4.47e-05,
+                      "name": "Distribute Dytopo Effect",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Compute DyTopo Effect"
+                    }
+                  ],
+                  "count": 70,
+                  "duration": 0.2562542,
+                  "name": "Compute DyTopo Effect",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [],
+                          "count": 70,
+                          "duration": 0.09953309999999997,
+                          "name": "Assemble Subsystems",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System/Build Linear System"
+                        },
+                        {
+                          "children": [],
+                          "count": 70,
+                          "duration": 0.06963699999999999,
+                          "name": "Convert To BCOO",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System/Build Linear System"
+                        },
+                        {
+                          "children": [],
+                          "count": 70,
+                          "duration": 0.00203,
+                          "name": "Assemble Preconditioner",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System/Build Linear System"
+                        }
+                      ],
+                      "count": 70,
+                      "duration": 0.1775957,
+                      "name": "Build Linear System",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System"
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "children": [],
+                              "count": 70,
+                              "duration": 0.0010617999999999995,
+                              "name": "Apply Preconditioner",
+                              "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System/Solve Linear System/FusedPCG"
+                            }
+                          ],
+                          "count": 70,
+                          "duration": 0.037247100000000005,
+                          "name": "FusedPCG",
+                          "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System/Solve Linear System"
+                        }
+                      ],
+                      "count": 70,
+                      "duration": 0.039141399999999986,
+                      "name": "Solve Linear System",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Solve Global Linear System"
+                    }
+                  ],
+                  "count": 70,
+                  "duration": 0.21888550000000007,
+                  "name": "Solve Global Linear System",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "count": 30,
+                      "duration": 0.07864699999999998,
+                      "name": "Probe DCD Detect Core",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Detect DCD Candidates"
+                    },
+                    {
+                      "children": [],
+                      "count": 30,
+                      "duration": 0.0037592,
+                      "name": "Probe DCD Filter Core",
+                      "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration/Detect DCD Candidates"
+                    }
+                  ],
+                  "count": 30,
+                  "duration": 0.1334212,
+                  "name": "Detect DCD Candidates",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Newton Iteration"
+                }
+              ],
+              "count": 70,
+              "duration": 0.9508679000000001,
+              "name": "Newton Iteration",
+              "parent": "/Contact Density Probe/Pipeline/Simulation"
+            },
+            {
+              "children": [
+                {
+                  "children": [],
+                  "count": 40,
+                  "duration": 0.1274649,
+                  "name": "Probe DCD Detect Core",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Detect DCD Candidates"
+                },
+                {
+                  "children": [],
+                  "count": 40,
+                  "duration": 0.0063495,
+                  "name": "Probe DCD Filter Core",
+                  "parent": "/Contact Density Probe/Pipeline/Simulation/Detect DCD Candidates"
+                }
+              ],
+              "count": 40,
+              "duration": 0.25945009999999996,
+              "name": "Detect DCD Candidates",
+              "parent": "/Contact Density Probe/Pipeline/Simulation"
+            },
+            {
+              "children": [],
+              "count": 40,
+              "duration": 0.0011579,
+              "name": "Update Velocity",
+              "parent": "/Contact Density Probe/Pipeline/Simulation"
+            },
+            {
+              "children": [],
+              "count": 40,
+              "duration": 0.0010455,
+              "name": "Compute External Force Accelerations",
+              "parent": "/Contact Density Probe/Pipeline/Simulation"
+            },
+            {
+              "children": [],
+              "count": 40,
+              "duration": 0.0008530999999999999,
+              "name": "Clear External Forces",
+              "parent": "/Contact Density Probe/Pipeline/Simulation"
+            }
+          ],
+          "count": 40,
+          "duration": 1.2197817000000002,
+          "name": "Simulation",
+          "parent": "/Contact Density Probe/Pipeline"
+        },
+        {
+          "children": [],
+          "count": 40,
+          "duration": 4.75e-05,
+          "name": "Rebuild Scene",
+          "parent": "/Contact Density Probe/Pipeline"
+        }
+      ],
+      "count": 40,
+      "duration": 1.2201087,
+      "name": "Pipeline",
+      "parent": "/Contact Density Probe"
+    }
+  ],
+  "count": 1,
+  "duration": 0.0,
+  "name": "Contact Density Probe",
+  "parent": ""
+}

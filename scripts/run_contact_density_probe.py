@@ -35,6 +35,8 @@ def main() -> None:
     parser.add_argument("--frames", type=int, default=40)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--layers", type=int, nargs="+", default=[1, 2, 4])
+    parser.add_argument("--contacts", type=int, nargs="+", choices=[0, 1], default=[0, 1])
+    parser.add_argument("--initial-down-speed", type=float, default=0.0)
     parser.add_argument("--grid", type=int, default=8)
     parser.add_argument("--out", type=Path, default=ROOT / "experiments/probe")
     args = parser.parse_args()
@@ -42,11 +44,21 @@ def main() -> None:
     (args.out / "logs").mkdir(exist_ok=True)
 
     env = os.environ.copy()
+    for key in (
+        "UIPC_PROBE_PAIR_COUNTS",
+        "UIPC_PROBE_PAIR_CHURN",
+        "UIPC_PROBE_TOI_HIST",
+        "UIPC_PROBE_DCD_CORE_TIMES",
+        "UIPC_PROBE_TIMER_PATH",
+        "UIPC_PROBE_TIMER_RAW_PATH",
+    ):
+        env.pop(key, None)
+    env["UIPC_PROBE_TIMERS"] = "0"
     env["PATH"] = os.pathsep.join(str(p.resolve()) for p in args.runtime_dir) + os.pathsep + env.get("PATH", "")
     rows: list[dict[str, float | int]] = []
     runs: list[dict[str, object]] = []
     for layers in args.layers:
-        for contact in (0, 1):
+        for contact in args.contacts:
             for repeat in range(1, args.repeats + 1):
                 run_env = env.copy()
                 run_env.update(
@@ -54,8 +66,11 @@ def main() -> None:
                     UIPC_PROBE_CONTACT=str(contact),
                     UIPC_PROBE_FRAMES=str(args.frames),
                     UIPC_PROBE_GRID=str(args.grid),
+                    UIPC_PROBE_INITIAL_DOWN_SPEED=str(args.initial_down_speed),
                 )
                 name = f"layers{layers}_contact{contact}_repeat{repeat}"
+                frame_path = args.out / "logs" / f"{name}.frames.txt"
+                run_env["UIPC_PROBE_CSV_PATH"] = str(frame_path.resolve())
                 result = subprocess.run(
                     [str(args.binary.resolve()), "94_contact_density_probe", "--reporter", "compact"],
                     cwd=ROOT,
@@ -69,7 +84,8 @@ def main() -> None:
                 )
                 (args.out / "logs" / f"{name}.txt").write_text(result.stdout, encoding="utf-8")
                 parsed = []
-                for line in result.stdout.splitlines():
+                frame_lines = frame_path.read_text(encoding="utf-8").splitlines() if frame_path.exists() else []
+                for line in frame_lines:
                     if not line.startswith("PROBE_FRAME,"):
                         continue
                     values = line.split(",")[1:]
@@ -106,7 +122,7 @@ def main() -> None:
             writer.writerows(rows)
     summaries = []
     for layers in args.layers:
-        for contact in (0, 1):
+        for contact in args.contacts:
             run_medians = []
             run_newton = []
             run_linear = []
@@ -128,7 +144,7 @@ def main() -> None:
                     "median_linear_iterations": statistics.median(run_linear) if run_linear else None,
                 }
             )
-    report = {"configuration": {"frames": args.frames, "repeats": args.repeats, "layers": args.layers, "grid": args.grid}, "runs": runs, "summary": summaries}
+    report = {"configuration": {"frames": args.frames, "repeats": args.repeats, "layers": args.layers, "contacts": args.contacts, "grid": args.grid, "initial_down_speed": args.initial_down_speed}, "runs": runs, "summary": summaries}
     (args.out / "summary.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summaries, indent=2))
     if not all(run["valid"] for run in runs):

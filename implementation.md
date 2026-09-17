@@ -12,18 +12,20 @@ result may be a measured scaling pattern plus an explicit open causal question.
 Do not present a code-path observation, one run, or an oracle upper bound as a
 confirmed research contribution.
 
-1. Freeze the current `libuipc` commit, build mode, GPU, CUDA, scene source,
+1. [x] Freeze the current `libuipc` commit, build mode, GPU, CUDA, scene source,
    contact constitution, solver settings, and run command in `experiments/env.md`.
-2. Run a no-contact control and at least two contact densities with identical
+2. [x] Run a no-contact control and at least two contact densities with identical
    mesh resolution, gravity, frame count, and solver settings. Start with the
    in-repository `94_contact_density_probe` when sample assets are unavailable.
-3. Require every measured frame to complete and converge. For ground-contact
+3. [x] Require every measured frame to complete and converge. For ground-contact
    scenes, check the minimum vertex height against the ground within a stated
    numerical tolerance. Preserve raw logs including failures.
-4. Repeat each condition in three fresh processes. Exclude initialization and
+4. [ ] Repeat each condition in three fresh processes. Exclude initialization and
    the first five frames from the main frame-time window; label contact-formation
    and settled intervals separately. Report median and range, not a single FPS.
-5. Show both total frame time and Newton/linear iteration counts. Claim a
+   The runs and medians are complete; the report still needs the per-condition
+   range and a consistent formation/settled split for every condition.
+5. [x] Show both total frame time and Newton/linear iteration counts. Claim a
    contact-induced scaling cliff only if the control and contact runs differ
    consistently across repetitions; otherwise report the measurement as
    inconclusive.
@@ -86,17 +88,42 @@ limited to one geometry, archive the result and move to another mechanism.
 
 ### Concrete first-week sequence
 
-| Order | Experiment | Deliverable | Advance when |
-|---|---|---|---|
-| 1 | No contact vs 1/2/4 cloth layers | Valid raw logs and frame-level CSV | All runs converge and show actual contact |
-| 2 | Repeat with two mesh resolutions | Count/iteration/time scaling plot | A stable cliff survives three runs |
-| 3 | Add DCD and trajectory candidate counts | Candidate inflation plot | Counts explain a material part of the cliff |
-| 4 | Export canonical contact-pair keys per Newton step | `R_new`/`R_churn` distributions | Logging overhead is measured separately |
-| 5 | Stage timing and safe offline oracle | Causal bound with correctness caveat | Stage cost and oracle agree |
+| Order | Experiment | Deliverable | Advance when | Status |
+|---|---|---|---|---|
+| 1 | No contact vs 1/2/4 cloth layers | Valid raw logs and frame-level CSV | All runs converge and show actual contact | [x] Complete for the procedural cloth stack: 36 valid runs |
+| 2 | Repeat with two mesh resolutions | Count/iteration/time scaling plot | A stable cliff survives three runs | [ ] Two resolutions and repeats complete; combined scaling plot pending |
+| 3 | Add DCD and trajectory candidate counts | Candidate inflation plot | Counts explain a material part of the cliff | [ ] Counts collected; inflation plot and causal explanation pending |
+| 4 | Export canonical contact-pair keys per Newton step | `R_new`/`R_churn` distributions | Logging overhead is measured separately | [ ] Canonical sets compared in the diagnostic; keys and distribution plots not exported |
+| 5 | Stage timing and safe offline oracle | Causal bound with correctness caveat | Stage cost and oracle agree | [ ] Stage timing and whole-call arithmetic bound complete; oracle rerun with skipped work not performed |
 
 If step 2 has no cliff, inspect existing mixed FEM/ABD and thin-shell cases
 before adding deeper instrumentation. Do not preselect collision refresh as
 the answer merely because the IPC source calls detection each Newton step.
+
+### Evidence update: whole-call refresh gate (2026-09-16)
+
+The controlled cloth-stack study and its follow-up are in
+`experiments/2026-09-16-preliminary.md` and
+`experiments/next_step/2026-09-16-followup.md`. Three complete four-layer
+baseline runs found new active pairs in every DCD call made with a nonempty
+active set. A second three-run batch with stronger scene-specific separation
+checks found one zero-new active-set call among 246 such calls across all six
+runs. Eliminating every measured zero-new call at zero overhead would remove
+only 3.33–3.92% of synchronized diagnostic pipeline time across the second
+batch (3.48–3.81% in the first). Stop the whole-call skip idea for this scene
+under Gate D. Regional certification remains a separate, unmeasured hypothesis.
+
+The new TOI diagnostic confirms that `last_ccd_toi` is an incomplete summary:
+frame 18 had PT and EE TOIs below one even though the frame's last value was
+one. A 15-run speed sweep also captured ground-impact TOIs below one while
+strict convergence and the scene-specific ground check passed. Next measure
+per-query CCD iteration counts and compare stage cost across independent
+impact geometries before making a CCD optimization claim.
+In a faster version of the same cloth stack, PT/EE TOIs below one became much
+more common, while separate stage-only runs showed roughly unchanged CCD TOI
+filter time over 20 synchronized frames. This scene also fails to motivate a
+CCD-kernel speedup; the next test needs a genuinely different geometry and a
+larger CCD share.
 
 ## 0. Objective
 
@@ -177,14 +204,18 @@ state update
 
 ## 2.1 Freeze baseline
 
-- [ ] 固定 libuipc commit
-- [ ] 记录 Git commit hash
-- [ ] 记录 GPU 型号
-- [ ] 记录 CUDA 版本
-- [ ] 记录 compiler / build flags
-- [ ] 固定 simulation config
-- [ ] 固定 random seed（如果适用）
-- [ ] 确保 benchmark 可以重复运行
+- [x] 固定 libuipc commit
+- [x] 记录 Git commit hash
+- [x] 记录 GPU 型号
+- [x] 记录 CUDA 版本
+- [x] 记录 compiler / build flags
+- [x] 固定 simulation config
+- [x] 固定 random seed（不适用：当前程序化场景不使用随机数）
+- [x] 确保 benchmark 可以重复运行
+
+Current scope: the procedural cloth-stack probe only. The frozen baseline,
+runtime settings, and repeat commands are in `experiments/env.md`; this does
+not freeze the later scene families in this research plan.
 
 输出：
 
@@ -217,21 +248,21 @@ Date:
 
 ### Runtime
 
-- [ ] `T_total`
+- [x] `T_total` (timer-free per-frame wall time)
 - [ ] `T_broadphase`
 - [ ] `T_narrowphase`
-- [ ] `T_CCD`
+- [x] `T_CCD` (separate synchronized `Filter CCD TOI` diagnostic)
 - [ ] `T_contact`
 - [ ] `T_assembly`
-- [ ] `T_linear`
-- [ ] `T_line_search`
+- [x] `T_linear` (separate synchronized linear-solve scopes)
+- [x] `T_line_search` (separate synchronized `Line Search` scopes)
 
 ### Counts
 
 - [ ] `N_broadphase_candidates`
 - [ ] `N_CCD_queries`
-- [ ] `N_active_contacts`
-- [ ] `N_Newton`
+- [x] `N_active_contacts` (canonical active simplex-pair count in the diagnostic)
+- [x] `N_Newton` (per-frame count)
 - [ ] `N_PCG`
 
 ### Step / convergence
@@ -241,7 +272,7 @@ Date:
 - [ ] residual norm
 - [ ] Newton gradient norm
 - [ ] PCG residual
-- [ ] line-search iteration count
+- [x] line-search iteration count (per-frame trial count)
 
 ### Memory / GPU
 
@@ -624,7 +655,7 @@ R_churn =
 - [ ] slow compression
 - [ ] high-speed impact
 - [ ] cloth twisting
-- [ ] cloth stacking
+- [x] cloth stacking (procedural parallel sheets only)
 - [ ] sliding friction
 - [ ] dense self-contact
 
@@ -1199,8 +1230,8 @@ CCD pruning efficiency
 
 ### Day 1–2
 
-- [ ] 固定 baseline
-- [ ] 跑通 no-contact / simple-contact / cloth-stack
+- [x] 固定 baseline（当前程序化布料场景）
+- [x] 跑通 no-contact / simple-contact / cloth-stack（单层落地及多层堆叠）
 - [ ] 完成统一 profiler
 - [ ] 输出所有基本 runtime + iteration 数据
 
@@ -1217,9 +1248,9 @@ CCD pruning efficiency
 
 ### Day 5–6
 
-- [ ] 实现 collision-set logging
-- [ ] 计算 `R_new`
-- [ ] 计算 `R_churn`
+- [x] 实现 collision-set logging（诊断模式；记录集合大小和变化量）
+- [x] 计算 `R_new`
+- [x] 计算 `R_churn`
 
 ### Day 7
 
@@ -1253,7 +1284,7 @@ CCD pruning efficiency
 
 - [ ] 汇总
 - [ ] 选择一个 research seed
-- [ ] 写 3-slide internal report
+- [x] 写 3-slide internal report（组会初步版；见 `experiments/output/meeting-2026-09-17.pptx`）
 
 ---
 
@@ -1340,7 +1371,7 @@ collision discovery?
 
 - [ ] 只在一个特殊 geometry 中出现
 - [ ] 不能随控制变量稳定复现
-- [ ] speedup theoretical upper bound < 1.2×
+- [x] speedup theoretical upper bound < 1.2×（仅针对当前布料堆叠场景的 whole-call DCD skip 假设；见 `experiments/next_step/2026-09-16-followup.md`）
 - [ ] 已被 SOS / OGC / StiffGIPC / HSC / AGIPC / Barrier-Free 直接解决
 - [ ] 只能靠参数 tuning 改善
 - [ ] 没有可解释 root cause

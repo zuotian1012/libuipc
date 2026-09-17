@@ -1581,11 +1581,26 @@ regression).
 - Added an opt-in procedural cloth-stack simulation case and opt-in CUDA
   candidate-count / canonical active-pair churn diagnostics. Default contact
   behavior is unchanged when the research environment variables are unset.
-- Three-run throughput controls on an RTX 3060 Ti showed a 3.53x contact-on
+- Three-run throughput controls on an RTX 3060 Ti showed a 3.76x contact-on
   versus contact-off frame-time ratio for the four-layer, 16x16-grid scene.
+  All 36 formal runs completed and converged; contact runs passed ground
+  height and vertical-slab separation checks. Per-process frame records are
+  written separately from backend stdout to prevent log interleaving.
   Synchronized stage timing found material DCD and trajectory-detection cost.
   During contact formation, within-frame pair churn was substantial; in settled
   frames, across-frame pair churn was very low. This does not yet justify
   skipping a collision search. See
   `agent_docs/performance/2026-09-16-contact-bottleneck-probe.md` for the
   evidence boundary and next gate.
+- Follow-up diagnostics added per-DCD-call core timers and per-type TOI
+  histograms. A second three-run batch found one zero-new DCD pass with active
+  simplex pairs among 246 such passes across all six repeats. The optimistic
+  whole-call time removal remained below 4% of diagnostic pipeline time and
+  below the 1.2x gate.
+  A 15-run initial-speed sweep captured ground TOIs below one with strict
+  convergence and the scene-specific ground check. See
+  `experiments/next_step/2026-09-16-followup.md`; regional reuse and per-query
+  CCD cost remain open. A further four-layer impact contrast increased TOI
+  events, while separate stage-only runs showed roughly unchanged CCD TOI
+  filter time over 20 synchronized frames, so this scene does not prioritize
+  CCD kernel work.

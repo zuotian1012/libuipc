@@ -4,6 +4,11 @@
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
 #include <pipeline/ipc_pipeline_flag.h>
+#include <sim_engine.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <vector>
 
 namespace uipc::backend::cuda
 {
@@ -177,6 +182,40 @@ void EasyVertexHalfPlaneTrajectoryFilter::do_filter_active(FilterActiveInfo& inf
 void EasyVertexHalfPlaneTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 {
     m_impl.filter_toi(info);
+    if(!std::getenv("UIPC_PROBE_TOI_HIST"))
+        return;
+
+    std::vector<Float> values;
+    m_impl.tois.copy_to(values);
+    SizeT below_01  = 0;
+    SizeT below_05  = 0;
+    SizeT below_09  = 0;
+    SizeT below_1   = 0;
+    SizeT nonfinite = 0;
+    Float minimum   = 1.1;
+    for(const Float toi : values)
+    {
+        if(!std::isfinite(toi))
+        {
+            ++nonfinite;
+            continue;
+        }
+        minimum = std::min(minimum, toi);
+        below_01 += toi < 0.1;
+        below_05 += toi < 0.5;
+        below_09 += toi < 0.9;
+        below_1 += toi < 1.0;
+    }
+    logger::info("PROBE_TOI,frame={},newton={},type=PH,count={},min={},lt_01={},lt_05={},lt_09={},lt_1={},nonfinite={}",
+                 engine().frame(),
+                 engine().newton_iter(),
+                 values.size(),
+                 minimum,
+                 below_01,
+                 below_05,
+                 below_09,
+                 below_1,
+                 nonfinite);
 }
 
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)

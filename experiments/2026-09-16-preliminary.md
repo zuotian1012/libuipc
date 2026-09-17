@@ -6,16 +6,18 @@
 
 Each value below is the median of three fresh-process run medians over frames 6–40. All 36 runs completed 40 frames and passed strict convergence and the scene-specific separation checks. The `contact=0` control keeps the same cloth mesh and solver settings but disables all contact and omits the ground primitive.
 
+A grid with 8 quads per side has 81 vertices and 128 triangles per sheet. A grid with 16 quads per side has 289 vertices and 512 triangles per sheet; the four-layer 16-grid case therefore has 1,156 cloth vertices and 2,048 triangles.
+
 | Grid quads per side | Layers | Contact off, ms/frame | Contact on, ms/frame | Ratio |
 |---:|---:|---:|---:|---:|
-| 8 | 1 | 2.641 | 3.176 | 1.20 |
-| 8 | 2 | 3.823 | 10.455 | 2.74 |
-| 8 | 4 | 4.520 | 13.669 | 3.02 |
-| 16 | 1 | 4.784 | 5.378 | 1.12 |
-| 16 | 2 | 5.374 | 14.192 | 2.64 |
-| 16 | 4 | 5.792 | 20.454 | 3.53 |
+| 8 | 1 | 2.647 | 3.158 | 1.19 |
+| 8 | 2 | 3.797 | 10.607 | 2.79 |
+| 8 | 4 | 4.529 | 13.621 | 3.01 |
+| 16 | 1 | 4.497 | 5.243 | 1.17 |
+| 16 | 2 | 5.311 | 13.991 | 2.63 |
+| 16 | 4 | 5.369 | 20.160 | 3.76 |
 
-The four-layer 16-grid condition costs 14.66 ms/frame more than its no-contact control. The contact run's median Newton count is 1 and median linear iteration count is 10, versus 2 and 15 in the control. Thus the additional wall time is not explained by *more* global solver iterations in this scene. This is an observation about this configuration, not yet a partition of the wall-time difference.
+The four-layer 16-grid condition costs 14.79 ms/frame more than its no-contact control. The contact run's median Newton count is 1 and median linear iteration count is 10, versus 2 and 15 in the control. Thus the additional wall time is not explained by *more* global solver iterations in this scene. This is an observation about this configuration, not yet a partition of the wall-time difference.
 
 ## Separate diagnostic runs
 
@@ -25,12 +27,12 @@ At frame 40, the same diagnostic reports 34,074 DCD candidate pairs, 55,844 swep
 
 Canonical active-pair sets were compared after DCD filtering. During the contact-formation phase, 13 nonempty within-frame comparisons in the four-layer 16-grid scene had median `R_new` around 21.5%; the low-churn-per-Newton hypothesis is **not supported there**. During settled frames 33–40, eight across-frame comparisons had median `R_new` around 0.078%, with roughly 19,400 active pairs per frame. Similar settled-phase medians occurred in the 8-grid 2-layer, 8-grid 4-layer, and 16-grid 2-layer variants (0%, 0.033%, and 0%, respectively). These are variations of one scene family, not the required three independent scenes.
 
-The crossing and ground checks are scene-specific. For the four-layer 16-grid contact runs, the minimum observed inter-layer matching-vertex gap was at least 0.0108 and the lowest vertex remained above the ground. A general mesh-intersection check and a conservative refresh certificate are still required for any production change.
+The crossing and ground checks are scene-specific. The final 36-run throughput batch also required the lowest vertex of each upper sheet to remain above the highest vertex of the sheet below it, a sufficient nonintersection check for these horizontally separated sheets. For the four-layer 16-grid contact runs, the minimum observed inter-layer matching-vertex gap was 0.01034, the minimum vertical-slab gap was 0.00992, and the lowest vertex height was 0.00834 above the ground. A general mesh-intersection check for other geometries and a conservative refresh certificate are still required for any production change.
 
 ## Interpretation and next gate
 
 The most promising *question* is whether persistent collision information can receive a conservative, regional validity certificate across frames, so the global DCD search is performed only when new pairs may emerge. The current data establish temporal coherence in a settled parallel-cloth case and a material collision-detection cost. They do **not** establish that full DCD can safely be skipped, that the same behavior generalizes to twisting or sliding, or that this differs from existing local CCD approaches.
 
-The next decisive experiment is an offline, correctness-labeled refresh oracle: replay each frame's full baseline state and pair set, identify frames where new pairs actually appeared, and estimate the saved DCD work without changing the simulation trajectory. Then test a conservative certificate on high-churn cases. Stop this direction if the upper-bound speedup is below 1.2x or if it fails to reproduce in three scene families.
+The next diagnostic was completed after this report: six complete-baseline runs classified every DCD call by new active pairs and measured its core time. One of 246 active-set calls found no new pair; the optimistic whole-call time removal remained under 4% of synchronized pipeline time in every run, below the 1.2x gate. See `next_step/2026-09-16-followup.md`. Regional certification and per-query CCD cost remain open questions; neither is supported as a performance improvement yet.
 
 Raw evidence: `probe/summary.json`, `probe_grid16/summary.json`, `probe_grid16/frames.csv`, `probe_grid16/timers_l4_c1.json`, and `churn_canonical_g*_l*.txt`. See `env.md` for commands and runtime caveats.

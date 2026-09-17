@@ -8,9 +8,11 @@
 #include <utils/codim_thickness.h>
 #include <utils/simplex_contact_mask_utils.h>
 #include <uipc/common/zip.h>
+#include <uipc/common/timer.h>
 #include <utils/primitive_d_hat.h>
 #include <array>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -1207,12 +1209,24 @@ void InfoStacklessBVHSimplexTrajectoryFilter::do_build(BuildInfo&)
 
 void InfoStacklessBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
 {
-    m_impl.detect(info);
+    if(info.alpha() == 0.0 && std::getenv("UIPC_PROBE_DCD_CORE_TIMES"))
+    {
+        Timer timer{"Probe DCD Detect Core"};
+        m_impl.detect(info);
+    }
+    else
+        m_impl.detect(info);
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
 {
-    m_impl.filter_active(info);
+    if(m_impl.last_detect_alpha == 0.0 && std::getenv("UIPC_PROBE_DCD_CORE_TIMES"))
+    {
+        Timer timer{"Probe DCD Filter Core"};
+        m_impl.filter_active(info);
+    }
+    else
+        m_impl.filter_active(info);
     if(!std::getenv("UIPC_PROBE_PAIR_CHURN") || m_impl.last_detect_alpha != 0.0)
         return;
 
@@ -1291,6 +1305,51 @@ void InfoStacklessBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo&
 void InfoStacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 {
     m_impl.filter_toi(info);
+    if(!std::getenv("UIPC_PROBE_TOI_HIST"))
+        return;
+
+    std::vector<Float> values;
+    m_impl.tois.copy_to(values);
+    SizeT offset = 0;
+    auto  emit   = [&](const char* type, SizeT count)
+    {
+        SizeT below_01  = 0;
+        SizeT below_05  = 0;
+        SizeT below_09  = 0;
+        SizeT below_1   = 0;
+        SizeT nonfinite = 0;
+        Float minimum   = large_enough_toi;
+        for(SizeT i = offset; i < offset + count; ++i)
+        {
+            const Float toi = values[i];
+            if(!std::isfinite(toi))
+            {
+                ++nonfinite;
+                continue;
+            }
+            minimum = std::min(minimum, toi);
+            below_01 += toi < 0.1;
+            below_05 += toi < 0.5;
+            below_09 += toi < 0.9;
+            below_1 += toi < 1.0;
+        }
+        logger::info("PROBE_TOI,frame={},newton={},type={},count={},min={},lt_01={},lt_05={},lt_09={},lt_1={},nonfinite={}",
+                     engine().frame(),
+                     engine().newton_iter(),
+                     type,
+                     count,
+                     minimum,
+                     below_01,
+                     below_05,
+                     below_09,
+                     below_1,
+                     nonfinite);
+        offset += count;
+    };
+    emit("PP", m_impl.candidate_AllP_CodimP_pairs.size());
+    emit("PE", m_impl.candidate_CodimP_AllE_pairs.size());
+    emit("PT", m_impl.candidate_AllP_AllT_pairs.size());
+    emit("EE", m_impl.candidate_AllE_AllE_pairs.size());
 }
 
 cuda_tool::CBufferView<Vector2i> InfoStacklessBVHSimplexTrajectoryFilter::candidate_PTs() const noexcept
