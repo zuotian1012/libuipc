@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS reproduction, stage 1 (2026-09-28): implement the local stencil
+  second-order solver incrementally. Do not bundle the paper's contact,
+  complementary coloring, hybrid sweep, warm-start or other complex algorithms
+  into this stage. Start with an independently testable non-contact building block.
+
 - 2026-09-11 project review: inspect implementation, frontend design, public APIs
   and documentation; update the documentation and record findings, but do not
   implement fixes or optimizations during this audit. Distinguish confirmed issues

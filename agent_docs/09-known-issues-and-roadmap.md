@@ -1,5 +1,11 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [SoS stage-one local stencil prototype](15-local-stencil-stage1.md) adds
+header-only non-contact assembly, unprojected SNK1 derivatives and Newton-CG
+with a separate testbed. It is not selectable through Scene/World. Mesh-wide GPU
+scheduling, contact, continuous inversion checks, CSFD and paper demo reproduction
+remain deferred; stage-one correctness is not a performance claim.
+
 Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
 `4757859c`. This inspection updated documentation only. Open priorities include
 Python facade ownership, BDF2 history startup, unsafe post-build package/path

@@ -1,5 +1,18 @@
 # Handoff — Current State of the Repo
 
+> **SoS local stencil stage 1 (2026-09-28)**: added header-only restricted
+> inertia/FEM assembly, unprojected SNK1 directional derivatives, local Newton-CG
+> and Armijo backtracking. See [scope and reproduction](15-local-stencil-stage1.md).
+> No Scene selector, production solve-path change, contact, coloring or warm start.
+> XMake release/CUDA 12.6: 7 focused cases and 136 assertions pass, including
+> 17 GPU stencil proposals. Two-tetrahedron host sweeps converge to the same
+> energy as a dense global Newton reference, maximum vertex difference
+> `2.66579e-13`, free-gradient norm `1.92238e-13`. Strong compression retains
+> negative curvature. CMake/XMake both already glob the test; only XMake was
+> built. clang-format 18.1.8 checks pass. Local test launch requires this
+> checkout's `build/python/src/uipc/_native` on process PATH for TBB/spdlog.
+> Existing unrelated scene, profiling and collision edits were preserved.
+
 > **Project/API/frontend audit, documentation only (2026-09-11)**: review baseline
 > `4757859ce69c039a4146fcd574e9c59484a31a87`; findings and source/evidence links are
 > in [14-project-audit.md](14-project-audit.md). The source, kernels, addon, build
