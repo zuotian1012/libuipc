@@ -2,9 +2,10 @@
 
 The [local stencil solver](16-local-stencil-solver.md) now integrates the
 stage-one Newton-CG building block into `World.advance()` with parallel
-tetrahedral solves, overlap-weighted additive updates and global energy line
-search. Select `newton/solver = "local_stencil"` for non-contact SNK1 tetrahedra.
-Contact, continuous inversion checks, CSFD, paper hybrid coloring/warm start and
+tetrahedral/contact solves, overlap-weighted additive updates, standard IPC
+contact, CCD and global energy line search. Select `newton/solver = "local_stencil"`
+for frictionless SNK1 tetrahedra with optional fixed half planes.
+Friction, continuous element inversion checks, CSFD, paper hybrid coloring/warm start and
 paper demo reproduction remain deferred. This is not the complete SoS method
 or a performance claim.
 

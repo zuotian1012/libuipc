@@ -1,12 +1,16 @@
 #pragma once
 #include <sim_system.h>
 #include <cuda_tool/cuda_tool.h>
+#include <finite_element/local_stencil_contact.h>
 
 namespace uipc::backend::cuda
 {
 class FiniteElementMethod;
+class FEMDyTopoEffectReceiver;
+class FiniteElementVertexReporter;
+class GlobalTrajectoryFilter;
 
-// Non-contact, synchronous additive stencil Newton-CG. One call produces a
+// Frictionless, synchronous additive stencil Newton-CG. One call produces a
 // mesh-wide descent direction; the engine owns the outer nonlinear iteration
 // and global energy line search. No global linear solve is performed.
 class FEMLocalStencilSolver final : public SimSystem
@@ -18,10 +22,20 @@ class FEMLocalStencilSolver final : public SimSystem
     bool valid_configuration();
 
   private:
-    void do_build() override;
-    void init();
+    void                         do_build() override;
+    void                         init();
+    void                         prepare_contacts();
+    fem::LocalStencilContactView contact_view() const;
 
-    FiniteElementMethod*                 m_fem = nullptr;
+    FiniteElementMethod*                 m_fem               = nullptr;
+    FEMDyTopoEffectReceiver*             m_contact_receiver  = nullptr;
+    FiniteElementVertexReporter*         m_vertex_reporter   = nullptr;
+    GlobalTrajectoryFilter*              m_trajectory_filter = nullptr;
+    cuda_tool::DeviceBuffer<Vector4i>    m_contact_stencils;
+    cuda_tool::DeviceBuffer<Vector3>     m_contact_gradients;
+    cuda_tool::DeviceBuffer<IndexT>      m_contact_counts, m_contact_offsets;
+    cuda_tool::DeviceBuffer<IndexT>      m_contact_cursors, m_contact_entries;
+    cuda_tool::DeviceBuffer<IndexT>      m_overlap, m_max_overlap;
     cuda_tool::DeviceBuffer<Float>       m_mu, m_lambda;
     cuda_tool::DeviceBuffer<IndexT>      m_vertex_offsets, m_vertex_tets;
     cuda_tool::DeviceBuffer<IndexT>      m_stencil_offsets, m_stencil_neighbors;

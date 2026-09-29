@@ -1,5 +1,28 @@
 # Handoff — Current State of the Repo
 
+> **Frictionless local stencil contact (2026-09-30)**: local solves now restrict
+> the complete elastic/contact objective, with dynamic PT/EE/PE/PP/PH stencils,
+> GPU contact-Hessian row adjacency and overlap-weighted additive updates.
+> Normal IPC contact Hessians stay unprojected only for `local_stencil`; global
+> Newton keeps its existing SPD projection. Reuses the engine's existing
+> active-pair bounds, CCD and energy line search. Friction is explicitly rejected.
+> `python/examples/local_stencil_contact.py` runs ground impact or `--scene stack`;
+> `--render` exports GIF/PNG as well as OBJ/NPZ/CSV. Both completed 120 converged
+> frames with zero global linear solver iterations, positive ground clearance and
+> positive tet determinants (minimum 0.671912 ground / 0.423754 stack). All 121
+> saved stack configurations passed a tetrahedron separating-axis overlap check
+> between the two bodies. This finite-frame check is not a continuous certificate.
+> Global reference trajectory maximum vertex differences: 0.540 mm ground /
+> 5.728 mm stack; stopping criteria differ and equivalence is not claimed.
+> Example local timings: 159 / 360 ms per frame, not a performance benchmark.
+> Evidence: `output/local-stencil-contact/`, including `comparison.json` and
+> `stack/local_stencil/contact.gif`. XMake release/CUDA 12.6 builds; existing
+> CMake/XMake FEM globs include the new source. No new granular tests. Existing
+> unrelated dirty collision/profiling/engine changes remain excluded from this
+> stage. Self-contact uses the same assembled path but has no dedicated folded
+> body validation yet; friction, hybrid coloring, warm start, paper barriers and
+> continuous element inversion bounds remain future work.
+
 > **Local stencil mesh solver (2026-09-29)**: `newton/solver = "local_stencil"`
 > now runs parallel additive tetrahedral Newton-CG through `World.advance()`.
 > See [implementation and limits](16-local-stencil-solver.md) and

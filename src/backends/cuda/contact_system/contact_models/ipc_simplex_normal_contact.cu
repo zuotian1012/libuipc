@@ -253,7 +253,8 @@ namespace
     }
 
     template <bool GradientOnly>
-    __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
+    __global__ void do_assemble_kernel(bool project_hessian,
+                                       cuda_tool::CDense2D<ContactCoeff> table,
                                        cuda_tool::CBufferView<IndexT> contact_ids,
                                        cuda_tool::CBufferView<Vector3> Ps,
                                        cuda_tool::CBufferView<Vector3> rest_Ps,
@@ -317,7 +318,8 @@ namespace
             {
                 Matrix12x12 H;
                 PT_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
-                make_spd(H);
+                if(project_hessian)
+                    make_spd(H);
                 DoubletVectorAssembler DVA{PT_Gs};
                 DVA.segment<4>(i * 4).write(PT, G);
                 TripletMatrixAssembler TMA{PT_Hs};
@@ -364,7 +366,8 @@ namespace
                 Matrix12x12 H;
                 mollified_EE_barrier_gradient_hessian(
                     G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
-                make_spd(H);
+                if(project_hessian)
+                    make_spd(H);
                 DoubletVectorAssembler DVA{EE_Gs};
                 DVA.segment<4>(i * 4).write(EE, G);
                 TripletMatrixAssembler TMA{EE_Hs};
@@ -398,7 +401,8 @@ namespace
             {
                 Matrix9x9 H;
                 PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
-                make_spd(H);
+                if(project_hessian)
+                    make_spd(H);
                 DoubletVectorAssembler DVA{PE_Gs};
                 DVA.segment<3>(i * 3).write(PE, G);
                 TripletMatrixAssembler TMA{PE_Hs};
@@ -430,7 +434,8 @@ namespace
             {
                 Matrix6x6 H;
                 PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
-                make_spd(H);
+                if(project_hessian)
+                    make_spd(H);
                 DoubletVectorAssembler DVA{PP_Gs};
                 DVA.segment<2>(i * 2).write(PP, G);
                 TripletMatrixAssembler TMA{PP_Hs};
@@ -449,6 +454,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
     virtual void do_build(BuildInfo& info) override
     {
         require<IPCPipelineFlag>();
+        m_project_hessian =
+            world().scene().config().find<std::string>("newton/solver")->view()[0]
+            != "local_stencil";
     }
 
     virtual void do_compute_energy(EnergyInfo& info) override
@@ -540,6 +548,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         {
             auto k = do_assemble_kernel<GradientOnly>;
             k<<<cuda_tool::best_grid_dim(total, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                m_project_hessian,
                 info.contact_tabular().viewer(),
                 info.contact_element_ids().viewer(),
                 info.positions().viewer(),
@@ -570,6 +579,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         else
             launch.operator()<false>();
     }
+
+  private:
+    bool m_project_hessian = true;
 };
 
 REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);

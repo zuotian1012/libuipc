@@ -83,7 +83,7 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/solver",
         std::string{"global"},
         "string",
-        "Select global Newton or experimental non-contact additive local stencil Newton-CG.",
+        "Select global Newton or experimental frictionless additive local stencil Newton-CG.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
          "src/backends/cuda/engine/advance_ipc.cu"},
         Json{{"enum", Json::array({"global", "local_stencil"})}});

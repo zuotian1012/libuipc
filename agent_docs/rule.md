@@ -138,8 +138,10 @@ record it here in the same commit.**
 
 - SoS implementation priority (2026-09-29): complete the usable algorithm and
   scene-to-animation workflow before expanding small isolated tests. Keep only
-  necessary integration verification; the current scope remains non-contact
-  local stencil second-order solving.
+  necessary integration verification. The next authorized stage adds frictionless
+  contact assembly, contact stencils, CCD and dynamic contact adjacency, starting
+  with soft-body ground impact and then body-body contact. Coloring and warm start
+  remain later work. (Scope expanded by the owner on 2026-09-29.)
 
 - SoS reproduction, stage 1 (2026-09-28): implement the local stencil
   second-order solver incrementally. Do not bundle the paper's contact,
