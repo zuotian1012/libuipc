@@ -1,4 +1,5 @@
 #include <sim_engine.h>
+#include <finite_element/fem_local_stencil_solver.h>
 #include <uipc/common/range.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
@@ -16,10 +17,11 @@ namespace uipc::backend::cuda
 {
 void SimEngine::advance()
 {
-    Float alpha     = 1.0;
-    Float beta      = 1.0;
-    Float ccd_alpha = 1.0;
-    Float cfl_alpha = 1.0;
+    auto* stencil_solver = find<FEMLocalStencilSolver>();
+    Float alpha          = 1.0;
+    Float beta           = 1.0;
+    Float ccd_alpha      = 1.0;
+    Float cfl_alpha      = 1.0;
 
     /***************************************************************************************
     *                                  Function Shortcuts
@@ -178,6 +180,9 @@ void SimEngine::advance()
     {
         if(!animation_reach_target())
             return false;
+
+        if(stencil_solver)
+            return stencil_solver->converged();
 
         if(m_semi_implicit_enabled)
         {
@@ -367,9 +372,14 @@ void SimEngine::advance()
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 {
                     Timer timer{"Solve Global Linear System"};
-                    m_global_linear_system->solve();
-                    m_frame_linear_solver_iterations +=
-                        m_global_linear_system->last_solve_iterations();
+                    if(stencil_solver)
+                        stencil_solver->solve();
+                    else
+                    {
+                        m_global_linear_system->solve();
+                        m_frame_linear_solver_iterations +=
+                            m_global_linear_system->last_solve_iterations();
+                    }
                 }
 
 
@@ -431,7 +441,10 @@ void SimEngine::advance()
                         last_E  = E;
 
                         // To prevent numerical energy (fake-) increasing caused by tiny dx
-                        if(converged)
+                        const bool stencil_admissible =
+                            !stencil_solver || stencil_solver->valid_configuration();
+                        if(converged
+                           && (!stencil_solver || (stencil_admissible && std::isfinite(E))))
                             break;
 
                         // Check Energy Decrease
@@ -440,7 +453,7 @@ void SimEngine::advance()
 
                         // Check Inversion
                         // TODO: Inversion check if needed
-                        bool no_inversion = true;
+                        bool no_inversion = stencil_admissible;
 
                         bool success = energy_decrease && no_inversion;
                         if(success)
@@ -451,6 +464,12 @@ void SimEngine::advance()
                     }
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
+                    if(stencil_solver && line_search_iter >= m_line_searcher->max_iter())
+                    {
+                        m_line_searcher->step_forward(0);
+                        m_global_vertex_manager->step_forward(0);
+                        throw SimEngineException("local_stencil line search failed; restored the last accepted state.");
+                    }
                     check_line_search_iter(line_search_iter, E0, last_E);
 
                     // newton/min_iter is a pure hard floor (default 0 = off);

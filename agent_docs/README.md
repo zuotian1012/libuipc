@@ -24,6 +24,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | `13-blender-integration.md` | Blender extension packaging, separate-process solver, geometry/units, MDD cache lifecycle, and real Blender verification |
 | [`14-project-audit.md`](14-project-audit.md) | 2026-09-11 inspection: reproduced API/integration issues, frontend contracts, documentation corrections, validation limits and prioritized proposals; no implementation changes |
 | [`15-local-stencil-stage1.md`](15-local-stencil-stage1.md) | Experimental non-contact local stencil assembly, unprojected Newton-CG, CUDA checks and two-tetrahedron convergence oracle; no Scene solver selector |
+| [`16-local-stencil-solver.md`](16-local-stencil-solver.md) | Scene-selectable GPU additive local stencil solver and a complete cantilever simulation example |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |

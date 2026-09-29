@@ -80,6 +80,13 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/time_integrator"},
         Json{{"enum", Json::array({"bdf1", "bdf2"})}});
 
+    add("newton/solver",
+        std::string{"global"},
+        "string",
+        "Select global Newton or experimental non-contact additive local stencil Newton-CG.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
+         "src/backends/cuda/engine/advance_ipc.cu"},
+        Json{{"enum", Json::array({"global", "local_stencil"})}});
     add("newton/max_iter",
         IndexT{1024},
         "integer",

@@ -1,5 +1,21 @@
 # Handoff — Current State of the Repo
 
+> **Local stencil mesh solver (2026-09-29)**: `newton/solver = "local_stencil"`
+> now runs parallel additive tetrahedral Newton-CG through `World.advance()`.
+> See [implementation and limits](16-local-stencil-solver.md) and
+> `python/examples/local_stencil_beam.py`. Non-contact SNK1/BDF1/static topology
+> only; global energy line search with endpoint determinant checks. No paper
+> contact, hybrid coloring, CSFD, continuous inversion search or warm start.
+> XMake release/CUDA 12.6 builds. A 153-vertex/384-tet cantilever completes 120
+> converged frames, zero fixed-end drift, minimum det(F)=0.784865. The matching
+> global-solver run differs by at most 4.10436e-5 m over all vertices/frames;
+> termination criteria differ. Artifacts: `output/local-stencil-beam/`, including
+> OBJ frames, NPZ, CSV, summaries and `local_stencil/beam.gif`. This basic additive
+> implementation is slow (about 0.86 s/frame versus 0.007 s global on this small
+> example; not a controlled benchmark). No new granular tests were added, per
+> the owner's implementation-first direction. Existing dirty profiling/collision
+> changes were preserved and excluded from the stage commit.
+
 > **SoS local stencil stage 1 (2026-09-28)**: added header-only restricted
 > inertia/FEM assembly, unprojected SNK1 directional derivatives, local Newton-CG
 > and Armijo backtracking. See [scope and reproduction](15-local-stencil-stage1.md).

@@ -395,6 +395,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FiniteElementBodyReporter;
 
     friend class FEMLinearSubsystem;
+    friend class FEMLocalStencilSolver;
     friend class FEMLineSearchReporter;
 
 

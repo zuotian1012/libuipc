@@ -150,6 +150,7 @@ appropriate geometry instead.
 
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
+| `newton/solver` | string | `"global"` | `"global"`, `"local_stencil"` | Unitless selector, set before initialization. `global` uses the standard global linear solve. Experimental `local_stencil` uses parallel additive tetrahedral Newton-CG: only non-contact StableNeoHookean FEM, BDF1, IPC pipeline, static topology and no differentiable simulation. It uses the absolute `velocity_tol` on the mass-scaled gradient divided by `dt`; relative tolerance must be zero and semi-implicit termination is bypassed. |
 | `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Reaching it warns, or throws in strict mode. |
 | `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Hard floor before ordinary Newton convergence may terminate. `0` disables the floor. |
 | `newton/use_adaptive_tol` | reserved integer | `0` | exactly `0` | Reserved for compatibility. Because no adaptive-tolerance consumer exists, setting it to `1` is rejected rather than silently doing nothing. |

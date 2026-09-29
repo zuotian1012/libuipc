@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS implementation priority (2026-09-29): complete the usable algorithm and
+  scene-to-animation workflow before expanding small isolated tests. Keep only
+  necessary integration verification; the current scope remains non-contact
+  local stencil second-order solving.
+
 - SoS reproduction, stage 1 (2026-09-28): implement the local stencil
   second-order solver incrementally. Do not bundle the paper's contact,
   complementary coloring, hybrid sweep, warm-start or other complex algorithms

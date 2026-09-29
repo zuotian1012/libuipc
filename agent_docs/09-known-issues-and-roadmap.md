@@ -1,10 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-The [SoS stage-one local stencil prototype](15-local-stencil-stage1.md) adds
-header-only non-contact assembly, unprojected SNK1 derivatives and Newton-CG
-with a separate testbed. It is not selectable through Scene/World. Mesh-wide GPU
-scheduling, contact, continuous inversion checks, CSFD and paper demo reproduction
-remain deferred; stage-one correctness is not a performance claim.
+The [local stencil solver](16-local-stencil-solver.md) now integrates the
+stage-one Newton-CG building block into `World.advance()` with parallel
+tetrahedral solves, overlap-weighted additive updates and global energy line
+search. Select `newton/solver = "local_stencil"` for non-contact SNK1 tetrahedra.
+Contact, continuous inversion checks, CSFD, paper hybrid coloring/warm start and
+paper demo reproduction remain deferred. This is not the complete SoS method
+or a performance claim.
 
 Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
 `4757859c`. This inspection updated documentation only. Open priorities include
