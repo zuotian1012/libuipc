@@ -9,10 +9,22 @@ class FiniteElementMethod;
 class FEMDyTopoEffectReceiver;
 class FiniteElementVertexReporter;
 class GlobalTrajectoryFilter;
+class GlobalContactManager;
+class GlobalVertexManager;
+class HalfPlane;
+class HalfPlaneVertexReporter;
 
-// Frictionless, synchronous additive stencil Newton-CG. One call produces a
-// mesh-wide descent direction; the engine owns the outer nonlinear iteration
-// and global energy line search. No global linear solve is performed.
+struct StencilBarrierTerm
+{
+    IndexT  type      = 0;  // PT, EE, PE, PP, PH
+    Float   kappa_dt2 = 0, d_hat = 0, thickness = 0;
+    Vector3 plane_position = Vector3::Zero(), plane_normal = Vector3::Zero();
+};
+
+// Frictionless stencil Newton-CG. One call produces one complementary-color
+// hybrid proposal (or the additive baseline); the engine accepts and commits it
+// before the next color. Hybrid directions have independent local CCD, inversion
+// bounds and line searches. No global linear solve is performed.
 class FEMLocalStencilSolver final : public SimSystem
 {
   public:
@@ -26,11 +38,30 @@ class FEMLocalStencilSolver final : public SimSystem
     void                         init();
     void                         prepare_contacts();
     fem::LocalStencilContactView contact_view() const;
+    void init_coloring(span<const Vector4i> tets, const vector<vector<IndexT>>& incident);
+    void filter_local_steps();
+    void prepare_barriers();
 
-    FiniteElementMethod*                 m_fem               = nullptr;
-    FEMDyTopoEffectReceiver*             m_contact_receiver  = nullptr;
-    FiniteElementVertexReporter*         m_vertex_reporter   = nullptr;
-    GlobalTrajectoryFilter*              m_trajectory_filter = nullptr;
+    FiniteElementMethod*                        m_fem               = nullptr;
+    FEMDyTopoEffectReceiver*                    m_contact_receiver  = nullptr;
+    FiniteElementVertexReporter*                m_vertex_reporter   = nullptr;
+    GlobalTrajectoryFilter*                     m_trajectory_filter = nullptr;
+    GlobalContactManager*                       m_contact_manager   = nullptr;
+    GlobalVertexManager*                        m_vertices          = nullptr;
+    HalfPlane*                                  m_planes            = nullptr;
+    HalfPlaneVertexReporter*                    m_plane_reporter    = nullptr;
+    bool                                        m_hybrid            = true;
+    IndexT                                      m_color_limit       = 8;
+    SizeT                                       m_sweep_index       = 0;
+    vector<Vector2i>                            m_color_passes;
+    cuda_tool::DeviceBuffer<IndexT>             m_colors, m_primary_owner;
+    cuda_tool::DeviceBuffer<Vector3>            m_total_gradients;
+    cuda_tool::DeviceBuffer<Float>              m_direction_slopes;
+    cuda_tool::DeviceBuffer<Float>              m_global_slopes;
+    cuda_tool::DeviceBuffer<IndexT>             m_local_statistics;
+    cuda_tool::DeviceBuffer<StencilBarrierTerm> m_barrier_terms;
+    cuda_tool::DeviceBuffer<IndexT>      m_barrier_counts, m_barrier_offsets;
+    cuda_tool::DeviceBuffer<IndexT>      m_barrier_cursors, m_barrier_entries;
     cuda_tool::DeviceBuffer<Vector4i>    m_contact_stencils;
     cuda_tool::DeviceBuffer<Vector3>     m_contact_gradients;
     cuda_tool::DeviceBuffer<IndexT>      m_contact_counts, m_contact_offsets;

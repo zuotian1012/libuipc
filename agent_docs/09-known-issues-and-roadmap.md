@@ -1,11 +1,19 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-The [local stencil solver](16-local-stencil-solver.md) now integrates the
+The [colored local stencil solver](17-local-stencil-hybrid.md) now adds
+complementary elastic coloring, grey contact stencils, protected priority updates,
+per-stencil conservative CCD, cubic inversion bounds and local Armijo filtering.
+One engine iteration is one hybrid color pass; regular CCD/global acceptance
+remain after combination. The additive baseline is selectable. Warm start,
+CSFD, paper-specific barriers and a continuous inversion bound for combined
+parallel updates are still absent; no paper performance equivalence is claimed.
+
+The [additive baseline](16-local-stencil-solver.md) integrates the
 stage-one Newton-CG building block into `World.advance()` with parallel
 tetrahedral/contact solves, overlap-weighted additive updates, standard IPC
 contact, CCD and global energy line search. Select `newton/solver = "local_stencil"`
 for frictionless SNK1 tetrahedra with optional fixed half planes.
-Friction, continuous element inversion checks, CSFD, paper hybrid coloring/warm start and
+Friction, full combined-step inversion certification, CSFD, warm start and
 paper demo reproduction remain deferred. This is not the complete SoS method
 or a performance claim.
 

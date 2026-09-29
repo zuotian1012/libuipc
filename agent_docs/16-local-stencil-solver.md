@@ -1,5 +1,10 @@
 # 16 - Local stencil mesh solver
 
+The current default is the [colored hybrid update](17-local-stencil-hybrid.md).
+This page describes the earlier additive baseline, retained through
+`newton/local_stencil/sweep = "additive"`. Append `--sweep additive` to example
+commands below to reproduce that baseline; prior run measurements are historical.
+
 This stage connects the [local Newton-CG building block](15-local-stencil-stage1.md)
 to the CUDA engine. It supports a non-contact cantilever and frictionless
 tetrahedral contact, including fixed half planes.

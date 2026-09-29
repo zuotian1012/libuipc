@@ -1,5 +1,31 @@
 # Handoff — Current State of the Repo
 
+> **Colored hybrid stencil updates (2026-09-30)**: default local-stencil mode now
+> uses complementary elastic coloring, grey contact stencils and priority-preserving
+> hybrid submission. Each engine iteration accepts one color pass before the next
+> reads updated positions. Every nonzero local direction has conservative local
+> CCD, cubic incident-element inversion bounds and local Armijo energy filtering.
+> Regular CCD/global acceptance remain after combining proposals. See
+> [17-local-stencil-hybrid.md](17-local-stencil-hybrid.md) for the exact conflict
+> policy and implementation differences from the paper (existing ACCD rather than
+> Yuksel CCD, coverage completion, constrained secondary solves/descent safeguard).
+> New config: `newton/local_stencil/sweep` (`hybrid`, default; or `additive`) and
+> `newton/local_stencil/color_limit` (8, range 1..64). Contact examples accept
+> `--sweep` and `--verbose`; output uses `local_stencil-hybrid` to retain old data.
+> XMake release/CUDA 12.6 builds. Ground, two-body impact and cantilever each
+> completed 120 converged frames with positive endpoint determinants and ground
+> clearance; beam pins remain exact. The stack logs record 33 local CCD caps,
+> 33 inversion caps and 1,932 local backtracks. All 121 saved stack configurations
+> have no inter-body tet overlap. Evidence: `output/local-stencil-contact/` files
+> `hybrid-diagnostics.json`, `hybrid-comparison.json`, and per-scene hybrid runs;
+> beam output is `output/local-stencil-beam/local_stencil-hybrid/`. Maximum reference
+> differences are 1.394 mm ground / 12.870 mm stack; different stopping rules and
+> paths mean no trajectory equivalence claim. Forty schemes / 320 passes cover
+> every primary tet in the two contact examples; coloring is not optimized.
+> No CSFD, customized paper barriers or warm start. No continuous inversion
+> certificate for the combined proposal beyond local bounds plus endpoint check.
+> No new granular tests; existing unrelated dirty work is preserved and excluded.
+
 > **Frictionless local stencil contact (2026-09-30)**: local solves now restrict
 > the complete elastic/contact objective, with dynamic PT/EE/PE/PP/PH stencils,
 > GPU contact-Hessian row adjacency and overlap-weighted additive updates.

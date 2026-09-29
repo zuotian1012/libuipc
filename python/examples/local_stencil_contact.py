@@ -71,6 +71,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scene", choices=["ground", "stack"], default="ground")
     parser.add_argument("--solver", choices=["local_stencil", "global"], default="local_stencil")
+    parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
+    parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--resolution", type=int, default=2)
     parser.add_argument("--dt", type=float, default=.01)
@@ -81,11 +83,13 @@ def main():
     args = parser.parse_args()
     if min(args.frames, args.resolution, args.max_iterations) < 1 or args.dt <= 0:
         parser.error("frame count, resolution, iterations and dt must be positive")
-    output = (args.output or ROOT / "output/local-stencil-contact" / args.scene / args.solver).resolve()
+    run_name = f"{args.solver}-{args.sweep}" if args.solver == "local_stencil" else args.solver
+    output = (args.output or ROOT / "output/local-stencil-contact" / args.scene / run_name).resolve()
     (output / "frames").mkdir(parents=True, exist_ok=True)
-    Logger.set_level(Logger.Level.Warn)
+    Logger.set_level(Logger.Level.Info if args.verbose else Logger.Level.Warn)
     config = Scene.default_config()
     config["newton"]["solver"] = args.solver
+    config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -165,7 +169,7 @@ def main():
         writer = csv.DictWriter(stream, fieldnames=history[0].keys())
         writer.writeheader()
         writer.writerows(history)
-    summary = dict(scene=args.scene, solver=args.solver, frames=args.frames,
+    summary = dict(scene=args.scene, solver=args.solver, sweep=args.sweep, frames=args.frames,
                    vertices=len(rest), tetrahedra=len(tets),
                    min_ground_gap=min(h["min_ground_gap"] for h in history),
                    min_det_F=min(h["min_det_F"] for h in history),

@@ -77,6 +77,7 @@ def write_obj(path, positions, faces):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--solver", choices=["local_stencil", "global"], default="local_stencil")
+    parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--nx", type=int, default=16)
     parser.add_argument("--ny", type=int, default=2)
@@ -90,7 +91,8 @@ def main():
     args = parser.parse_args()
     if min(args.nx, args.ny, args.nz, args.frames, args.max_iterations) <= 0:
         parser.error("mesh dimensions, frame count and iteration budget must be positive")
-    output = (args.output or ROOT / "output/local-stencil-beam" / args.solver).resolve()
+    run_name = f"{args.solver}-{args.sweep}" if args.solver == "local_stencil" else args.solver
+    output = (args.output or ROOT / "output/local-stencil-beam" / run_name).resolve()
     output.mkdir(parents=True, exist_ok=True)
     (output / "frames").mkdir(exist_ok=True)
     Logger.set_level(Logger.Level.Warn)
@@ -98,6 +100,7 @@ def main():
     if "solver" not in config["newton"]:
         raise RuntimeError("Build the updated libuipc core/backend and refresh build/python/src/uipc/_native first.")
     config["newton"]["solver"] = args.solver
+    config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -187,7 +190,7 @@ def main():
             writer.writerows(history)
     np.savez_compressed(output / "positions.npz", positions=np.asarray(trajectories),
                         tetrahedra=tetrahedra, faces=faces, dt=args.dt)
-    summary = {"solver": args.solver, "vertices": len(rest), "tetrahedra": len(tetrahedra),
+    summary = {"solver": args.solver, "sweep": args.sweep, "vertices": len(rest), "tetrahedra": len(tetrahedra),
                "frames": frame, "dt": args.dt, "young": args.young,
                "max_fixed_error": max((row["fixed_error"] for row in history), default=0),
                "min_det_F": min((row["min_det_F"] for row in history), default=1),

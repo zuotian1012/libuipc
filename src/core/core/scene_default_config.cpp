@@ -83,10 +83,22 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/solver",
         std::string{"global"},
         "string",
-        "Select global Newton or experimental frictionless additive local stencil Newton-CG.",
+        "Select global Newton or experimental frictionless local stencil Newton-CG.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
          "src/backends/cuda/engine/advance_ipc.cu"},
         Json{{"enum", Json::array({"global", "local_stencil"})}});
+    add("newton/local_stencil/sweep",
+        std::string{"hybrid"},
+        "string",
+        "Local stencil update: complementary-color hybrid sweeps or the additive baseline.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"hybrid", "additive"})}});
+    add("newton/local_stencil/color_limit",
+        IndexT{8},
+        "integer",
+        "Maximum independent colors per complementary scheme; excess stencils stay grey.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_coloring.cu"},
+        Json{{"minimum", 1}, {"maximum", 64}});
     add("newton/max_iter",
         IndexT{1024},
         "integer",

@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS colored updates (2026-09-30): implement complementary elastic-stencil
+  coloring, priority-preserving hybrid sweeps, per-stencil CCD and local line
+  searches following the paper's conflict policy. Keep the implementation-first
+  workflow and validate with complete simulations. Warm start remains separate.
+
 - SoS implementation priority (2026-09-29): complete the usable algorithm and
   scene-to-animation workflow before expanding small isolated tests. Keep only
   necessary integration verification. The next authorized stage adds frictionless

@@ -7,6 +7,10 @@
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <cuda_tool/eigen/atomic.h>
+#include <contact_system/global_contact_manager.h>
+#include <global_geometry/global_vertex_manager.h>
+#include <implicit_geometry/half_plane.h>
+#include <implicit_geometry/half_plane_vertex_reporter.h>
 #include <kernel_cout.h>
 #include <cuda_tool/cub.h>
 #include <uipc/common/timer.h>
@@ -70,6 +74,28 @@ namespace
             F, inverses(t), mu(t), lambda(t), volumes(t) * dt * dt, gradients(t), hessians(t));
     }
 
+    __global__ void stencil_primary_owners_kernel(ct::CBufferView<IndexT> offsets,
+                                                  ct::CBufferView<IndexT> incident,
+                                                  ct::CBufferView<IndexT> colors,
+                                                  ct::BufferView<IndexT> owners,
+                                                  IndexT color_offset,
+                                                  IndexT color,
+                                                  bool   hybrid)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= owners.size())
+            return;
+        int owner = -1;
+        if(hybrid)
+            for(int k = offsets(v); k < offsets(v + 1); ++k)
+                if(colors(color_offset + incident(k)) == color)
+                {
+                    UIPC_KERNEL_ASSERT(owner < 0, "Conflicting stencils in independent color");
+                    owner = incident(k);
+                }
+        owners(v) = owner;
+    }
+
     __global__ void stencil_local_solve_kernel(ct::CBufferView<Vector4i> tets,
                                                ct::CBufferView<Vector4i> contacts,
                                                ct::CBufferView<Vector3> xs,
@@ -83,7 +109,10 @@ namespace
                                                ct::CBufferView<Vector12> gradients,
                                                ct::CBufferView<Matrix12x12> hessians,
                                                fem::LocalStencilContactView contact,
-                                               ct::BufferView<Vector12> directions)
+                                               ct::BufferView<Vector12> directions,
+                                               ct::BufferView<Float> slopes,
+                                               ct::CBufferView<IndexT> primary_owner,
+                                               bool hybrid)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
@@ -126,16 +155,20 @@ namespace
         }
         contact.add(system, stencil);
         for(int i = 0; i < 4; ++i)
-            if(stencil(i) < 0 || fixed(stencil(i)))
+            if(stencil(i) < 0 || fixed(stencil(i))
+               || (hybrid && primary_owner(stencil(i)) >= 0
+                   && primary_owner(stencil(i)) != t))
                 system.fix_vertex(i);
         const auto result = fem::local_stencil_direction(system);
         UIPC_KERNEL_ASSERT(result.valid, "Invalid local stencil direction %d", t);
         directions(t) = result.displacement;
+        slopes(t)     = system.gradient.dot(result.displacement);
     }
 
     __global__ void stencil_scatter_contact_kernel(ct::CBufferView<Vector4i> contacts,
                                                    ct::CBufferView<Vector12> directions,
                                                    ct::BufferView<Vector3> dx,
+                                                   ct::CBufferView<IndexT> primary_owner,
                                                    IndexT tet_count,
                                                    Float  weight)
     {
@@ -143,7 +176,7 @@ namespace
         if(t >= contacts.size())
             return;
         for(int i = 0; i < 4; ++i)
-            if(contacts(t)(i) >= 0)
+            if(contacts(t)(i) >= 0 && primary_owner(contacts(t)(i)) < 0)
             {
                 const Vector3 d = weight * directions(t + tet_count).segment<3>(3 * i);
                 ct::eigen::atomic_add(dx(contacts(t)(i)), d);
@@ -162,6 +195,9 @@ namespace
                                           ct::BufferView<Vector3> displacements,
                                           ct::BufferView<Float>   residuals,
                                           ct::CBufferView<Vector3> contact_gradients,
+                                          ct::CBufferView<IndexT> primary_owner,
+                                          ct::BufferView<Vector3> total_gradients,
+                                          bool  hybrid,
                                           Float weight,
                                           Float dt)
     {
@@ -180,11 +216,35 @@ namespace
                     gradient += gradients(t).segment<3>(3 * i);
                 }
         }
+        if(hybrid && primary_owner(v) >= 0)
+        {
+            const int t = primary_owner(v);
+            for(int a = 0; a < 4; ++a)
+                if(tets(t)(a) == v)
+                    dx = directions(t).segment<3>(3 * a);
+        }
         displacements(v) = fixed(v) ? Vector3::Zero().eval() : (weight * dx).eval();
-        residuals(v) = fixed(v) ? 0 : gradient.norm() / (masses(v) * dt);
+        total_gradients(v) = fixed(v) ? Vector3::Zero().eval() : gradient;
+        residuals(v)       = fixed(v) ? 0 : gradient.norm() / (masses(v) * dt);
         UIPC_KERNEL_ASSERT(fem::stencil_finite(residuals(v)),
                            "Nonfinite stencil residual at vertex %d",
                            v);
+    }
+
+    __global__ void stencil_hybrid_average_kernel(ct::BufferView<Vector3> dx,
+                                                  ct::CBufferView<Vector3> gradients,
+                                                  ct::CBufferView<IndexT> owners,
+                                                  ct::CBufferView<IndexT> overlap,
+                                                  ct::BufferView<Float> slopes,
+                                                  bool  fallback,
+                                                  Float uniform_weight)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= dx.size())
+            return;
+        if(owners(v) < 0)
+            dx(v) *= fallback ? overlap(v) * uniform_weight : 1.0 / overlap(v);
+        slopes(v) = gradients(v).dot(dx(v));
     }
 
     __global__ void stencil_determinants_kernel(ct::CBufferView<Vector4i> tets,
@@ -212,6 +272,10 @@ void FEMLocalStencilSolver::do_build()
     {
         m_contact_receiver  = &require<FEMDyTopoEffectReceiver>();
         m_trajectory_filter = &require<GlobalTrajectoryFilter>();
+        m_contact_manager   = &require<GlobalContactManager>();
+        m_vertices          = &require<GlobalVertexManager>();
+        m_planes            = &require<HalfPlane>();
+        m_plane_reporter    = &require<HalfPlaneVertexReporter>();
     }
     on_init_scene([this] { init(); });
     on_rebuild_scene(
@@ -225,6 +289,11 @@ void FEMLocalStencilSolver::do_build()
 
 void FEMLocalStencilSolver::init()
 {
+    const auto& config = world().scene().config();
+    m_hybrid = config.find<std::string>("newton/local_stencil/sweep")->view()[0] == "hybrid";
+    m_color_limit = config.find<IndexT>("newton/local_stencil/color_limit")->view()[0];
+    if(m_color_limit < 1 || m_color_limit > 64)
+        throw SimEngineException("local_stencil color_limit must be in [1,64].");
     m_tolerance =
         world().scene().config().find<Float>("newton/velocity_tol")->view()[0];
     const auto count        = m_fem->tets().size();
@@ -295,6 +364,7 @@ void FEMLocalStencilSolver::init()
             stencil_neighbors.end(), neighbors.begin(), neighbors.end());
         stencil_offsets.push_back(static_cast<IndexT>(stencil_neighbors.size()));
     }
+    init_coloring(tets, incident);
     m_vertex_offsets.copy_from(vertex_offsets);
     m_vertex_tets.copy_from(vertex_tets);
     m_stencil_offsets.copy_from(stencil_offsets);
@@ -311,6 +381,13 @@ void FEMLocalStencilSolver::init()
     m_contact_cursors.resize_discard(vertex_count);
     m_overlap.resize_discard(vertex_count);
     m_max_overlap.resize_discard(1);
+    m_primary_owner.resize_discard(vertex_count);
+    m_total_gradients.resize_discard(vertex_count);
+    m_global_slopes.resize_discard(vertex_count);
+    m_barrier_counts.resize_discard(vertex_count + 1);
+    m_barrier_offsets.resize_discard(vertex_count + 1);
+    m_barrier_cursors.resize_discard(vertex_count);
+    m_local_statistics.resize_discard(5);
     logger::info("Local stencil solver: {} tetrahedra, {} vertices, max overlap {}",
                  count,
                  vertex_count,
@@ -339,6 +416,21 @@ void FEMLocalStencilSolver::solve()
     if(stencil_count > m_directions.capacity())
         m_directions.reserve_discard(stencil_count + stencil_count / 10);
     m_directions.resize_discard(stencil_count);
+    m_direction_slopes.resize_discard(stencil_count);
+    const Vector2i pass =
+        m_hybrid ? m_color_passes[m_sweep_index++ % m_color_passes.size()] :
+                   Vector2i::Zero().eval();
+    stencil_primary_owners_kernel<<<(vertices + 127) / 128, 128>>>(
+        m_vertex_offsets.cview(),
+        m_vertex_tets.cview(),
+        m_colors.cview(),
+        m_primary_owner.view(),
+        pass(0) * count,
+        pass(1),
+        m_hybrid);
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_hybrid)
+        logger::info("Local stencil hybrid sweep: scheme={}, color={}", pass(0), pass(1));
     stencil_local_solve_kernel<<<(stencil_count + 63) / 64, 64>>>(
         m_fem->tets(),
         m_contact_stencils.cview(),
@@ -353,8 +445,13 @@ void FEMLocalStencilSolver::solve()
         m_element_gradients.cview(),
         m_element_hessians.cview(),
         contact_view(),
-        m_directions.view());
+        m_directions.view(),
+        m_direction_slopes.view(),
+        m_primary_owner.cview(),
+        m_hybrid);
     CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_hybrid)
+        filter_local_steps();
     stencil_gather_kernel<<<(vertices + 127) / 128, 128>>>(m_fem->tets(),
                                                            m_fem->xs(),
                                                            m_fem->x_tildes(),
@@ -367,14 +464,52 @@ void FEMLocalStencilSolver::solve()
                                                            m_fem->m_impl.dxs.view(),
                                                            m_residuals.view(),
                                                            m_contact_gradients.cview(),
-                                                           m_weight,
+                                                           m_primary_owner.cview(),
+                                                           m_total_gradients.view(),
+                                                           m_hybrid,
+                                                           m_hybrid ? 1.0 : m_weight,
                                                            dt);
     CUDA_TOOL_CHECK(cudaGetLastError());
     const int contact_count = static_cast<int>(m_contact_stencils.size());
     if(contact_count)
         stencil_scatter_contact_kernel<<<(contact_count + 127) / 128, 128>>>(
-            m_contact_stencils.cview(), m_directions.cview(), m_fem->m_impl.dxs.view(), count, m_weight);
+            m_contact_stencils.cview(),
+            m_directions.cview(),
+            m_fem->m_impl.dxs.view(),
+            m_primary_owner.cview(),
+            count,
+            m_hybrid ? 1.0 : m_weight);
     CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_hybrid)
+    {
+        stencil_hybrid_average_kernel<<<(vertices + 127) / 128, 128>>>(
+            m_fem->m_impl.dxs.view(),
+            m_total_gradients.cview(),
+            m_primary_owner.cview(),
+            m_overlap.cview(),
+            m_global_slopes.view(),
+            false,
+            m_weight);
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        cuda_tool::DeviceReduce().Sum(m_global_slopes.data(), m_scalar.data(), vertices);
+        Float slope;
+        m_scalar.view().copy_to(&slope);
+        // Per-vertex Jacobi averaging is not always a descent direction. Keep
+        // committed primary values, but use a uniform secondary weight if needed.
+        if(slope > 0)
+        {
+            stencil_hybrid_average_kernel<<<(vertices + 127) / 128, 128>>>(
+                m_fem->m_impl.dxs.view(),
+                m_total_gradients.cview(),
+                m_primary_owner.cview(),
+                m_overlap.cview(),
+                m_global_slopes.view(),
+                true,
+                m_weight);
+            CUDA_TOOL_CHECK(cudaGetLastError());
+            logger::info("Local stencil hybrid: uniform secondary descent safeguard");
+        }
+    }
     cuda_tool::DeviceReduce().Max(m_residuals.data(), m_scalar.data(), vertices);
     m_scalar.view().copy_to(&m_residual);
     logger::info("Local stencil velocity residual: {} m/s", m_residual);
