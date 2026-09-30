@@ -1,5 +1,27 @@
 # Handoff — Current State of the Repo
 
+> **Bunny/cloth experiment (2026-09-30)**: added
+> `python/examples/local_stencil_bunny_cloth.py`, using the tracked bunny0.msh
+> (1,869 vertices / 7,356 tetrahedra) and a free BW+bending sheet. Both fall onto
+> the plane with no pins or friction. Solver selection includes serial `both`
+> runs, scene manifests/mesh fingerprints, incremental CSV and OBJ output, NPZ,
+> timing/trajectory comparison, GIF and GUI replay. See
+> [19-bunny-cloth-experiment.md](19-bunny-cloth-experiment.md) for parameters and
+> interpretation: current solver convergence criteria are not matched accuracy.
+> Initial soft/high-drop stress settings reached the iteration limit at frame 26;
+> preserve `output/local-stencil-bunny-cloth/attempt-soft-incomplete/` as a failure,
+> not a benchmark result. Baseline uses 100 kPa bunny, 4 cm bottom clearance,
+> d_hat=2.5 mm and velocity_tol=0.01; other solver behavior remains unchanged.
+> Both baseline solvers completed 120 converged frames. Mean advance times:
+> stencil 7,709.27 ms / global 73.70 ms (single observations, not matched accuracy).
+> Minimum det(F): 0.060919 / 0.060092; saved-frame cloth/bunny checks found no
+> intersections. The cloth trajectories differ substantially (max 575.826 mm,
+> final cloth RMS 315.571 mm); do not claim numerical equivalence or explain
+> this away as rounding. Bunny final RMS is 2.675 mm. Results and side-by-side
+> GIF are in `output/local-stencil-bunny-cloth/`. Interpretation and accuracy
+> follow-up requirements are documented in doc 19; solver optimization is not
+> part of this scene-building change.
+
 > **Local stencil cloth (2026-09-30)**: BW (819) and NeoHookeanShell (11) membranes
 > plus optional DiscreteShellBending (17) now join SNK1 (10) in one elastic
 > stencil table. Three-vertex membrane padding is excluded from DOF restriction

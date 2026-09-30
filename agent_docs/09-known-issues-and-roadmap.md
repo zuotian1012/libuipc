@@ -1,5 +1,11 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [bunny/cloth experiment](19-bunny-cloth-experiment.md) adds a common freely
+falling soft-bunny and cloth scene with solver selection, serial comparison,
+trajectory export and replay. It retains current frictionless restrictions and
+reports the different stopping criteria; matching numeric tolerance settings
+must not be presented as matched-accuracy performance.
+
 The [cloth extension](18-local-stencil-cloth.md) supports BW and Neo-Hookean
 triangle membranes, optional discrete shell bending, and mixed cloth/SNK1 scenes.
 Membrane and hinge stencils participate in the same coloring, full incident
