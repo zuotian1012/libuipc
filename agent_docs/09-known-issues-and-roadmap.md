@@ -5,6 +5,20 @@ falling soft-bunny and cloth scene with solver selection, serial comparison,
 trajectory export and replay. It retains current frictionless restrictions and
 reports the different stopping criteria; matching numeric tolerance settings
 must not be presented as matched-accuracy performance.
+The scene now exposes `--solver sos|global|both`, cloth grid density and conforming
+bunny volume subdivision. Dense defaults use 2,401 cloth vertices and 12,169 bunny
+vertices (58,848 tets); `sos` remains the partial implementation. Refinement does
+not add geometric scan detail. The old 100 kPa bunny stiffness produced a global
+tet inversion at frame 17 with dense meshes; the dense default is now 1 MPa.
+The local path hits the 2,048-pass cap at frame 1 with dt=0.01, even after reducing
+initial contact activation. At dt=0.001 both solvers complete three pre-impact
+frames; a complete dense SoS landing is not verified. Default solver is `global`,
+and `--contact-distance` now defaults to 0.5 mm. Keep convergence/scaling work
+separate from this mesh-and-CLI implementation; do not report failed runs as timings.
+The final dense global settings completed 120 converged frames, with positive
+tet determinants and cloth areas; the saved landing animation is available.
+Higher resolution is not by itself evidence of convergence or completed
+paper-scale performance; see doc 19 for the actual runs and limits.
 
 The [cloth extension](18-local-stencil-cloth.md) supports BW and Neo-Hookean
 triangle membranes, optional discrete shell bending, and mixed cloth/SNK1 scenes.

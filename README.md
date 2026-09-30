@@ -76,8 +76,11 @@ reference are documented in [Testing and Benchmarks](https://spirimirror.github.
 
 - [Bunny + cloth drop](python/examples/local_stencil_bunny_cloth.py): a free
   deformable Stanford bunny and a cloth sheet landing on a plane. The source-build
-  example supports experimental local stencil/global solver comparison, trajectory
-  export, side-by-side GIF rendering and GUI replay (`--solver both --render`).
+  example supports `--solver sos|global|both` (SoS subset / standard IPC), tunable
+  simulation meshes (`--cloth-resolution 48 --bunny-refinement 1` by default),
+  trajectory export, side-by-side GIF rendering and GUI replay. The dense global
+  scene uses `--solver global --render`; dense SoS convergence limits and short
+  comparison commands are documented in the example.
 
 - [3: periodically pressed tetrahedron](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/3_periodically_pressed_tetrahedron)
 - [11: bunny + cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/11_bunny_cloth)

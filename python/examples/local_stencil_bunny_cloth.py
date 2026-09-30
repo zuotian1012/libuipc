@@ -2,9 +2,14 @@
 
 Uses the repository's bunny0.msh tetrahedral asset and the checkout-local CUDA
 runtime. Both bodies are free; the cloth starts above the bunny without overlap.
-    python python/examples/local_stencil_bunny_cloth.py --render
-    python python/examples/local_stencil_bunny_cloth.py --solver both --render
+    python python/examples/local_stencil_bunny_cloth.py --solver global --render
+    python python/examples/local_stencil_bunny_cloth.py --solver sos --dt .001 --frames 3 --output output/dense-sos-short
+    python python/examples/local_stencil_bunny_cloth.py --solver both --dt .001 --frames 3 --output output/dense-both-short
+    python python/examples/local_stencil_bunny_cloth.py --cloth-resolution 96 --bunny-refinement 2 --mesh-info
     python python/examples/local_stencil_bunny_cloth.py --replay --gui
+
+sos is the implemented SoS subset. Dense local runs at dt=.01 currently hit the
+iteration limit; the short dt=.001 example verifies switching, not a full landing.
 """
 from __future__ import annotations
 
@@ -32,10 +37,38 @@ def boundary_faces(tets):
     return faces[first[counts == 1]]
 
 
+def refine_bunny(vertices, tets, levels):
+    """Conforming 1-to-8 subdivision of the existing simulation tetrahedra.
+
+    One midpoint per shared edge prevents cracks. Split each central octahedron
+    along its shortest diagonal. This preserves the original piecewise-linear
+    boundary and volume; it does not add scan detail or perform surface smoothing.
+    """
+    edge_pairs = np.array([(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)])
+    diagonals = np.array([(0, 5), (1, 4), (2, 3)])
+    rings = np.array([(1, 2, 4, 3), (0, 2, 5, 3), (0, 1, 5, 4)])
+    for _ in range(levels):
+        edges, inverse = np.unique(np.sort(tets[:, edge_pairs].reshape(-1, 2), axis=1),
+                                   axis=0, return_inverse=True)
+        mid = (inverse.reshape(-1, 6) + len(vertices)).astype(np.int32)
+        vertices = np.concatenate([vertices, vertices[edges].mean(axis=1)])
+        corners = [np.column_stack([tets[:, i], mid[:, ids]])
+                   for i, ids in enumerate([(0, 1, 2), (0, 3, 4), (1, 3, 5), (2, 4, 5)])]
+        lengths = np.sum((vertices[mid[:, diagonals[:, 0]]] - vertices[mid[:, diagonals[:, 1]]])**2, axis=2)
+        split = lengths.argmin(axis=1)
+        rows = np.arange(len(tets))[:, None]
+        axis = mid[rows, diagonals[split]]
+        ring = mid[rows, rings[split]]
+        center = [np.column_stack([axis, ring[:, i], ring[:, (i+1) % 4]]) for i in range(4)]
+        tets = np.concatenate(corners + center).astype(np.int32)
+    return vertices, tets
+
+
 def geometry(args):
     mesh = SimplicialComplexIO().read(str(ROOT / "assets/sim_data/tetmesh/bunny0.msh"))
     bunny = np.asarray(mesh.positions().view()).reshape(-1, 3).copy()
     tets = np.asarray(mesh.tetrahedra().topo().view()).reshape(-1, 4).copy()
+    bunny, tets = refine_bunny(bunny, tets, args.bunny_refinement)
     bunny -= (bunny.min(axis=0) + bunny.max(axis=0)) / 2
     bunny *= args.bunny_height / np.ptp(bunny[:, 1])
     bunny[:, 1] += args.drop_height - bunny[:, 1].min()
@@ -48,6 +81,18 @@ def geometry(args):
     return bunny, tets, boundary_faces(tets), cloth, triangles
 
 
+def mesh_info(meshes):
+    bunny, tets, bunny_faces, cloth, cloth_faces = meshes
+    pts = bunny[tets]
+    volumes = np.linalg.det((pts[:, 1:] - pts[:, :1]).transpose(0, 2, 1)) / 6
+    if not np.isfinite(volumes).all() or volumes.min() <= 0:
+        raise ValueError("Bunny contains invalid or degenerate tetrahedra")
+    return dict(bunny_vertices=len(bunny), bunny_tetrahedra=len(tets),
+                bunny_surface_triangles=len(bunny_faces), cloth_vertices=len(cloth),
+                cloth_triangles=len(cloth_faces), total_dofs=3*(len(bunny)+len(cloth)),
+                bunny_volume_m3=float(volumes.sum()), min_tet_volume_m3=float(volumes.min()))
+
+
 def run(args, output):
     if (output / "history.csv").exists() or (output / "summary.json").exists():
         raise FileExistsError(f"Run data already exists in {output}; use --replay or a new --output directory")
@@ -55,6 +100,8 @@ def run(args, output):
     (output / "frames").mkdir(exist_ok=True)
     Logger.set_level(Logger.Level.Info if args.verbose else Logger.Level.Warn)
     bunny, tets, bunny_faces, cloth, cloth_faces = geometry(args)
+    info = mesh_info((bunny, tets, bunny_faces, cloth, cloth_faces))
+    print(json.dumps(dict(solver=args.solver, **info), indent=2), flush=True)
     rest = np.concatenate([bunny, cloth])
     cloth_faces = cloth_faces + len(bunny)
     faces = np.concatenate([bunny_faces, cloth_faces])
@@ -69,7 +116,7 @@ def run(args, output):
     config["newton"]["max_iter"] = args.max_iterations
     config["line_search"]["max_iter"] = 32
     config["contact"]["friction"]["enable"] = False
-    config["contact"]["d_hat"] = .0025
+    config["contact"]["d_hat"] = args.contact_distance
     config["extras"]["strict_mode"]["enable"] = True
     scene = Scene(config)
     scene.contact_tabular().default_model(0., 1e8)
@@ -92,10 +139,11 @@ def run(args, output):
     floor = ground(0.)
     contact.apply_to(floor)
     scene.objects().create("Ground").geometries().create(floor)
-    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "verbose"}}
+    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "verbose", "mesh_info"}}
     manifest = dict(parameters=parameters, config=config, mesh_sha256=fingerprint,
-                    bunny_asset="assets/sim_data/tetmesh/bunny0.msh", bunny_vertices=len(bunny),
-                    bunny_tetrahedra=len(tets), cloth_vertices=len(cloth), cloth_triangles=len(cloth_faces),
+                    bunny_asset="assets/sim_data/tetmesh/bunny0.msh", **info,
+                    refinement="Conforming edge-midpoint 1-to-8; original piecewise-linear shape preserved",
+                    solver_scope="sos selects the implemented local_stencil subset, not the complete paper method",
                     units="meter, kilogram, second", friction=False,
                     runtime=str(ROOT / "build/python/src/uipc/_native"))
     (output / "scene.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -114,7 +162,7 @@ def run(args, output):
     history = []
     write_obj(output / "frames/0000.obj", rest, faces)
     print(f"{args.solver}: {len(bunny)} bunny vertices, {len(tets)} tets, "
-          f"{len(cloth_faces)} cloth triangles; init={init_ms:.0f} ms", flush=True)
+          f"{len(cloth)} cloth vertices, {len(cloth_faces)} cloth triangles; init={init_ms:.0f} ms", flush=True)
     # Write diagnostics incrementally so an interrupted experiment retains data.
     with (output / "history.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = None
@@ -295,10 +343,15 @@ def compare(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--solver", choices=["local_stencil", "global", "both"], default="local_stencil")
+    parser.add_argument("--solver", choices=["sos", "global", "both", "local_stencil"], default="global",
+                        help="sos: current SoS subset (local_stencil alias); global: standard IPC Newton solver (default); both: serial comparison")
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--frames", type=int, default=120)
-    parser.add_argument("--resolution", type=int, default=12)
+    parser.add_argument("--cloth-resolution", "--resolution", dest="resolution", type=int, default=48,
+                        help="Cloth cells per edge: (N+1)^2 vertices and 2*N^2 triangles (default: 48)")
+    parser.add_argument("--bunny-refinement", type=int, choices=[0, 1, 2], default=1,
+                        help="Conforming volumetric subdivision levels; each multiplies tets by 8 (default: 1)")
+    parser.add_argument("--mesh-info", action="store_true", help="Print actual mesh counts/volume and exit without simulation")
     parser.add_argument("--dt", type=float, default=.01)
     parser.add_argument("--tolerance", type=float, default=1e-2)
     parser.add_argument("--max-iterations", type=int, default=2048)
@@ -306,16 +359,24 @@ def main():
     parser.add_argument("--drop-height", type=float, default=.04)
     parser.add_argument("--cloth-size", type=float, default=.85)
     parser.add_argument("--cloth-gap", type=float, default=.12)
-    parser.add_argument("--bunny-young", type=float, default=1e5)
-    parser.add_argument("--output", type=Path, default=ROOT / "output/local-stencil-bunny-cloth")
+    parser.add_argument("--bunny-young", type=float, default=1e6,
+                        help="Bunny Young's modulus in Pa (default: 1 MPa for the refined mesh)")
+    parser.add_argument("--contact-distance", type=float, default=.0005,
+                        help="IPC barrier activation distance in meters (default: 0.5 mm)")
+    parser.add_argument("--output", type=Path, default=ROOT / "output/local-stencil-bunny-cloth-dense")
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--replay", action="store_true", help="Read existing trajectories without simulating")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
-    for name in ["frames", "resolution", "dt", "tolerance", "max_iterations", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young"]:
+    if args.solver == "sos":
+        args.solver = "local_stencil"
+    for name in ["frames", "resolution", "dt", "tolerance", "max_iterations", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young", "contact_distance"]:
         if not np.isfinite(getattr(args, name)) or getattr(args, name) <= 0:
             parser.error(f"{name} must be finite and positive")
+    if args.mesh_info:
+        print(json.dumps(mesh_info(geometry(args)), indent=2))
+        return
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     if args.solver == "both":

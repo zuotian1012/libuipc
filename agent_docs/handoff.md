@@ -1,5 +1,29 @@
 # Handoff — Current State of the Repo
 
+> **Denser bunny/cloth scene (2026-09-30)**: the same example now accepts
+> `--solver sos|global|both`; `sos` maps to the existing `local_stencil` subset
+> and retains its output directory name. `--cloth-resolution` (alias `--resolution`)
+> defaults to 48: 2,401 cloth vertices / 4,608 triangles. `--bunny-refinement`
+> defaults to 1: 12,169 vertices / 58,848 simulation tetrahedra. Level 2 supports
+> 87,489 vertices / 470,784 tets. Subdivision preserves the original faceted shape
+> and volume, without cracks or visual-only vertices. `--mesh-info` prints actual
+> counts and volume without running CUDA. The dense default output is separate:
+> `output/local-stencil-bunny-cloth-dense/`. Original coarse results below remain
+> unchanged. Default bunny stiffness is now 1 MPa: the former 100 kPa setting
+> produced a global-solver tet inversion at frame 17 on the refined mesh, retained
+> under `output/bunny-cloth-dense-validation/`. Contact distance is exposed as
+> `--contact-distance` (default 0.5 mm); this removes initial self-contact pairs
+> activated by the old 2.5 mm distance. At dt=0.01 local still hits 2,048 passes on
+> frame 1. Default solver is now `global`; do not claim a full dense SoS landing.
+> A serial `both` run at dt=0.001 completed three converged pre-impact frames and
+> generated comparison output (`output/bunny-cloth-dense-shortstep-validation/`).
+> See doc 19 for validation scope and preserved failures. Solver optimization was
+> not included in the mesh/CLI change. The final dense global defaults completed
+> 120 converged frames: minimum det(F)=0.680116, cloth area ratio=0.869073; mean
+> advance time 485.331 ms. GIF/OBJ/NPZ are in
+> `output/local-stencil-bunny-cloth-dense/global/`. No full dense paired performance
+> comparison or independent dense surface-intersection certificate is claimed.
+
 > **Bunny/cloth experiment (2026-09-30)**: added
 > `python/examples/local_stencil_bunny_cloth.py`, using the tracked bunny0.msh
 > (1,869 vertices / 7,356 tetrahedra) and a free BW+bending sheet. Both fall onto

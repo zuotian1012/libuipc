@@ -136,6 +136,10 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- Bunny/cloth scale study (2026-09-30): increase both cloth and bunny simulation
+  mesh density and expose command-line SoS/ordinary-solver selection. Keep the
+  implemented SoS subset explicitly distinguished from the complete paper method.
+
 - SoS cloth extension (2026-09-30): complete cloth membrane and bending support
   in the existing local-stencil solver so cloth demos can support the subsequent
   algorithm stages. Preserve the implementation-first workflow, using complete

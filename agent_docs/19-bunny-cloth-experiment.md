@@ -3,8 +3,8 @@
 `python/examples/local_stencil_bunny_cloth.py` creates a shared scene for the
 experimental local stencil solver and the existing global fused-PCG solver.
 It uses the tracked `assets/sim_data/tetmesh/bunny0.msh` asset (1,869 vertices,
-7,356 tetrahedra), without remeshing, proxies or new downloads. Negative tetrahedron
-ordering is corrected before constructing the simulation mesh. Boundary faces
+7,356 tetrahedra) with optional conforming volume subdivision, without proxies or
+new downloads. Negative tetrahedron ordering is corrected before constructing the simulation mesh. Boundary faces
 are extracted for export/rendering; collision surface labels use libuipc's API.
 
 ## Controlled inputs
@@ -16,13 +16,14 @@ then contacts the bunny and the floor. Landing and draping come from simulation.
 | Input | Default |
 |---|---|
 | Bunny height / bottom clearance | 0.45 m / 0.04 m |
-| Bunny material | SNK1, E=100 kPa, nu=0.3, density=1000 kg/m^3 |
+| Bunny material | SNK1, E=1 MPa, nu=0.3, density=1000 kg/m^3 |
+| Bunny refinement | 1 level: 12,169 vertices, 58,848 tetrahedra, 8,608 surface triangles |
 | Cloth size / initial clearance above ears | 0.85 m square / 0.12 m |
-| Cloth grid | 12 x 12 cells, 169 vertices, 288 triangles |
+| Cloth grid | 48 x 48 cells, 2,401 vertices, 4,608 triangles |
 | Cloth material | BW, stretch E=50 kPa, shear E=0.5 kPa, both nu=0.4 |
 | Cloth bending | DiscreteShellBending, E=50 kPa, nu=0.4 |
 | Cloth density / one-sided thickness | 200 kg/m^3 / 0.001 m |
-| Contact | Standard IPC, d_hat=0.0025 m, friction disabled |
+| Contact | Standard IPC, d_hat=0.0005 m, friction disabled |
 | Contact stiffness | Requested 1e8; existing adaptive corridor applies |
 | Time integration | BDF1, dt=0.01 s, 120 frames |
 | Nonlinear settings | Absolute velocity_tol=1e-2, max_iter=2048, no semi-implicit termination |
@@ -36,16 +37,27 @@ including it in a successful comparison.
 ## Run and inspect
 
 ```text
-python python/examples/local_stencil_bunny_cloth.py --solver both --render
+python python/examples/local_stencil_bunny_cloth.py --solver global --render
+python python/examples/local_stencil_bunny_cloth.py --solver sos --dt 0.001 --frames 3 --output output/bunny-cloth-sos-short
+python python/examples/local_stencil_bunny_cloth.py --solver both --dt 0.001 --frames 3 --output output/bunny-cloth-both-short
 python python/examples/local_stencil_bunny_cloth.py --replay --gui
-python python/examples/local_stencil_bunny_cloth.py --solver both --replay --render
+python python/examples/local_stencil_bunny_cloth.py --solver both --replay --render --output output/bunny-cloth-both-short
 ```
 
 `both` launches the two simulations **serially in separate processes**, keeping
 the same scene parameters. `--replay` uses saved trajectories without running the
-simulation. The default output root is `output/local-stencil-bunny-cloth/`;
+simulation. `sos` selects the implemented SoS subset, backed by
+`newton/solver=local_stencil`; `local_stencil` remains a CLI alias. It does not
+select a complete implementation of the paper. `global` selects the ordinary
+IPC global Newton/fused-PCG path and is the default for this dense demo. Solver directories retain backend names
+`local_stencil/` and `global/`.
+
+The default output root is now `output/local-stencil-bunny-cloth-dense/`;
 use distinct `--output` directories for changed parameters or additive sweeps.
 Existing run data is not overwritten: use replay or select another output root.
+To replay the older coarse experiment, add `--output output/local-stencil-bunny-cloth`.
+The dense local run at dt=0.01 currently fails. The short switching examples above
+use dt=0.001; they are not verified full-landing settings.
 
 Each solver directory contains `scene.json` (parameters, full configuration,
 asset/mesh fingerprint and runtime path), incrementally flushed `history.csv`,
@@ -54,6 +66,88 @@ matching mesh fingerprints, physical parameters and trajectory dimensions before
 writing `comparison.json` and `comparison.png`. `--render` produces initial/final
 images and a side-by-side `bunny_cloth.gif`. `--gui` opens a saved local-stencil
 trajectory with playback and frame scrubbing.
+
+## Mesh density controls
+
+`--cloth-resolution N` (legacy alias `--resolution N`) specifies cells per edge:
+`(N+1)^2` vertices and `2*N^2` triangles. `N` must be a positive integer.
+`--bunny-refinement L` accepts 0, 1 or 2; every level splits **all simulation
+tetrahedra into eight**, using one shared midpoint per unique edge. Four corner
+tetrahedra and four tetrahedra along the central octahedron's shortest diagonal
+form a conforming subdivision. Adjacent parents share the same face subdivision.
+The original piecewise-linear shape and total volume are preserved. This increases
+deformation/contact degrees of freedom, not scan detail or surface smoothness.
+
+| Example scale | Cloth resolution | Bunny refinement | Cloth vertices / triangles | Bunny vertices / tetrahedra |
+|---|---|---|---|---|
+| Previous coarse scene | 12 | 0 | 169 / 288 | 1,869 / 7,356 |
+| Current default | 48 | 1 | 2,401 / 4,608 | 12,169 / 58,848 |
+| Larger optional scene | 96 | 2 | 9,409 / 18,432 | 87,489 / 470,784 |
+
+The default has 43,710 scalar DOFs; the larger example has 290,694.
+`--mesh-info` builds the real meshes and prints counts, total DOFs, volume and
+minimum tetrahedron volume without initializing the CUDA engine or writing a run:
+
+```text
+python python/examples/local_stencil_bunny_cloth.py --mesh-info
+python python/examples/local_stencil_bunny_cloth.py --cloth-resolution 96 --bunny-refinement 2 --mesh-info
+python python/examples/local_stencil_bunny_cloth.py --solver both --cloth-resolution 96 --bunny-refinement 2 --output output/bunny-cloth-large
+```
+
+Both solvers get the same generated volume/surface meshes and physical settings;
+the manifest records refinement, surface counts and DOFs alongside the mesh hash.
+Higher refinement increases memory and solve cost substantially, especially for
+the current local solver; the larger mesh count is not a completed simulation claim.
+`--contact-distance` exposes IPC's activation distance in meters (finite, positive,
+default 0.0005). The original 2.5 mm distance activated many close surface features
+on the refined bunny already at rest. Reducing it to 0.5 mm eliminates those initial
+active pairs in the level-1 scene. It does not disable contact or CCD.
+
+## Dense validation and current solver limit (2026-09-30)
+
+Geometry checks for levels 1 and 2 verify positive child volume, eight children
+per parent with volume ratio 1/8 (maximum relative error below 4.5e-14), all vertices
+referenced, interior face incidence two and boundary triangle count quadrupling
+at each level. The scaled bunny volume remains 0.0252192954321 m^3.
+
+The denser mesh exposed limitations that the old coarse run did not:
+
+- With the original 100 kPa stiffness, dt=0.01 and d_hat=2.5 mm, the global
+  solver produced a negative tet determinant at frame 17. Preserved at
+  `output/bunny-cloth-dense-validation/`.
+- With 1 MPa stiffness and the same dt/d_hat, global completed 30 frames, with
+  minimum det(F)=0.689930 and cloth area ratio=0.910586. Its saved render shows
+  the cloth contacting and draping over the bunny. The local solver instead hit
+  the 2,048-pass cap at frame 1. These are **not** a successful paired comparison.
+  Artifacts: `output/bunny-cloth-dense-stiff-validation/`.
+- The dt=0.0025 local attempt with d_hat=2.5 mm was manually stopped without
+  completing a frame; `output/bunny-cloth-dense-smallstep-validation/` is incomplete.
+- With d_hat=0.5 mm and dt=0.01, local still hit the 2,048-pass cap at frame 1,
+  despite zero initial active simplex pairs. Reducing the barrier distance alone
+  therefore does not resolve its convergence. Preserved at
+  `output/bunny-cloth-dense-contact-validation/`.
+- With d_hat=0.5 mm and dt=0.001, `--solver both --frames 3` completed in serial
+  processes, verifying argument forwarding, backend selection, matching mesh hashes
+  and comparison output. All three frames converged for both solvers. Local used
+  1/189/220 color passes and retained minimum det(F)=0.999907; global used at most
+  two Newton steps. This is only 0.003 seconds of pre-impact motion, **not** a
+  validated full dense SoS landing. Artifacts:
+  `output/bunny-cloth-dense-shortstep-validation/`.
+
+The CLI switch changes the real backend solver. It is not a claim that the current
+SoS subset converges at every mesh scale. Strict convergence/geometry checks remain
+enabled; `both` stops when a run fails, without manufacturing a comparison report.
+Do not use the above incomplete local runs for a performance ratio. Solver scaling
+and convergence remain follow-up algorithm work.
+
+The final dense **global** defaults (1 MPa, d_hat=0.5 mm, dt=0.01) completed the
+full 120-frame landing. All frames reported convergence; minimum det(F)=0.680116,
+minimum cloth area ratio=0.869073, minimum bunny ground gap=0.041756 mm and minimum
+cloth clearance beyond radius=0.248522 mm. Total advance time was 58.240 seconds
+(mean 485.331 ms, maximum 67 Newton iterations), a single observation, not a
+matched-accuracy solver benchmark. Saved initial/final images and animation were
+visually inspected. Artifacts: `output/local-stencil-bunny-cloth-dense/global/`.
+No independent dense cloth/bunny intersection or continuous-path audit is claimed.
 
 ## Interpretation
 
@@ -78,13 +172,15 @@ The initial 50 kPa bunny / 0.12 m drop / d_hat=0.005 / velocity_tol=1e-3
 attempt reached the 2,048-pass limit at frame 26. Only its first 25 frames converged.
 Its manifest, CSV and OBJ states are preserved under
 `output/local-stencil-bunny-cloth/attempt-soft-incomplete/`; it is not a successful
-comparison result. The baseline uses the parameters above to reduce impact and
+comparison result. The original coarse baseline used 100 kPa bunny stiffness to reduce impact and
 initial contact activation. The less strict tolerance is explicit, not an increase
 in the iteration budget or a bypass of convergence/validity checks.
 
 ## Baseline observations (2026-09-30)
 
-Both runs completed 120 frames (1.2 seconds), all reported converged, using the
+These are historical **coarse-mesh** results, with refinement 0, cloth resolution 12
+and bunny E=100 kPa; they are not measurements of the new dense defaults. Both runs
+completed 120 frames (1.2 seconds), all reported converged, using the
 same initial mesh fingerprint and scene settings apart from the solver selector.
 
 | Measurement | Local stencil hybrid | Global fused PCG / diag |
