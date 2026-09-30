@@ -1,5 +1,6 @@
 #pragma once
 #include <sim_system.h>
+#include <finite_element/local_stencil_elastic_data.h>
 #include <cuda_tool/cuda_tool.h>
 #include <finite_element/local_stencil_contact.h>
 
@@ -36,9 +37,10 @@ class FEMLocalStencilSolver final : public SimSystem
   private:
     void                         do_build() override;
     void                         init();
+    void                         init_elastic();
     void                         prepare_contacts();
     fem::LocalStencilContactView contact_view() const;
-    void init_coloring(span<const Vector4i> tets, const vector<vector<IndexT>>& incident);
+    void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void filter_local_steps();
     void prepare_barriers();
 
@@ -60,15 +62,16 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Float>              m_global_slopes;
     cuda_tool::DeviceBuffer<IndexT>             m_local_statistics;
     cuda_tool::DeviceBuffer<StencilBarrierTerm> m_barrier_terms;
-    cuda_tool::DeviceBuffer<IndexT>      m_barrier_counts, m_barrier_offsets;
-    cuda_tool::DeviceBuffer<IndexT>      m_barrier_cursors, m_barrier_entries;
-    cuda_tool::DeviceBuffer<Vector4i>    m_contact_stencils;
-    cuda_tool::DeviceBuffer<Vector3>     m_contact_gradients;
-    cuda_tool::DeviceBuffer<IndexT>      m_contact_counts, m_contact_offsets;
-    cuda_tool::DeviceBuffer<IndexT>      m_contact_cursors, m_contact_entries;
-    cuda_tool::DeviceBuffer<IndexT>      m_overlap, m_max_overlap;
-    cuda_tool::DeviceBuffer<Float>       m_mu, m_lambda;
-    cuda_tool::DeviceBuffer<IndexT>      m_vertex_offsets, m_vertex_tets;
+    cuda_tool::DeviceBuffer<IndexT>   m_barrier_counts, m_barrier_offsets;
+    cuda_tool::DeviceBuffer<IndexT>   m_barrier_cursors, m_barrier_entries;
+    cuda_tool::DeviceBuffer<Vector4i> m_contact_stencils;
+    cuda_tool::DeviceBuffer<Vector3>  m_contact_gradients;
+    cuda_tool::DeviceBuffer<IndexT>   m_contact_counts, m_contact_offsets;
+    cuda_tool::DeviceBuffer<IndexT>   m_contact_cursors, m_contact_entries;
+    cuda_tool::DeviceBuffer<IndexT>   m_overlap, m_max_overlap;
+    cuda_tool::DeviceBuffer<Vector4i> m_elastic_stencils;
+    cuda_tool::DeviceBuffer<fem::StencilElasticTerm> m_elastic_terms;
+    cuda_tool::DeviceBuffer<IndexT>      m_vertex_offsets, m_vertex_elements;
     cuda_tool::DeviceBuffer<IndexT>      m_stencil_offsets, m_stencil_neighbors;
     cuda_tool::DeviceBuffer<Vector12>    m_element_gradients, m_directions;
     cuda_tool::DeviceBuffer<Matrix12x12> m_element_hessians;

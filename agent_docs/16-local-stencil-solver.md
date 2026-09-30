@@ -1,6 +1,7 @@
 # 16 - Local stencil mesh solver
 
 The current default is the [colored hybrid update](17-local-stencil-hybrid.md).
+Supported materials now also include [cloth membranes and bending](18-local-stencil-cloth.md).
 This page describes the earlier additive baseline, retained through
 `newton/local_stencil/sweep = "additive"`. Append `--sweep additive` to example
 commands below to reproduce that baseline; prior run measurements are historical.

@@ -1,5 +1,28 @@
 # Handoff — Current State of the Repo
 
+> **Local stencil cloth (2026-09-30)**: BW (819) and NeoHookeanShell (11) membranes
+> plus optional DiscreteShellBending (17) now join SNK1 (10) in one elastic
+> stencil table. Three-vertex membrane padding is excluded from DOF restriction
+> and coloring. Every elastic/contact solve and local energy search includes the
+> union of incident membrane, hinge and solid terms. Cloth triangles get local
+> continuous projected-area bounds; endpoint degeneracy checks apply globally.
+> Raw BW Hessians complement reused NH/bending derivatives. Closest-feature
+> PT/EE/PE flags fix false infinite local contact energies exposed by mixed drape.
+> See [18-local-stencil-cloth.md](18-local-stencil-cloth.md) for weights, limitations
+> and use. `python/examples/local_stencil_cloth.py` supports pinned, drape and
+> layers scenes, BW/NH selection, headless export, GIF and GUI replay.
+> Four 120-frame cloth runs and the 120-frame two-solid regression converge;
+> minimum shell area ratio is 0.964228 across these runs and pins remain exact.
+> Saved-frame cloth/block and inter-layer checks find no intersections and maintain
+> positive thickness-adjusted clearance. Local CCD caps are observed in both.
+> Artifacts: `output/local-stencil-cloth/`, including `verification.json`.
+> CUDA 12.6/XMake release backend and test build passed. The new shell derivative
+> contract passes 9 assertions; the existing stencil suite passes 136 assertions
+> in 7 cases. Both build systems include the new sources through existing globs.
+> Warm start, paper barriers, CSFD and paper demos remain future work. Friction,
+> ABD/rod coupling, plastic shells and stitching remain unsupported by this solver.
+> Existing unrelated profiling/Blender-demo edits are preserved and not committed.
+
 > **Colored hybrid stencil updates (2026-09-30)**: default local-stencil mode now
 > uses complementary elastic coloring, grey contact stencils and priority-preserving
 > hybrid submission. Each engine iteration accepts one color pass before the next

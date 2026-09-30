@@ -26,6 +26,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | [`15-local-stencil-stage1.md`](15-local-stencil-stage1.md) | Experimental non-contact local stencil assembly, unprojected Newton-CG, CUDA checks and two-tetrahedron convergence oracle; no Scene solver selector |
 | [`16-local-stencil-solver.md`](16-local-stencil-solver.md) | Scene-selectable GPU additive elastic/contact stencil solver, CCD integration, cantilever and frictionless contact examples |
 | [`17-local-stencil-hybrid.md`](17-local-stencil-hybrid.md) | Complementary coloring, priority-preserving hybrid sweeps, local CCD, continuous local inversion bounds and per-stencil energy line search |
+| [`18-local-stencil-cloth.md`](18-local-stencil-cloth.md) | BW/NH membrane and discrete bending stencils, mixed cloth/solid contact, triangle degeneracy bounds and cloth examples |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |

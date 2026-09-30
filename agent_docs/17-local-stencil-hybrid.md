@@ -1,5 +1,9 @@
 # 17 - Complementary-color hybrid stencil updates
 
+Cloth support is now added in [18](18-local-stencil-cloth.md): the same conflict
+and priority rules apply to membrane triangles and bending hinges as well as
+tetrahedra. The tetrahedral measurements below are historical stage evidence.
+
 This stage replaces the default additive update of the [stencil solver](16-local-stencil-solver.md)
 with complementary-color hybrid sweeps and per-stencil step filtering. The
 reference is Sections 4.2, 5.1 and 5.2 of

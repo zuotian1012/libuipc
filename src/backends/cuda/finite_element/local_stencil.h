@@ -30,12 +30,12 @@ struct LocalStencilSystem
         {
             for(int a = 0; a < 4; ++a)
             {
-                if(stencil(i) != element(a))
+                if(stencil(i) < 0 || stencil(i) != element(a))
                     continue;
                 gradient.segment<3>(3 * i) += element_gradient.segment<3>(3 * a);
                 for(int j = 0; j < 4; ++j)
                     for(int b = 0; b < 4; ++b)
-                        if(stencil(j) == element(b))
+                        if(stencil(j) >= 0 && stencil(j) == element(b))
                             hessian.block<3, 3>(3 * i, 3 * j) +=
                                 element_hessian.block<3, 3>(3 * a, 3 * b);
             }

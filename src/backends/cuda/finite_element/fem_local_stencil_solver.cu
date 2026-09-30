@@ -1,7 +1,7 @@
 #include <finite_element/fem_local_stencil_solver.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/local_stencil.h>
-#include <finite_element/local_stencil_snk.h>
+#include <finite_element/local_stencil_elastic.h>
 #include <sim_engine.h>
 #include <finite_element/fem_dytopo_effect_receiver.h>
 #include <finite_element/finite_element_vertex_reporter.h>
@@ -40,9 +40,12 @@ class SimSystemCreator<cuda::FEMLocalStencilSolver>
             throw SimEngineException("local_stencil uses the absolute newton/velocity_tol; set velocity_tol_relative to zero.");
         const auto uids = scene.constitution_tabular().uids();
         if(uids.empty()
-           || std::any_of(
-               uids.begin(), uids.end(), [](U64 uid) { return uid != 10; }))
-            throw SimEngineException("local_stencil currently supports only StableNeoHookean tetrahedra and fixed vertices.");
+           || std::any_of(uids.begin(),
+                          uids.end(),
+                          [](U64 uid) {
+                              return uid != 10 && uid != 11 && uid != 819 && uid != 17;
+                          }))
+            throw SimEngineException("local_stencil supports SNK1 tetrahedra, BW/NH cloth, DiscreteShellBending and fixed vertices.");
         return uipc::make_unique<cuda::FEMLocalStencilSolver>(engine);
     }
 };
@@ -54,24 +57,21 @@ namespace
 {
     namespace ct = cuda_tool;
 
-    __global__ void stencil_element_derivatives_kernel(ct::CBufferView<Vector4i> tets,
+    __global__ void stencil_element_derivatives_kernel(ct::CBufferView<Vector4i> elements,
                                                        ct::CBufferView<Vector3> xs,
-                                                       ct::CBufferView<Matrix3x3> inverses,
-                                                       ct::CBufferView<Float> volumes,
-                                                       ct::CBufferView<Float> mu,
-                                                       ct::CBufferView<Float> lambda,
+                                                       ct::CBufferView<fem::StencilElasticTerm> terms,
                                                        ct::BufferView<Vector12> gradients,
                                                        ct::BufferView<Matrix12x12> hessians,
                                                        Float dt)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
-        if(t >= tets.size())
+        if(t >= elements.size())
             return;
-        const auto      tet = tets(t);
-        const Matrix3x3 F =
-            fem::F(xs(tet(0)), xs(tet(1)), xs(tet(2)), xs(tet(3)), inverses(t));
-        fem::snk_stencil_element(
-            F, inverses(t), mu(t), lambda(t), volumes(t) * dt * dt, gradients(t), hessians(t));
+        Vector3 p[4];
+        for(int a = 0; a < 4; ++a)
+            if(elements(t)(a) >= 0)
+                p[a] = xs(elements(t)(a));
+        fem::stencil_elastic_derivatives(terms(t), p, dt, gradients(t), hessians(t));
     }
 
     __global__ void stencil_primary_owners_kernel(ct::CBufferView<IndexT> offsets,
@@ -96,7 +96,7 @@ namespace
         owners(v) = owner;
     }
 
-    __global__ void stencil_local_solve_kernel(ct::CBufferView<Vector4i> tets,
+    __global__ void stencil_local_solve_kernel(ct::CBufferView<Vector4i> elements,
                                                ct::CBufferView<Vector4i> contacts,
                                                ct::CBufferView<Vector3> xs,
                                                ct::CBufferView<Vector3> predicted,
@@ -105,7 +105,7 @@ namespace
                                                ct::CBufferView<IndexT> offsets,
                                                ct::CBufferView<IndexT> neighbors,
                                                ct::CBufferView<IndexT> vertex_offsets,
-                                               ct::CBufferView<IndexT> vertex_tets,
+                                               ct::CBufferView<IndexT> vertex_elements,
                                                ct::CBufferView<Vector12> gradients,
                                                ct::CBufferView<Matrix12x12> hessians,
                                                fem::LocalStencilContactView contact,
@@ -117,25 +117,26 @@ namespace
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
             return;
-        const Vector4i stencil = t < tets.size() ? tets(t) : contacts(t - tets.size());
+        const Vector4i stencil =
+            t < elements.size() ? elements(t) : contacts(t - elements.size());
         fem::LocalStencilSystem system;
         for(int i = 0; i < 4; ++i)
             if(stencil(i) >= 0)
                 system.add_inertia(i,
                                    masses(stencil(i)),
                                    xs(stencil(i)) - predicted(stencil(i)));
-        if(t < tets.size())
+        if(t < elements.size())
         {
             for(int entry = offsets(t); entry < offsets(t + 1); ++entry)
             {
                 const int e = neighbors(entry);
-                system.add_element(stencil, tets(e), gradients(e), hessians(e));
+                system.add_element(stencil, elements(e), gradients(e), hessians(e));
             }
         }
         else
         {
             // The contact stencil can cross bodies. Include the union of all
-            // incident elastic energies once, even when vertices share a tet.
+            // incident elastic energies once, including shared elements.
             for(int a = 0; a < 4; ++a)
             {
                 const int v = stencil(a);
@@ -143,13 +144,14 @@ namespace
                     continue;
                 for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
                 {
-                    const int e    = vertex_tets(k);
+                    const int e    = vertex_elements(k);
                     bool      seen = false;
                     for(int b = 0; b < a; ++b)
                         for(int j = 0; j < 4; ++j)
-                            seen = seen || stencil(b) == tets(e)(j);
+                            seen = seen
+                                   || (stencil(b) >= 0 && stencil(b) == elements(e)(j));
                     if(!seen)
-                        system.add_element(stencil, tets(e), gradients(e), hessians(e));
+                        system.add_element(stencil, elements(e), gradients(e), hessians(e));
                 }
             }
         }
@@ -169,7 +171,7 @@ namespace
                                                    ct::CBufferView<Vector12> directions,
                                                    ct::BufferView<Vector3> dx,
                                                    ct::CBufferView<IndexT> primary_owner,
-                                                   IndexT tet_count,
+                                                   IndexT elastic_count,
                                                    Float  weight)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
@@ -178,18 +180,19 @@ namespace
         for(int i = 0; i < 4; ++i)
             if(contacts(t)(i) >= 0 && primary_owner(contacts(t)(i)) < 0)
             {
-                const Vector3 d = weight * directions(t + tet_count).segment<3>(3 * i);
+                const Vector3 d =
+                    weight * directions(t + elastic_count).segment<3>(3 * i);
                 ct::eigen::atomic_add(dx(contacts(t)(i)), d);
             }
     }
 
-    __global__ void stencil_gather_kernel(ct::CBufferView<Vector4i> tets,
+    __global__ void stencil_gather_kernel(ct::CBufferView<Vector4i> elements,
                                           ct::CBufferView<Vector3>  xs,
                                           ct::CBufferView<Vector3>  predicted,
                                           ct::CBufferView<Float>    masses,
                                           ct::CBufferView<IndexT>   fixed,
                                           ct::CBufferView<IndexT>   offsets,
-                                          ct::CBufferView<IndexT> incident_tets,
+                                          ct::CBufferView<IndexT> incident_elements,
                                           ct::CBufferView<Vector12> gradients,
                                           ct::CBufferView<Vector12> directions,
                                           ct::BufferView<Vector3> displacements,
@@ -208,9 +211,9 @@ namespace
         Vector3 gradient = masses(v) * (xs(v) - predicted(v)) + contact_gradients(v);
         for(int entry = offsets(v); entry < offsets(v + 1); ++entry)
         {
-            const int t = incident_tets(entry);
+            const int t = incident_elements(entry);
             for(int i = 0; i < 4; ++i)
-                if(tets(t)(i) == v)
+                if(elements(t)(i) == v)
                 {
                     dx += directions(t).segment<3>(3 * i);
                     gradient += gradients(t).segment<3>(3 * i);
@@ -220,7 +223,7 @@ namespace
         {
             const int t = primary_owner(v);
             for(int a = 0; a < 4; ++a)
-                if(tets(t)(a) == v)
+                if(elements(t)(a) == v)
                     dx = directions(t).segment<3>(3 * a);
         }
         displacements(v) = fixed(v) ? Vector3::Zero().eval() : (weight * dx).eval();
@@ -247,18 +250,23 @@ namespace
         slopes(v) = gradients(v).dot(dx(v));
     }
 
-    __global__ void stencil_determinants_kernel(ct::CBufferView<Vector4i> tets,
+    __global__ void stencil_determinants_kernel(ct::CBufferView<Vector4i> ids,
                                                 ct::CBufferView<Vector3>  xs,
-                                                ct::CBufferView<Matrix3x3> inverses,
+                                                ct::CBufferView<fem::StencilElasticTerm> terms,
                                                 ct::BufferView<Float> determinants)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
-        if(t >= tets.size())
+        if(t >= ids.size())
             return;
-        const auto  tet = tets(t);
-        const Float det =
-            fem::F(xs(tet(0)), xs(tet(1)), xs(tet(2)), xs(tet(3)), inverses(t)).determinant();
-        determinants(t) = fem::stencil_finite(det) ? det : -1;
+        const auto s     = ids(t);
+        const auto term  = terms(t);
+        Float      value = 1;
+        if(term.type == 10)
+            value = fem::F(xs(s(0)), xs(s(1)), xs(s(2)), xs(s(3)), term.inverse).determinant();
+        else if(term.type != 17)
+            value = fem::stencil_triangle_measure(xs(s(0)), xs(s(1)), xs(s(2))) / term.rest_area2
+                    - 1e-12;
+        determinants(t) = fem::stencil_finite(value) ? value : -1;
     }
 }  // namespace
 
@@ -296,67 +304,51 @@ void FEMLocalStencilSolver::init()
         throw SimEngineException("local_stencil color_limit must be in [1,64].");
     m_tolerance =
         world().scene().config().find<Float>("newton/velocity_tol")->view()[0];
-    const auto count        = m_fem->tets().size();
     const auto vertex_count = m_fem->xs().size();
-    if(count == 0 || vertex_count == 0 || m_fem->codim_0ds().size()
-       || m_fem->codim_1ds().size() || m_fem->codim_2ds().size())
-        throw SimEngineException("local_stencil requires a nonempty tetrahedral FEM scene.");
-    vector<Float> mu(count), lambda(count);
-    m_fem->for_each(
-        world().scene().geometries(),
-        [&](const FiniteElementMethod::ForEachInfo& info, geometry::SimplicialComplex& sc)
-        {
-            if(info.geo_info().dim_uid.uid != 10 || sc.dim() != 3)
-                throw SimEngineException("local_stencil requires StableNeoHookean tetrahedra.");
-            const auto mus     = sc.tetrahedra().find<Float>("mu")->view();
-            const auto lambdas = sc.tetrahedra().find<Float>("lambda")->view();
-            const auto offset  = info.geo_info().primitive_offset;
-            for(SizeT i = 0; i < mus.size(); ++i)
-            {
-                if(!std::isfinite(mus[i]) || !std::isfinite(lambdas[i])
-                   || mus[i] <= 0 || lambdas[i] <= 0)
-                    throw SimEngineException("local_stencil requires positive finite material parameters.");
-                mu[offset + i]     = mus[i];
-                lambda[offset + i] = lambdas[i];
-            }
-        });
-    m_mu.copy_from(mu);
-    m_lambda.copy_from(lambda);
-
-    vector<Vector4i> tets(count);
-    m_fem->tets().copy_to(tets.data());
+    if(vertex_count == 0 || m_fem->codim_0ds().size() || m_fem->codim_1ds().size())
+        throw SimEngineException("local_stencil requires tetrahedra and/or triangle cloth, with positive vertex mass.");
+    init_elastic();
+    const auto count = m_elastic_stencils.size();
+    if(count == 0)
+        throw SimEngineException("local_stencil requires nonempty elastic stencils.");
+    vector<Vector4i> elements(count);
+    m_elastic_stencils.view().copy_to(elements.data());
     vector<Float> masses(vertex_count);
     m_fem->masses().copy_to(masses.data());
     vector<vector<IndexT>> incident(vertex_count);
     for(SizeT t = 0; t < count; ++t)
         for(int i = 0; i < 4; ++i)
         {
-            const auto v = tets[t](i);
+            const auto v = elements[t](i);
+            if(v == -1)
+                continue;
             if(v < 0 || v >= vertex_count)
-                throw SimEngineException("local_stencil: tetrahedron vertex index out of bounds.");
+                throw SimEngineException("local_stencil: elastic stencil vertex index out of bounds.");
             incident[v].push_back(static_cast<IndexT>(t));
         }
-    vector<IndexT> vertex_offsets{0}, vertex_tets;
+    vector<IndexT> vertex_offsets{0}, vertex_elements;
     SizeT          max_degree = 1;
     for(SizeT v = 0; v < vertex_count; ++v)
     {
         if(incident[v].empty() || !std::isfinite(masses[v]) || masses[v] <= 0)
-            throw SimEngineException("local_stencil requires every vertex to have positive mass and incident tetrahedra.");
+            throw SimEngineException("local_stencil requires every vertex to have positive mass and incident elastic elements.");
         max_degree = std::max(max_degree, incident[v].size());
-        vertex_tets.insert(vertex_tets.end(), incident[v].begin(), incident[v].end());
-        vertex_offsets.push_back(static_cast<IndexT>(vertex_tets.size()));
+        vertex_elements.insert(
+            vertex_elements.end(), incident[v].begin(), incident[v].end());
+        vertex_offsets.push_back(static_cast<IndexT>(vertex_elements.size()));
     }
     // One uniform weight preserves descent of the summed local directions.
     // Per-vertex averaging would in general change the sign of g.dot(dx).
     m_weight = 1.0 / static_cast<Float>(max_degree);
     vector<IndexT> stencil_offsets{0}, stencil_neighbors;
-    for(const auto& tet : tets)
+    for(const auto& element : elements)
     {
         vector<IndexT> neighbors;
         for(int i = 0; i < 4; ++i)
-            neighbors.insert(neighbors.end(),
-                             incident[tet(i)].begin(),
-                             incident[tet(i)].end());
+            if(element(i) >= 0)
+                neighbors.insert(neighbors.end(),
+                                 incident[element(i)].begin(),
+                                 incident[element(i)].end());
         std::sort(neighbors.begin(), neighbors.end());
         neighbors.erase(std::unique(neighbors.begin(), neighbors.end()),
                         neighbors.end());
@@ -364,9 +356,9 @@ void FEMLocalStencilSolver::init()
             stencil_neighbors.end(), neighbors.begin(), neighbors.end());
         stencil_offsets.push_back(static_cast<IndexT>(stencil_neighbors.size()));
     }
-    init_coloring(tets, incident);
+    init_coloring(elements, incident);
     m_vertex_offsets.copy_from(vertex_offsets);
-    m_vertex_tets.copy_from(vertex_tets);
+    m_vertex_elements.copy_from(vertex_elements);
     m_stencil_offsets.copy_from(stencil_offsets);
     m_stencil_neighbors.copy_from(stencil_neighbors);
     m_element_gradients.resize_discard(count);
@@ -388,7 +380,7 @@ void FEMLocalStencilSolver::init()
     m_barrier_offsets.resize_discard(vertex_count + 1);
     m_barrier_cursors.resize_discard(vertex_count);
     m_local_statistics.resize_discard(5);
-    logger::info("Local stencil solver: {} tetrahedra, {} vertices, max overlap {}",
+    logger::info("Local stencil solver: {} elastic stencils, {} vertices, max overlap {}",
                  count,
                  vertex_count,
                  max_degree);
@@ -398,15 +390,12 @@ void FEMLocalStencilSolver::solve()
 {
     Timer       timer{"Local Stencil Solve"};
     const Float dt       = world().scene().dt();
-    const int   count    = static_cast<int>(m_fem->tets().size());
+    const int   count    = static_cast<int>(m_elastic_stencils.cview().size());
     const int   vertices = static_cast<int>(m_fem->xs().size());
     stencil_element_derivatives_kernel<<<(count + 63) / 64, 64>>>(
-        m_fem->tets(),
+        m_elastic_stencils.cview(),
         m_fem->xs(),
-        m_fem->Dm3x3_invs(),
-        m_fem->rest_volumes(),
-        m_mu.cview(),
-        m_lambda.cview(),
+        m_elastic_terms.cview(),
         m_element_gradients.view(),
         m_element_hessians.view(),
         dt);
@@ -422,7 +411,7 @@ void FEMLocalStencilSolver::solve()
                    Vector2i::Zero().eval();
     stencil_primary_owners_kernel<<<(vertices + 127) / 128, 128>>>(
         m_vertex_offsets.cview(),
-        m_vertex_tets.cview(),
+        m_vertex_elements.cview(),
         m_colors.cview(),
         m_primary_owner.view(),
         pass(0) * count,
@@ -432,7 +421,7 @@ void FEMLocalStencilSolver::solve()
     if(m_hybrid)
         logger::info("Local stencil hybrid sweep: scheme={}, color={}", pass(0), pass(1));
     stencil_local_solve_kernel<<<(stencil_count + 63) / 64, 64>>>(
-        m_fem->tets(),
+        m_elastic_stencils.cview(),
         m_contact_stencils.cview(),
         m_fem->xs(),
         m_fem->x_tildes(),
@@ -441,7 +430,7 @@ void FEMLocalStencilSolver::solve()
         m_stencil_offsets.cview(),
         m_stencil_neighbors.cview(),
         m_vertex_offsets.cview(),
-        m_vertex_tets.cview(),
+        m_vertex_elements.cview(),
         m_element_gradients.cview(),
         m_element_hessians.cview(),
         contact_view(),
@@ -452,23 +441,24 @@ void FEMLocalStencilSolver::solve()
     CUDA_TOOL_CHECK(cudaGetLastError());
     if(m_hybrid)
         filter_local_steps();
-    stencil_gather_kernel<<<(vertices + 127) / 128, 128>>>(m_fem->tets(),
-                                                           m_fem->xs(),
-                                                           m_fem->x_tildes(),
-                                                           m_fem->masses(),
-                                                           m_fem->is_fixed(),
-                                                           m_vertex_offsets.cview(),
-                                                           m_vertex_tets.cview(),
-                                                           m_element_gradients.cview(),
-                                                           m_directions.cview(),
-                                                           m_fem->m_impl.dxs.view(),
-                                                           m_residuals.view(),
-                                                           m_contact_gradients.cview(),
-                                                           m_primary_owner.cview(),
-                                                           m_total_gradients.view(),
-                                                           m_hybrid,
-                                                           m_hybrid ? 1.0 : m_weight,
-                                                           dt);
+    stencil_gather_kernel<<<(vertices + 127) / 128, 128>>>(
+        m_elastic_stencils.cview(),
+        m_fem->xs(),
+        m_fem->x_tildes(),
+        m_fem->masses(),
+        m_fem->is_fixed(),
+        m_vertex_offsets.cview(),
+        m_vertex_elements.cview(),
+        m_element_gradients.cview(),
+        m_directions.cview(),
+        m_fem->m_impl.dxs.view(),
+        m_residuals.view(),
+        m_contact_gradients.cview(),
+        m_primary_owner.cview(),
+        m_total_gradients.view(),
+        m_hybrid,
+        m_hybrid ? 1.0 : m_weight,
+        dt);
     CUDA_TOOL_CHECK(cudaGetLastError());
     const int contact_count = static_cast<int>(m_contact_stencils.size());
     if(contact_count)
@@ -522,9 +512,11 @@ bool FEMLocalStencilSolver::converged() const
 
 bool FEMLocalStencilSolver::valid_configuration()
 {
-    const int count = static_cast<int>(m_fem->tets().size());
-    stencil_determinants_kernel<<<(count + 127) / 128, 128>>>(
-        m_fem->tets(), m_fem->xs(), m_fem->Dm3x3_invs(), m_determinants.view());
+    const int count = static_cast<int>(m_elastic_stencils.cview().size());
+    stencil_determinants_kernel<<<(count + 127) / 128, 128>>>(m_elastic_stencils.cview(),
+                                                              m_fem->xs(),
+                                                              m_elastic_terms.cview(),
+                                                              m_determinants.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
     cuda_tool::DeviceReduce().Min(m_determinants.data(), m_scalar.data(), count);
     Float minimum;

@@ -1,5 +1,15 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [cloth extension](18-local-stencil-cloth.md) supports BW and Neo-Hookean
+triangle membranes, optional discrete shell bending, and mixed cloth/SNK1 scenes.
+Membrane and hinge stencils participate in the same coloring, full incident
+assembly and local line search. Local projected-area bounds prevent triangle
+collapse along individual trials; combined proposals retain endpoint checks.
+Closest-feature flags now make local PT/EE/PE barrier guards agree with global
+IPC evaluation, including parallel edges. Cloth pinning, drape onto a soft body
+and two-layer contact examples are available. Friction, plasticity, rods, ABD,
+stitching and other constitutions are not added to this experimental solver.
+
 The [colored local stencil solver](17-local-stencil-hybrid.md) now adds
 complementary elastic coloring, grey contact stencils, protected priority updates,
 per-stencil conservative CCD, cubic inversion bounds and local Armijo filtering.
@@ -12,7 +22,7 @@ The [additive baseline](16-local-stencil-solver.md) integrates the
 stage-one Newton-CG building block into `World.advance()` with parallel
 tetrahedral/contact solves, overlap-weighted additive updates, standard IPC
 contact, CCD and global energy line search. Select `newton/solver = "local_stencil"`
-for frictionless SNK1 tetrahedra with optional fixed half planes.
+for frictionless SNK1 tetrahedra and supported cloth with optional fixed half planes.
 Friction, full combined-step inversion certification, CSFD, warm start and
 paper demo reproduction remain deferred. This is not the complete SoS method
 or a performance claim.

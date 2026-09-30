@@ -1,6 +1,6 @@
 #include <finite_element/fem_local_stencil_solver.h>
 #include <finite_element/finite_element_method.h>
-#include <finite_element/local_stencil_snk.h>
+#include <finite_element/local_stencil_elastic.h>
 #include <finite_element/local_stencil_inversion.h>
 #include <contact_system/contact_models/codim_ipc_simplex_normal_contact_function.h>
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
@@ -32,11 +32,11 @@ namespace
 
     struct LocalObjective
     {
-        ct::CBufferView<Vector4i>  tets, contacts;
-        ct::CBufferView<Vector3>   xs, rest, predicted;
-        ct::CBufferView<Float>     masses, volumes, mu, lambda;
-        ct::CBufferView<Matrix3x3> inverses;
-        ct::CBufferView<IndexT> vertex_offsets, vertex_tets, barrier_offsets, barrier_entries;
+        ct::CBufferView<Vector4i>                elements, contacts;
+        ct::CBufferView<Vector3>                 xs, rest, predicted;
+        ct::CBufferView<Float>                   masses;
+        ct::CBufferView<fem::StencilElasticTerm> terms;
+        ct::CBufferView<IndexT> vertex_offsets, vertex_elements, barrier_offsets, barrier_entries;
         ct::CBufferView<StencilBarrierTerm> barriers;
         Float                               dt;
 
@@ -44,7 +44,9 @@ namespace
             int e, const Vector4i& s, const Vector12& d, Float alpha, Vector3* p) const
         {
             for(int a = 0; a < 4; ++a)
-                p[a] = xs(tets(e)(a)) + alpha * local_motion(tets(e)(a), s, d);
+                if(elements(e)(a) >= 0)
+                    p[a] = xs(elements(e)(a))
+                           + alpha * local_motion(elements(e)(a), s, d);
         }
 
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
@@ -58,11 +60,24 @@ namespace
                     p[a] = xs(ids(a)) + alpha * local_motion(ids(a), s, d);
             Float D = 0;
             if(term.type == 0)
-                distance::point_triangle_distance2(p[0], p[1], p[2], p[3], D);
+                distance::point_triangle_distance2(
+                    distance::point_triangle_distance_flag(p[0], p[1], p[2], p[3]),
+                    p[0],
+                    p[1],
+                    p[2],
+                    p[3],
+                    D);
             if(term.type == 1)
-                distance::edge_edge_distance2(p[0], p[1], p[2], p[3], D);
+                distance::edge_edge_distance2(
+                    distance::edge_edge_distance_flag(p[0], p[1], p[2], p[3]),
+                    p[0],
+                    p[1],
+                    p[2],
+                    p[3],
+                    D);
             if(term.type == 2)
-                distance::point_edge_distance2(p[0], p[1], p[2], D);
+                distance::point_edge_distance2(
+                    distance::point_edge_distance_flag(p[0], p[1], p[2]), p[0], p[1], p[2], D);
             if(term.type == 3)
                 distance::point_point_distance2(p[0], p[1], D);
             if(term.type == 4)
@@ -79,7 +94,15 @@ namespace
                 return 0;
             const Float k = term.kappa_dt2, h = term.d_hat, thickness = term.thickness;
             if(term.type == 0)
-                return PT_barrier_energy(k, h, thickness, p[0], p[1], p[2], p[3]);
+                return PT_barrier_energy(
+                    distance::point_triangle_distance_flag(p[0], p[1], p[2], p[3]),
+                    k,
+                    h,
+                    thickness,
+                    p[0],
+                    p[1],
+                    p[2],
+                    p[3]);
             if(term.type == 1)
             {
                 const auto flag =
@@ -124,17 +147,12 @@ namespace
                 energy += 0.5 * masses(v) * (x - predicted(v)).squaredNorm();
                 for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
                 {
-                    const int e = vertex_tets(k);
-                    if(visited_before(tets(e), s, a))
+                    const int e = vertex_elements(k);
+                    if(visited_before(elements(e), s, a))
                         continue;
                     Vector3 p[4];
                     element_positions(e, s, d, alpha, p);
-                    const Matrix3x3 F = fem::F(p[0], p[1], p[2], p[3], inverses(e));
-                    if(F.determinant() <= 0)
-                        return std::numeric_limits<Float>::infinity();
-                    Float elastic;
-                    snk1::E(elastic, mu(e), lambda(e), F);
-                    energy += volumes(e) * dt * dt * elastic;
+                    energy += dt * dt * fem::stencil_elastic_energy(terms(e), p);
                 }
                 for(int k = barrier_offsets(v); k < barrier_offsets(v + 1); ++k)
                 {
@@ -200,17 +218,14 @@ namespace
                 }
                 for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
                 {
-                    const int e = vertex_tets(k);
-                    if(visited_before(tets(e), s, a))
+                    const int e = vertex_elements(k);
+                    if(visited_before(elements(e), s, a))
                         continue;
                     Vector3 p[4], end[4];
                     element_positions(e, s, d, 0, p);
                     element_positions(e, s, d, 1, end);
-                    const Matrix3x3 F = fem::F(p[0], p[1], p[2], p[3], inverses(e));
-                    const Matrix3x3 dF =
-                        fem::F(end[0], end[1], end[2], end[3], inverses(e)) - F;
                     inversion_alpha =
-                        min(inversion_alpha, fem::stencil_inversion_cap(F, dF));
+                        min(inversion_alpha, fem::stencil_elastic_cap(terms(e), p, end));
                 }
             }
             ccd       = contact_alpha < 1;
@@ -230,9 +245,9 @@ namespace
         Vector12 d = directions(t);
         if(d.squaredNorm() == 0)
             return;
-        const Vector4i s   = t < objective.tets.size() ?
-                                 objective.tets(t) :
-                                 objective.contacts(t - objective.tets.size());
+        const Vector4i s   = t < objective.elements.size() ?
+                                 objective.elements(t) :
+                                 objective.contacts(t - objective.elements.size());
         int            ccd = 0, inversion = 0;
         Float          alpha = objective.cap(s, d, ccd, inversion);
         const Float    E0    = objective.energy(s, d, 0);
@@ -263,18 +278,15 @@ void FEMLocalStencilSolver::filter_local_steps()
 {
     prepare_barriers();
     CUDA_TOOL_CHECK(cudaMemset(m_local_statistics.data(), 0, 5 * sizeof(IndexT)));
-    LocalObjective objective{m_fem->tets(),
+    LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),
                              m_fem->xs(),
                              m_fem->x_bars(),
                              m_fem->x_tildes(),
                              m_fem->masses(),
-                             m_fem->rest_volumes(),
-                             m_mu.cview(),
-                             m_lambda.cview(),
-                             m_fem->Dm3x3_invs(),
+                             m_elastic_terms.cview(),
                              m_vertex_offsets.cview(),
-                             m_vertex_tets.cview(),
+                             m_vertex_elements.cview(),
                              m_barrier_offsets.cview(),
                              m_barrier_entries.cview(),
                              m_barrier_terms.cview(),

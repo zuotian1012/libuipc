@@ -4,12 +4,12 @@
 
 namespace uipc::backend::cuda
 {
-void FEMLocalStencilSolver::init_coloring(span<const Vector4i> tets,
+void FEMLocalStencilSolver::init_coloring(span<const Vector4i> elements,
                                           const vector<vector<IndexT>>& incident)
 {
     if(!m_hybrid)
         return;
-    const SizeT    n = tets.size();
+    const SizeT    n = elements.size();
     vector<IndexT> order(n), degree(n), colors(n), packed;
     vector<U64>    rank(n, 0), occupied(incident.size(), 0);
     vector<bool>   primary_seen(n, false);
@@ -18,9 +18,10 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> tets,
     {
         vector<IndexT> adjacent;
         for(int a = 0; a < 4; ++a)
-            adjacent.insert(adjacent.end(),
-                            incident[tets[t](a)].begin(),
-                            incident[tets[t](a)].end());
+            if(elements[t](a) >= 0)
+                adjacent.insert(adjacent.end(),
+                                incident[elements[t](a)].begin(),
+                                incident[elements[t](a)].end());
         std::sort(adjacent.begin(), adjacent.end());
         adjacent.erase(std::unique(adjacent.begin(), adjacent.end()), adjacent.end());
         degree[t] = static_cast<IndexT>(adjacent.size()) - 1;
@@ -55,14 +56,16 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> tets,
         {
             U64 unavailable = 0;
             for(int a = 0; a < 4; ++a)
-                unavailable |= occupied[tets[t](a)];
+                if(elements[t](a) >= 0)
+                    unavailable |= occupied[elements[t](a)];
             for(IndexT c = 0; c < m_color_limit; ++c)
                 if(!(unavailable & (U64{1} << c)))
                 {
                     colors[t] = c;
                     used[c]   = true;
                     for(int a = 0; a < 4; ++a)
-                        occupied[tets[t](a)] |= U64{1} << c;
+                        if(elements[t](a) >= 0)
+                            occupied[elements[t](a)] |= U64{1} << c;
                     break;
                 }
             if(colors[t] == 0 && !primary_seen[t])

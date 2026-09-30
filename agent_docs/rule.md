@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS cloth extension (2026-09-30): complete cloth membrane and bending support
+  in the existing local-stencil solver so cloth demos can support the subsequent
+  algorithm stages. Preserve the implementation-first workflow, using complete
+  simulations for integration verification rather than expanding many small tests.
+
 - SoS colored updates (2026-09-30): implement complementary elastic-stencil
   coloring, priority-preserving hybrid sweeps, per-stencil CCD and local line
   searches following the paper's conflict policy. Keep the implementation-first
