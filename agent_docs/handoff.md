@@ -1,5 +1,30 @@
 # Handoff — Current State of the Repo
 
+> **SoS hybrid direction/submission alignment (2026-10-01)**: local Newton-CG
+> no longer constrains vertices owned by the active color. Only physical pins and
+> padded slots are eliminated. Complete local directions, CCD and Armijo searches
+> use the same frozen state before owners are selected. Priority displacements
+> are copied exactly; unowned vertices average all incident filtered directions,
+> including zero/rejected contributions in the divisor. The undocumented uniform
+> secondary reweighting is removed. Armijo explicitly rejects invalid/non-descent
+> slopes. Local acceptance does not certify the merged path, so the existing
+> global CCD/energy acceptance remains. An uphill merged proposal is rejected in
+> full and the next color is tried at the same iterate; this explicit integration
+> safeguard does not retune Jacobi weights or declare convergence. It fixes a
+> regression exposed by the first literal merge implementation. Drape, pinned
+> cloth and two-solid contact each completed 120 converged frames; the stack run
+> exercised four whole-proposal rejections. See doc 17 for the precise rule.
+> The dense bunny/cloth frame still reaches 2,048 passes at dt=0.01 and tolerance
+> 0.01, with final residual 3.176705 m/s and no active contact pairs. This correction
+> alone does not resolve dense convergence; do not claim full paper reproduction
+> or speedup. It triggers zero merged-proposal rejections. Final failure log:
+> `../tmp/stencil-hybrid-alignment-dense-guard.log`; manifest:
+> `output/stencil-hybrid-alignment/dense-dt001-guard/local_stencil/scene.json`.
+> CUDA release/backend test build and 145 existing assertions in eight cases pass;
+> clang-format 18 checks pass. Results and binary hashes are recorded in
+> `output/stencil-hybrid-alignment/verification.json`. The rebuilt checkout-local
+> runtime is synchronized; unrelated profiling/Blender edits remain outside this change.
+
 > **Denser bunny/cloth scene (2026-09-30)**: the same example now accepts
 > `--solver sos|global|both`; `sos` maps to the existing `local_stencil` subset
 > and retains its output directory name. `--cloth-resolution` (alias `--resolution`)
@@ -78,6 +103,7 @@
 > [17-local-stencil-hybrid.md](17-local-stencil-hybrid.md) for the exact conflict
 > policy and implementation differences from the paper (existing ACCD rather than
 > Yuksel CCD, coverage completion, constrained secondary solves/descent safeguard).
+> The latter two update choices were superseded by the 2026-10-01 alignment above.
 > New config: `newton/local_stencil/sweep` (`hybrid`, default; or `additive`) and
 > `newton/local_stencil/color_limit` (8, range 1..64). Contact examples accept
 > `--sweep` and `--verbose`; output uses `local_stencil-hybrid` to retain old data.

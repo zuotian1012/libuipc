@@ -245,6 +245,16 @@ namespace
         Vector12 d = directions(t);
         if(d.squaredNorm() == 0)
             return;
+        // The slope belongs to this complete, unmasked Newton-CG direction at
+        // the frozen iterate. Never mask owned vertices here: that would require
+        // a different slope/CCD/energy trial and would make filtering color-dependent.
+        const Float slope = slopes(t);
+        if(!fem::stencil_finite(slope) || slope >= 0)
+        {
+            directions(t).setZero();
+            atomicAdd(&statistics(4), 1);
+            return;
+        }
         const Vector4i s   = t < objective.elements.size() ?
                                  objective.elements(t) :
                                  objective.contacts(t - objective.elements.size());
@@ -257,7 +267,7 @@ namespace
         for(; alpha > 0 && backtracks < 32; ++backtracks)
         {
             const Float E = objective.energy(s, d, alpha);
-            if(fem::stencil_finite(E) && E <= E0 + 1e-4 * alpha * slopes(t))
+            if(fem::stencil_finite(E) && E <= E0 + 1e-4 * alpha * slope)
             {
                 accepted = true;
                 break;

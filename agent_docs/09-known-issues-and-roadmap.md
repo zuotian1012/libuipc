@@ -1,5 +1,17 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The 2026-10-01 [hybrid alignment](17-local-stencil-hybrid.md) removes artificial
+color-dependent constraints from local Newton-CG and the extra uniform-secondary
+reweighting. Colors now control submission only, after full-direction local
+CCD/Armijo filtering. Primary copies and unowned-vertex Jacobi averages follow
+the paper's displacement rule. The combined direction still needs global
+acceptance. A non-descent merged proposal is rejected in full, without changing
+Jacobi weights or the convergence test. This integration safeguard is distinct
+from the paper's merge rule; it was exercised four times in the successful
+120-frame two-solid regression. Drape and pinned cloth also complete 120 frames.
+The dense dt=0.01 case continues to reach the 2,048-pass limit on
+frame 1 (residual 3.176705 m/s); this is not a convergence/performance fix claim.
+
 The [bunny/cloth experiment](19-bunny-cloth-experiment.md) adds a common freely
 falling soft-bunny and cloth scene with solver selection, serial comparison,
 trajectory export and replay. It retains current frictionless restrictions and

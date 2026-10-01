@@ -27,13 +27,14 @@ if this coverage cannot be obtained; it never silently omits stencils.
 The solver cycles through nonempty colors of the complementary schemes. Each
 engine nonlinear iteration performs one hybrid sweep, not an entire cycle:
 
-1. Identify the unique current-color stencil owning each of its vertices.
+1. Solve all elastic and active contact stencils in parallel at the same frozen
+   iterate. Only physical pins and padded slots are fixed. Colors/priority owners
+   are not inputs to the local solver: every stencil retains its complete coupling.
+2. Independently filter each complete direction with local CCD, inversion bounds
+   and local Armijo search on the complete incident objective at that iterate.
+   The direction, directional slope, CCD path and energy trial use identical DOFs.
+3. Identify the unique current-color stencil owning each of its vertices.
    A device assertion rejects overlapping owners in an independent group.
-2. Solve all elastic and active contact stencils in parallel. Current-color
-   stencils have priority. Other stencils hold owned vertices fixed in their
-   local systems, so their directions cannot overwrite priority updates.
-3. Independently filter each direction with local CCD, inversion bounds and a
-   local Armijo line search on the complete incident objective.
 4. Copy current-color directions to their owned vertices. Sum and average the
    other stencil directions on unowned vertices. Contact stencils always remain
    grey; changing contacts never require recoloring the elastic graph.
@@ -43,10 +44,27 @@ engine nonlinear iteration performs one hybrid sweep, not an entire cycle:
 
 This is a buffered, synchronous implementation of priority-preserving hybrid
 submission. Kernels never write positions while another stencil reads them.
-Parallel atomics are retained for secondary contact accumulation. If per-vertex
-averaging makes the aggregate direction non-descending, a uniform secondary
-weight is used while preserving priority values. This is an additional descent
-safeguard, not a claim that arbitrary per-vertex averaging guarantees descent.
+Parallel atomics are retained for secondary contact accumulation. An owned vertex
+receives exactly its owner's locally filtered displacement. An unowned vertex
+receives the sum of incident filtered elastic/contact displacements divided by
+its elastic/contact stencil multiplicity. Rejected directions count as zero
+contributions without changing that divisor. Contact scatter and Jacobi averaging
+never overwrite the primary displacement. There is no extra secondary reweighting.
+
+As an explicit integration safeguard (not an additional paper merge rule), the
+complete proposal's `g.dot(dx)` is checked before global acceptance. A non-descent
+proposal is rejected in full: positions remain unchanged and the next call tries
+the next color. No Jacobi divisor or priority value is retuned to force descent,
+and rejection does not satisfy convergence, which still uses the full residual.
+This handles the fact that a scalar line search cannot repair an uphill merged
+direction. Nonfinite slopes remain errors. Strict global acceptance/iteration
+limits are retained for other failures.
+
+This aligns the displacement composition in Section 5.1. The paper's description
+does not provide an explicit acceptance algorithm for a clipped secondary local
+subproblem; this implementation does not invent one. Priority and averaging act
+on already filtered full directions in the global displacement buffer. They do
+not re-solve a constrained local problem or mutate positions during local searches.
 
 ## Local step filtering
 
@@ -64,6 +82,13 @@ as endpoints, and keeps 80% of the safe interval. It applies to contact stencil
 motions too. A finite-energy Armijo check then backtracks the complete local
 inertia, SNK1 and standard IPC energy, with no change to the barrier list. A
 failed local search contributes zero displacement.
+
+The Armijo slope is `g_s.dot(p_s)` from the same incident Newton-CG system and
+frozen state used by `E_s(x + alpha*p_s)`. Nonfinite or nonnegative slopes are
+rejected. No priority mask is applied to `p_s` inside this local certificate.
+After priority composition/averaging, the proposal generally differs from every
+individual local trial. Therefore local descent and CCD certificates **do not**
+certify the merged displacement; regular global filtering remains mandatory.
 
 Local checks cannot discover previously unknown contacts or certify the sum of
 multiple stencil motions. Regular CCD and global energy acceptance therefore
@@ -98,7 +123,48 @@ rejected directions. These diagnostics distinguish local filtering from the
 existing global filter. Neither CSFD, customized paper barriers nor warm start
 are included in this stage. CMake and XMake both glob the new FEM `.cu` sources.
 
-## Integration evidence
+## Alignment verification (2026-10-01)
+
+The first literal full-direction/priority/average implementation exposed a
+global line-search failure in the two-solid contact regression near frame 31.
+Locally accepted directions can form an uphill merged proposal. The final
+integration safeguard checks the actual merged slope and rejects that proposal
+without changing weights, positions or the stopping criterion. The 120-frame
+stack run exercises four such rejections; one has `g.dot(dx)=1.809506e-4` with
+residual 37.015743 m/s, well above its stopping tolerance. Subsequent colors
+continue and converge. The unguarded failed attempts are retained as diagnostics.
+
+Final 120-frame regressions, with original scene settings:
+
+| Scene | Minimum det(F) | Minimum cloth area ratio | Maximum color passes/frame | Rejected merged proposals |
+|---|---|---|---|---|
+| BW cloth drape on SNK1 block | 0.910216 | 0.964452 | 168 | 0 |
+| Pinned BW cloth | N/A | 0.985934 | 98 | 0 |
+| Two soft solids / ground | 0.424180 | N/A | 137 | 4 |
+
+All completed frames reported convergence, with positive ground clearances and
+exact fixed vertices in the two cloth runs. These checks do not certify continuous
+combined element validity or surface nonintersection independently of backend CCD.
+The dense bunny/cloth case at dt=0.01, E=1 MPa, d_hat=0.5 mm and tolerance=0.01
+still exhausts 2,048 passes on frame 1 (final residual 3.176705 m/s). It triggers
+zero merged-proposal rejections; this particular failure is not caused by the
+new rejection safeguard. No active contacts remain at the final iterate. Keep
+`dense-dt001-guard` as a failed run, not a successful animation or timing result.
+
+CUDA 12.6/XMake release backend and test build pass, as do 145 assertions in the
+eight existing stencil/cloth derivative cases. clang-format 18.1.8 checks pass.
+Only existing backend source files changed, so CMake/XMake source lists and
+dependencies remain equivalent. No new micro-test suite was introduced.
+Artifacts and logs are under `output/stencil-hybrid-alignment/` and
+`../tmp/stencil-hybrid-alignment-*.log`; `verification.json` records summaries,
+proposal rejection counts and binary hashes. No controlled speedup comparison is claimed.
+
+## Historical integration evidence
+
+The measurements below precede the 2026-10-01 hybrid alignment. That correction
+removes color-dependent artificial constraints from local Newton-CG and removes
+the extra uniform-secondary reweighting. Do not treat the historical timings as
+measurements of the corrected update rule.
 
 CUDA 12.6 / XMake release, 120 frames per scene, all frames converged:
 

@@ -110,9 +110,7 @@ namespace
                                                ct::CBufferView<Matrix12x12> hessians,
                                                fem::LocalStencilContactView contact,
                                                ct::BufferView<Vector12> directions,
-                                               ct::BufferView<Float> slopes,
-                                               ct::CBufferView<IndexT> primary_owner,
-                                               bool hybrid)
+                                               ct::BufferView<Float> slopes)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
@@ -157,10 +155,10 @@ namespace
         }
         contact.add(system, stencil);
         for(int i = 0; i < 4; ++i)
-            if(stencil(i) < 0 || fixed(stencil(i))
-               || (hybrid && primary_owner(stencil(i)) >= 0
-                   && primary_owner(stencil(i)) != t))
+            if(stencil(i) < 0 || fixed(stencil(i)))
                 system.fix_vertex(i);
+        // Section 5.1: solve the same complete local problem for every color.
+        // Priority is a submission rule, never an extra Dirichlet constraint.
         const auto result = fem::local_stencil_direction(system);
         UIPC_KERNEL_ASSERT(result.valid, "Invalid local stencil direction %d", t);
         directions(t) = result.displacement;
@@ -238,16 +236,17 @@ namespace
                                                   ct::CBufferView<Vector3> gradients,
                                                   ct::CBufferView<IndexT> owners,
                                                   ct::CBufferView<IndexT> overlap,
-                                                  ct::BufferView<Float> slopes,
-                                                  bool  fallback,
-                                                  Float uniform_weight)
+                                                  ct::BufferView<Float> slopes)
     {
         const int v = blockIdx.x * blockDim.x + threadIdx.x;
         if(v >= dx.size())
             return;
         if(owners(v) < 0)
-            dx(v) *= fallback ? overlap(v) * uniform_weight : 1.0 / overlap(v);
+            dx(v) /= overlap(v);
         slopes(v) = gradients(v).dot(dx(v));
+        // Owned vertices retain the primary stencil's filtered displacement
+        // exactly. A rejected local direction is a zero Jacobi contribution,
+        // but still participates in the shared-vertex multiplicity.
     }
 
     __global__ void stencil_determinants_kernel(ct::CBufferView<Vector4i> ids,
@@ -406,20 +405,6 @@ void FEMLocalStencilSolver::solve()
         m_directions.reserve_discard(stencil_count + stencil_count / 10);
     m_directions.resize_discard(stencil_count);
     m_direction_slopes.resize_discard(stencil_count);
-    const Vector2i pass =
-        m_hybrid ? m_color_passes[m_sweep_index++ % m_color_passes.size()] :
-                   Vector2i::Zero().eval();
-    stencil_primary_owners_kernel<<<(vertices + 127) / 128, 128>>>(
-        m_vertex_offsets.cview(),
-        m_vertex_elements.cview(),
-        m_colors.cview(),
-        m_primary_owner.view(),
-        pass(0) * count,
-        pass(1),
-        m_hybrid);
-    CUDA_TOOL_CHECK(cudaGetLastError());
-    if(m_hybrid)
-        logger::info("Local stencil hybrid sweep: scheme={}, color={}", pass(0), pass(1));
     stencil_local_solve_kernel<<<(stencil_count + 63) / 64, 64>>>(
         m_elastic_stencils.cview(),
         m_contact_stencils.cview(),
@@ -435,12 +420,26 @@ void FEMLocalStencilSolver::solve()
         m_element_hessians.cview(),
         contact_view(),
         m_directions.view(),
-        m_direction_slopes.view(),
-        m_primary_owner.cview(),
-        m_hybrid);
+        m_direction_slopes.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
     if(m_hybrid)
         filter_local_steps();
+    // All directions and their local CCD/Armijo filters use the same frozen x.
+    // Only now select priority owners for the displacement submission.
+    const Vector2i pass =
+        m_hybrid ? m_color_passes[m_sweep_index++ % m_color_passes.size()] :
+                   Vector2i::Zero().eval();
+    stencil_primary_owners_kernel<<<(vertices + 127) / 128, 128>>>(
+        m_vertex_offsets.cview(),
+        m_vertex_elements.cview(),
+        m_colors.cview(),
+        m_primary_owner.view(),
+        pass(0) * count,
+        pass(1),
+        m_hybrid);
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_hybrid)
+        logger::info("Local stencil hybrid sweep: scheme={}, color={}", pass(0), pass(1));
     stencil_gather_kernel<<<(vertices + 127) / 128, 128>>>(
         m_elastic_stencils.cview(),
         m_fem->xs(),
@@ -477,27 +476,23 @@ void FEMLocalStencilSolver::solve()
             m_total_gradients.cview(),
             m_primary_owner.cview(),
             m_overlap.cview(),
-            m_global_slopes.view(),
-            false,
-            m_weight);
+            m_global_slopes.view());
         CUDA_TOOL_CHECK(cudaGetLastError());
+        // Local descent/CCD certificates do not transfer through averaging or
+        // priority selection. The engine still filters this combined proposal.
         cuda_tool::DeviceReduce().Sum(m_global_slopes.data(), m_scalar.data(), vertices);
         Float slope;
         m_scalar.view().copy_to(&slope);
-        // Per-vertex Jacobi averaging is not always a descent direction. Keep
-        // committed primary values, but use a uniform secondary weight if needed.
-        if(slope > 0)
+        if(!std::isfinite(slope))
+            throw SimEngineException("Nonfinite combined local-stencil slope.");
+        logger::info("Local stencil combined directional slope: {}", slope);
+        if(slope >= 0)
         {
-            stencil_hybrid_average_kernel<<<(vertices + 127) / 128, 128>>>(
-                m_fem->m_impl.dxs.view(),
-                m_total_gradients.cview(),
-                m_primary_owner.cview(),
-                m_overlap.cview(),
-                m_global_slopes.view(),
-                true,
-                m_weight);
-            CUDA_TOOL_CHECK(cudaGetLastError());
-            logger::info("Local stencil hybrid: uniform secondary descent safeguard");
+            // A scalar backtrack cannot repair an uphill direction. Reject the
+            // entire proposal and try the next color at the unchanged iterate;
+            // do not alter Jacobi weights or report this as convergence.
+            CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, vertices * sizeof(Vector3)));
+            logger::info("Local stencil rejected non-descent hybrid proposal");
         }
     }
     cuda_tool::DeviceReduce().Max(m_residuals.data(), m_scalar.data(), vertices);

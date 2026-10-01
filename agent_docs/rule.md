@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS hybrid alignment (2026-10-01): align local direction computation, priority
+  submission and Jacobi merging with the paper, and audit local line-search
+  consistency. Keep direction solves independent of coloring; verify against the
+  previously failing dense scene without relaxing convergence or changing its physics.
+
 - Bunny/cloth scale study (2026-09-30): increase both cloth and bunny simulation
   mesh density and expose command-line SoS/ordinary-solver selection. Keep the
   implemented SoS subset explicitly distinguished from the complete paper method.

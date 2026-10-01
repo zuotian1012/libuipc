@@ -24,8 +24,10 @@ struct StencilBarrierTerm
 
 // Frictionless stencil Newton-CG. One call produces one complementary-color
 // hybrid proposal (or the additive baseline); the engine accepts and commits it
-// before the next color. Hybrid directions have independent local CCD, inversion
-// bounds and line searches. No global linear solve is performed.
+// before the next color. Local solves and CCD/Armijo filtering are color-blind;
+// priority selection and Jacobi averaging only compose the filtered directions.
+// Their local certificates do not certify the combined proposal. The engine's
+// global CCD/energy acceptance remains required. No global linear solve is performed.
 class FEMLocalStencilSolver final : public SimSystem
 {
   public:

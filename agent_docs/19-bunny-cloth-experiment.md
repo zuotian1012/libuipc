@@ -105,6 +105,14 @@ active pairs in the level-1 scene. It does not disable contact or CCD.
 
 ## Dense validation and current solver limit (2026-09-30)
 
+The [2026-10-01 hybrid correction](17-local-stencil-hybrid.md) removes the
+color-dependent local constraints and non-paper secondary weighting described
+in the implementation audit. Repeating the dense dt=0.01, E=1 MPa,
+d_hat=0.5 mm, velocity_tol=0.01 case still exhausts 2,048 passes at frame 1;
+final residual is 3.176705 m/s with no active contacts. The new run is preserved
+at `output/stencil-hybrid-alignment/dense-dt001-guard/`; no successful dense SoS
+landing or paired benchmark is claimed after this correction either.
+
 Geometry checks for levels 1 and 2 verify positive child volume, eight children
 per parent with volume ratio 1/8 (maximum relative error below 4.5e-14), all vertices
 referenced, interior face incidence two and boundary triangle count quadrupling
