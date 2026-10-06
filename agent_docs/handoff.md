@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **SoS relaxation diagnosis / fresh full run (2026-10-06, active)**: see
+> [22](22-sos-relaxation-diagnosis.md). Frame-35 evidence identifies slowly
+> damped smooth global error, not late CCD caps or widespread local CG failures.
+> An offline full-Hessian correction matches remaining bunny error to 0.322%,
+> while one local pass changes only 0.109% of that error norm. No global correction
+> is used by the simulation. A fresh strict 120-frame run is now active under
+> `output/sos-relaxation-20261006/full-strict/`; consult its process/status files.
+> `validate_stencil_bunny_cloth.py` waits for completion, verifies all residuals
+> and saved geometry including nonincident self pairs, then renders. Until its
+> `validation.json` passes, the dense 120-frame result remains unverified.
+
 > **SoS execution alignment (2026-10-06)**: [21](21-sos-execution-alignment.md)
 > adds explicit gradient/velocity stopping, independent-group coverage and
 > frozen-contact inner batches with full outer certification. Dense coloring is
@@ -10,7 +21,8 @@
 > unchanged velocity tolerance, with 0.289 micrometer maximum position difference;
 > there is no meaningful strict-accuracy speedup. L2=1e-4 takes 14.4 s but changes
 > cloth positions by up to 18.5 mm, so velocity stopping remains the default.
-> No dense simulation remains running; full 120-frame dense landing is still open.
+> That stage ended without a dense simulation running; the new run above supersedes
+> that status. Full 120-frame dense landing remains open until validation passes.
 
 > **SoS convergence work (2026-10-06, in progress)**: see
 > [20-sos-convergence-audit.md](20-sos-convergence-audit.md). Independent assembly

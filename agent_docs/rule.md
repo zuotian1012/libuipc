@@ -136,6 +136,10 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS relaxation diagnosis (2026-10-06): locate why local updates need thousands
+  of passes and actually verify the complete dense 120-frame bunny/cloth landing.
+  A started run or a partial trajectory is not a completed validation.
+
 - SoS execution alignment (2026-10-06): align explicit stopping metrics,
   complementary coverage and local/global iteration organization. Keep the
   existing dense checkpoints as controls and compare the same contact frame;

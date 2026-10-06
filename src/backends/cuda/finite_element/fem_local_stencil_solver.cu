@@ -141,7 +141,8 @@ namespace
                                                ct::CBufferView<Matrix12x12> hessians,
                                                fem::LocalStencilContactView contact,
                                                ct::BufferView<Vector12> directions,
-                                               ct::BufferView<Float> slopes)
+                                               ct::BufferView<Float> slopes,
+                                               ct::BufferView<Vector4> diagnostics)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
@@ -188,6 +189,12 @@ namespace
         UIPC_KERNEL_ASSERT(result.valid, "Invalid local stencil direction %d", t);
         directions(t) = result.displacement;
         slopes(t)     = system.gradient.dot(result.displacement);
+        if(diagnostics.size())
+            diagnostics(t) =
+                Vector4(result.iterations,
+                        result.nonpositive_curvature,
+                        result.gradient_fallback,
+                        result.residual_norm / (system.gradient.norm() + 1e-30));
     }
 
     __global__ void stencil_scatter_contact_kernel(ct::CBufferView<Vector4i> contacts,
@@ -541,6 +548,10 @@ void FEMLocalStencilSolver::solve()
 
 void FEMLocalStencilSolver::solve_sweep(bool first)
 {
+    const char* audit_directory = std::getenv("UIPC_STENCIL_AUDIT");
+    const bool  audit =
+        audit_directory && *audit_directory && first
+        && (engine().newton_iter() == 0 || (engine().newton_iter() + 1) % 128 == 0);
     const char* profile_setting = std::getenv("UIPC_STENCIL_PROFILE");
     const bool  profile = profile_setting && std::string(profile_setting) == "1"
                          && engine().newton_iter() == 0 && first;
@@ -584,6 +595,7 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_directions.reserve_discard(stencil_count + stencil_count / 10);
     m_directions.resize_discard(stencil_count);
     m_direction_slopes.resize_discard(stencil_count);
+    m_cg_diagnostics.resize_discard(audit ? stencil_count : 0);
     stencil_vertex_derivatives_kernel<<<(vertices + 127) / 128, 128>>>(
         m_elastic_stencils.cview(),
         m_fem->xs(),
@@ -607,7 +619,8 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_element_hessians.cview(),
         contact_view(),
         m_directions.view(),
-        m_direction_slopes.view());
+        m_direction_slopes.view(),
+        m_cg_diagnostics.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
     mark("directions");
     if(m_hybrid)
@@ -722,13 +735,13 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, vertices * sizeof(Vector3)));
     else
         cap_combined_elastic_step();
-    if(const char* directory = std::getenv("UIPC_STENCIL_AUDIT"); directory && *directory)
+    if(audit_directory && *audit_directory && first)
     {
         const auto iteration = engine().newton_iter();
         if(iteration == 0 || (iteration + 1) % 128 == 0 || converged())
         {
-            const auto folder =
-                std::filesystem::path(directory) / std::to_string(engine().frame());
+            const auto folder = std::filesystem::path(audit_directory)
+                                / std::to_string(engine().frame());
             std::filesystem::create_directories(folder);
             const auto prefix =
                 folder
@@ -752,10 +765,14 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
             dump("-dx.bin", m_fem->m_impl.dxs.cview());
             dump("-directions.bin", m_directions.cview());
             dump("-element-gradient.bin", m_element_gradients.cview());
+            dump("-cg.bin", m_cg_diagnostics.cview());
+            dump("-owners.bin", m_primary_owner.cview());
+            dump("-contacts.bin", m_contact_stencils.cview());
+            dump("-contact-hessians.bin", m_frozen_contact_hessians.cview());
+            dump("-hessians.bin", m_element_hessians.cview());
             if(iteration == 0)
             {
                 dump("-elements.bin", m_elastic_stencils.cview());
-                dump("-hessians.bin", m_element_hessians.cview());
             }
         }
     }

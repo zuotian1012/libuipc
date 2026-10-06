@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [relaxation diagnosis](22-sos-relaxation-diagnosis.md) finds no late CCD caps
+or widespread local-CG failures in the frame-35 tail. Spatially smooth error is
+poorly damped by the one-level local updates; an offline full-Hessian correction
+closely matches the remaining error but is not used in the simulation. A fresh
+strict 120-frame dense run and independent completion validator are active under
+`output/sos-relaxation-20261006/full-strict/`. Read its live status and validation
+artifacts before reporting success; merely launching it does not close this issue.
+
 Current [execution alignment](21-sos-execution-alignment.md) adds selectable
 stopping norms, independent-group coverage and locally certified inner batches
 before global acceptance. Same-state strict frame 35 takes ~593 s before and

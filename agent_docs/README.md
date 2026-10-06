@@ -30,6 +30,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | [`19-bunny-cloth-experiment.md`](19-bunny-cloth-experiment.md) | Free bunny/cloth drop, reproducible scene parameters, serial solver comparison, timing and trajectory diagnostics |
 | [`20-sos-convergence-audit.md`](20-sos-convergence-audit.md) | Independent convergence diagnosis, energy increments, merged-motion validity, optional inertial initialization and recoverable runs |
 | [`21-sos-execution-alignment.md`](21-sos-execution-alignment.md) | Explicit stopping metrics, independent-group coverage, frozen-contact batches and same-state checkpoint comparisons |
+| [`22-sos-relaxation-diagnosis.md`](22-sos-relaxation-diagnosis.md) | Slow smooth-error relaxation, local CG audit and supervised full dense validation |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |

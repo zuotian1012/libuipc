@@ -101,6 +101,7 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Vector12>    m_frozen_contact_gradients;
     cuda_tool::DeviceBuffer<Matrix12x12> m_frozen_contact_hessians;
     cuda_tool::DeviceBuffer<Float>       m_inner_values;
+    cuda_tool::DeviceBuffer<Vector4>     m_cg_diagnostics;
     Float                                m_weight    = 1;
     Float                                m_residual  = 0;
     Float                                m_tolerance = 0;
