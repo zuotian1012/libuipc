@@ -10,6 +10,9 @@ Figure 13 of Lan et al. reports completed Dragon-in-U ablations without warm
 start (hybrid/regular CCD: 45.7 s; hybrid/local CCD: 32.4 s; adding warm start:
 6.7 s). Missing warm start alone is not evidence of an implementation defect,
 nor does this ablation guarantee convergence within our particular budget.
+Section 8.1 explicitly specifies residual L2=1e-4 for the contact-free Fig. 9
+comparison. Do not assume this is a fully specified stopping rule for Fig. 13,
+or equate that residual's scaling with our raw incremental-potential gradient.
 Figure 2 groups several color sweeps in an outer iteration. Our engine counts
 one color pass as an iteration; do not compare those counts directly.
 
@@ -139,3 +142,33 @@ An isolated first-pass diagnostic measured derivatives/contact 2.61 ms,
 local directions 15.13 ms and local filtering 33.72 ms. Earlier unfused filtering
 was about 69.52 ms. These synchronized single-pass measurements locate work;
 they do not establish an end-to-end or paper-relative speedup.
+
+## Follow-up audit: why the run is still slow
+
+Through completed frame 36, frames 10 onward average 42.97 ms per color pass.
+Frame 35 uses 14,227 passes (593.91 s); its raw gradient L2 first falls below
+1e-4 at pass 222, but the configured max-vertex mass/dt-scaled residual is not
+satisfied until the end. This is evidence of a long stopping-criterion tail,
+not permission to replace the criterion or a matched-paper accuracy result.
+The last six completed frames have zero non-descent hybrid-proposal rejections.
+See the run's `pass-audit.json` for these observations.
+
+The actual coloring has 220 schemes of up to eight colors, hence 1,760 passes
+per complete schedule. Fig. 13 uses three schemes of 15 colors. The code enforces
+color-zero coverage of every stencil and adds a stalled-coverage priority rule.
+This deserves a fresh interpretation audit: section 5.2 says primal-color
+coverage while Fig. 5's caption says an independent color group at least once.
+At a vertex incident to 42 elastic stencils, disjoint color-zero coverage alone
+requires at least 42 schemes, which illustrates why the interpretations differ.
+Scheme counts alone do not prove the speedup from a replacement schedule, and
+the current stopping check does not wait for completion of the whole schedule.
+
+The engine also performs regular trajectory detection, CCD and global energy
+acceptance after every color pass; local CCD has not replaced that outer work.
+The paper's multi-sweep/frozen-barrier execution and persistent barrier list
+remain unimplemented. Simply deleting global checks would be unsafe: a proper
+outer acceptance/recovery protocol is required. Explicit double-precision local
+Hessians and one-thread local solves additionally differ from the paper's
+matrix-free, multi-pass GPU Hessian-vector pipeline. These are concrete remaining
+implementation differences, not evidence that missing warm start explains all
+of the runtime or that the current core submission rule reproduces the full method.
