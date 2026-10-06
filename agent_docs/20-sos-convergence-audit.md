@@ -127,6 +127,13 @@ at the unchanged physical parameters and residual tolerance. See
 the resume manifests. Only inspect history/checkpoints for current progress:
 the preexisting summary/trajectory files cover the last completed target (9
 frames), not the running 120-frame target. A full landing is still pending.
+The accompanying `../tmp/finish_sos_dense.py` waits for this simulation process,
+requires 120 converged frames, checks every saved cloth/bunny surface pair using
+bounded AABB batches, then invokes the demo's replay renderer. Its live status is
+`output/sos-convergence-20261006/validated-inertial-v2/completion-status.json`;
+its log is `../tmp/sos-dense-finish.log`. It records an incomplete status on a
+failed run and does not relax tolerances or fabricate missing frames. The
+simulation and this export helper continue independently of the chat turn.
 
 An isolated first-pass diagnostic measured derivatives/contact 2.61 ms,
 local directions 15.13 ms and local filtering 33.72 ms. Earlier unfused filtering
