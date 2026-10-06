@@ -332,6 +332,19 @@ namespace
         if(v < dx.size())
             dx(v) *= alpha;
     }
+
+    __global__ void stencil_batch_proposal_kernel(ct::CBufferView<Vector3> start,
+                                                  ct::CBufferView<Vector3> xs,
+                                                  ct::CBufferView<Vector3> gradient,
+                                                  ct::BufferView<Vector3> dx,
+                                                  ct::BufferView<Float> slopes)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= xs.size())
+            return;
+        dx(v)     = xs(v) - start(v);
+        slopes(v) = gradient(v).dot(dx(v));
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(FEMLocalStencilSolver);
@@ -366,6 +379,20 @@ void FEMLocalStencilSolver::init()
     m_inertial_guess =
         config.find<std::string>("newton/local_stencil/initial_guess")->view()[0] == "inertial";
     m_color_limit = config.find<IndexT>("newton/local_stencil/color_limit")->view()[0];
+    m_gradient_stopping =
+        config.find<std::string>("newton/local_stencil/stopping")->view()[0] == "gradient_l2";
+    m_gradient_tolerance =
+        config.find<Float>("newton/local_stencil/gradient_tol")->view()[0];
+    m_primary_coverage =
+        config.find<std::string>("newton/local_stencil/color_coverage")->view()[0] == "primary";
+    m_inner_sweeps =
+        config.find<IndexT>("newton/local_stencil/inner_sweeps")->view()[0];
+    m_restart_schedule =
+        config.find<IndexT>("newton/local_stencil/restart_schedule_on_recover")->view()[0] != 0;
+    if(m_inner_sweeps < 1 || m_inner_sweeps > 256 || (!m_hybrid && m_inner_sweeps != 1))
+        throw SimEngineException("local_stencil inner_sweeps must be in [1,256]; additive requires one.");
+    if(!std::isfinite(m_gradient_tolerance) || m_gradient_tolerance <= 0)
+        throw SimEngineException("local_stencil gradient_tol must be finite and positive.");
     if(m_color_limit < 1 || m_color_limit > 64)
         throw SimEngineException("local_stencil color_limit must be in [1,64].");
     m_tolerance =
@@ -415,6 +442,9 @@ void FEMLocalStencilSolver::init()
     m_residuals.resize_discard(vertex_count);
     m_gradient_norms.resize_discard(vertex_count);
     m_inertial_proposal.resize_discard(vertex_count);
+    m_outer_start.resize_discard(vertex_count);
+    m_outer_gradients.resize_discard(vertex_count);
+    m_first_proposal.resize_discard(vertex_count);
     m_determinants.resize_discard(count);
     m_scalar.resize_discard(1);
     m_contact_gradients.resize_discard(vertex_count);
@@ -439,9 +469,81 @@ void FEMLocalStencilSolver::init()
 
 void FEMLocalStencilSolver::solve()
 {
+    m_inner_index = 0;
+    if(m_inner_sweeps == 1)
+    {
+        solve_sweep(true);
+        return;
+    }
+    const int   vertices = static_cast<int>(m_fem->xs().size());
+    const SizeT bytes    = vertices * sizeof(Vector3);
+    CUDA_TOOL_CHECK(cudaMemcpy(m_outer_start.data(), m_fem->m_impl.xs.data(), bytes, cudaMemcpyDeviceToDevice));
+    Float outer_residual = 0, outer_gradient_norm = 0;
+    int   accepted = 0;
+    try
+    {
+        for(; m_inner_index < m_inner_sweeps; ++m_inner_index)
+        {
+            solve_sweep(m_inner_index == 0);
+            if(m_inner_index == 0)
+            {
+                outer_residual      = m_residual;
+                outer_gradient_norm = m_gradient_norm;
+                CUDA_TOOL_CHECK(cudaMemcpy(m_outer_gradients.data(),
+                                           m_total_gradients.data(),
+                                           bytes,
+                                           cudaMemcpyDeviceToDevice));
+                CUDA_TOOL_CHECK(cudaMemcpy(m_first_proposal.data(),
+                                           m_fem->m_impl.dxs.data(),
+                                           bytes,
+                                           cudaMemcpyDeviceToDevice));
+            }
+            if(converged())
+                break;
+            if(accept_inner_step())
+                ++accepted;
+        }
+        stencil_batch_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
+            m_outer_start.cview(),
+            m_fem->xs(),
+            m_outer_gradients.cview(),
+            m_fem->m_impl.dxs.view(),
+            m_global_slopes.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        cuda_tool::DeviceReduce().Sum(m_global_slopes.data(), m_scalar.data(), vertices);
+        Float slope;
+        m_scalar.view().copy_to(&slope);
+        if(!std::isfinite(slope))
+            throw SimEngineException("Nonfinite accumulated stencil proposal.");
+        if(slope >= 0)
+            CUDA_TOOL_CHECK(cudaMemcpy(
+                m_fem->m_impl.dxs.data(), m_first_proposal.data(), bytes, cudaMemcpyDeviceToDevice));
+    }
+    catch(...)
+    {
+        CUDA_TOOL_CHECK(cudaMemcpy(m_fem->m_impl.xs.data(), m_outer_start.data(), bytes, cudaMemcpyDeviceToDevice));
+        CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, bytes));
+        throw;
+    }
+    // Only the outer start has a refreshed global contact residual. The engine
+    // must certify the accumulated proposal before any inner convergence counts.
+    CUDA_TOOL_CHECK(cudaMemcpy(m_fem->m_impl.xs.data(), m_outer_start.data(), bytes, cudaMemcpyDeviceToDevice));
+    m_residual      = outer_residual;
+    m_gradient_norm = outer_gradient_norm;
+    cap_combined_elastic_step();
+    logger::info("Local stencil batch: outer={}, color_passes={}, accepted_inner={}, velocity_residual={}, gradient_l2={}",
+                 engine().newton_iter(),
+                 std::min(m_inner_index + 1, m_inner_sweeps),
+                 accepted,
+                 m_residual,
+                 m_gradient_norm);
+}
+
+void FEMLocalStencilSolver::solve_sweep(bool first)
+{
     const char* profile_setting = std::getenv("UIPC_STENCIL_PROFILE");
     const bool  profile = profile_setting && std::string(profile_setting) == "1"
-                         && engine().newton_iter() == 0;
+                         && engine().newton_iter() == 0 && first;
     auto       started = std::chrono::steady_clock::now();
     const auto mark    = [&](const char* name)
     {
@@ -468,7 +570,14 @@ void FEMLocalStencilSolver::solve()
         m_element_hessians.view(),
         dt);
     CUDA_TOOL_CHECK(cudaGetLastError());
-    prepare_contacts();
+    if(first)
+    {
+        prepare_contacts();
+        if(m_hybrid)
+            prepare_barriers();
+    }
+    if(m_inner_sweeps > 1)
+        refresh_frozen_contacts();
     mark("derivatives/contact");
     const int stencil_count = count + static_cast<int>(m_contact_stencils.size());
     if(stencil_count > m_directions.capacity())
@@ -580,8 +689,11 @@ void FEMLocalStencilSolver::solve()
     cuda_tool::DeviceReduce().Sum(m_gradient_norms.data(), m_scalar.data(), vertices);
     Float gradient_squared_norm;
     m_scalar.view().copy_to(&gradient_squared_norm);
-    logger::info("Local stencil gradient L2: {}", std::sqrt(gradient_squared_norm));
-    if(m_inertial_guess && engine().newton_iter() == 0 && !converged())
+    m_gradient_norm = std::sqrt(gradient_squared_norm);
+    if(!std::isfinite(m_gradient_norm))
+        throw SimEngineException("Nonfinite local-stencil gradient L2.");
+    logger::info("Local stencil gradient L2: {}", m_gradient_norm);
+    if(m_inertial_guess && engine().newton_iter() == 0 && first && !converged())
     {
         stencil_inertial_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
             m_fem->xs(),
@@ -609,30 +721,7 @@ void FEMLocalStencilSolver::solve()
     if(converged())
         CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, vertices * sizeof(Vector3)));
     else
-    {
-        // Independent local certificates do not certify a priority/Jacobi
-        // mixture or an inertial predictor. Bound the actual combined path,
-        // including interior tetrahedra that surface CCD does not monitor.
-        stencil_combined_cap_kernel<<<(count + 127) / 128, 128>>>(
-            m_elastic_stencils.cview(),
-            m_elastic_terms.cview(),
-            m_fem->xs(),
-            m_fem->m_impl.dxs.cview(),
-            m_determinants.view());
-        CUDA_TOOL_CHECK(cudaGetLastError());
-        cuda_tool::DeviceReduce().Min(m_determinants.data(), m_scalar.data(), count);
-        Float cap;
-        m_scalar.view().copy_to(&cap);
-        if(!std::isfinite(cap) || cap < 0 || cap > 1)
-            throw SimEngineException("Invalid combined local-stencil inversion bound.");
-        if(cap < 1)
-        {
-            stencil_scale_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
-                m_fem->m_impl.dxs.view(), cap);
-            CUDA_TOOL_CHECK(cudaGetLastError());
-            logger::info("Local stencil combined inversion cap: {}", cap);
-        }
-    }
+        cap_combined_elastic_step();
     if(const char* directory = std::getenv("UIPC_STENCIL_AUDIT"); directory && *directory)
     {
         const auto iteration = engine().newton_iter();
@@ -641,8 +730,11 @@ void FEMLocalStencilSolver::solve()
             const auto folder =
                 std::filesystem::path(directory) / std::to_string(engine().frame());
             std::filesystem::create_directories(folder);
-            const auto prefix = folder / std::to_string(iteration);
-            auto       dump   = [&](const char* name, auto view)
+            const auto prefix =
+                folder
+                / (std::to_string(iteration)
+                   + (m_inner_sweeps > 1 ? "-inner-" + std::to_string(m_inner_index) : ""));
+            auto dump = [&](const char* name, auto view)
             {
                 using T =
                     std::remove_const_t<std::remove_reference_t<decltype(*view.data())>>;
@@ -669,9 +761,37 @@ void FEMLocalStencilSolver::solve()
     }
 }
 
+void FEMLocalStencilSolver::cap_combined_elastic_step()
+{
+    const int count    = static_cast<int>(m_elastic_stencils.size());
+    const int vertices = static_cast<int>(m_fem->xs().size());
+    // Independent local certificates do not certify a priority/Jacobi
+    // mixture or an inertial predictor. Bound the actual combined path,
+    // including interior tetrahedra that surface CCD does not monitor.
+    stencil_combined_cap_kernel<<<(count + 127) / 128, 128>>>(m_elastic_stencils.cview(),
+                                                              m_elastic_terms.cview(),
+                                                              m_fem->xs(),
+                                                              m_fem->m_impl.dxs.cview(),
+                                                              m_determinants.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    cuda_tool::DeviceReduce().Min(m_determinants.data(), m_scalar.data(), count);
+    Float cap;
+    m_scalar.view().copy_to(&cap);
+    if(!std::isfinite(cap) || cap < 0 || cap > 1)
+        throw SimEngineException("Invalid combined local-stencil inversion bound.");
+    if(cap < 1)
+    {
+        stencil_scale_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
+            m_fem->m_impl.dxs.view(), cap);
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        logger::info("Local stencil combined inversion cap: {}", cap);
+    }
+}
+
 bool FEMLocalStencilSolver::converged() const
 {
-    return m_residual <= m_tolerance;
+    return m_gradient_stopping ? m_gradient_norm <= m_gradient_tolerance :
+                                 m_residual <= m_tolerance;
 }
 
 bool FEMLocalStencilSolver::do_dump(DumpInfo& info)
@@ -684,6 +804,12 @@ bool FEMLocalStencilSolver::do_dump(DumpInfo& info)
 
 bool FEMLocalStencilSolver::do_try_recover(RecoverInfo& info)
 {
+    if(m_restart_schedule)
+    {
+        m_recovered_sweep = 0;
+        logger::info("Local stencil checkpoint fork: physical state recovered with color schedule restarted");
+        return true;
+    }
     std::ifstream in(fmt::format(
         "{}sweep.{}.json", info.dump_path(UIPC_RELATIVE_SOURCE_FILE), info.frame()));
     const Json    value = Json::parse(in, nullptr, false);

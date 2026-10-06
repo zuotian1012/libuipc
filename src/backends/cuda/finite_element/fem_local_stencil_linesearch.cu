@@ -7,6 +7,7 @@
 #include <utils/distance/ccd.h>
 #include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend::cuda
 {
@@ -254,6 +255,232 @@ namespace
         }
     };
 
+    __global__ void stencil_frozen_derivatives_kernel(ct::CBufferView<Vector4i> ids,
+                                                      ct::CBufferView<StencilBarrierTerm> terms,
+                                                      ct::CBufferView<Vector3> xs,
+                                                      ct::CBufferView<Vector3> rest,
+                                                      ct::BufferView<Vector12> gradients,
+                                                      ct::BufferView<Matrix12x12> hessians)
+    {
+        const int e = blockIdx.x * blockDim.x + threadIdx.x;
+        if(e >= ids.size())
+            return;
+        using namespace sym::codim_ipc_simplex_contact;
+        const auto s    = ids(e);
+        const auto term = terms(e);
+        Vector3    p[4];
+        for(int a = 0; a < 4; ++a)
+            if(s(a) >= 0)
+                p[a] = xs(s(a));
+        Float D = 0;
+        if(term.type == 0)
+            distance::point_triangle_distance2(
+                distance::point_triangle_distance_flag(p[0], p[1], p[2], p[3]),
+                p[0],
+                p[1],
+                p[2],
+                p[3],
+                D);
+        else if(term.type == 1)
+            distance::edge_edge_distance2(
+                distance::edge_edge_distance_flag(p[0], p[1], p[2], p[3]), p[0], p[1], p[2], p[3], D);
+        else if(term.type == 2)
+            distance::point_edge_distance2(
+                distance::point_edge_distance_flag(p[0], p[1], p[2]), p[0], p[1], p[2], D);
+        else if(term.type == 3)
+            distance::point_point_distance2(p[0], p[1], D);
+        else
+        {
+            const Float gap = (p[0] - term.plane_position).dot(term.plane_normal);
+            UIPC_KERNEL_ASSERT(gap > term.thickness, "Infeasible frozen plane barrier %d", e);
+            D = gap * gap;
+        }
+        Vector12    g     = Vector12::Zero();
+        Matrix12x12 H     = Matrix12x12::Zero();
+        const auto  range = D_range(term.thickness, term.d_hat);
+        UIPC_KERNEL_ASSERT(fem::stencil_finite(D) && D > range(0),
+                           "Infeasible frozen barrier %d",
+                           e);
+        if(D < range(1))
+        {
+            const Float k = term.kappa_dt2, h = term.d_hat, t = term.thickness;
+            if(term.type == 0)
+                PT_barrier_gradient_hessian(
+                    g,
+                    H,
+                    distance::point_triangle_distance_flag(p[0], p[1], p[2], p[3]),
+                    k,
+                    h,
+                    t,
+                    p[0],
+                    p[1],
+                    p[2],
+                    p[3]);
+            else if(term.type == 1)
+                mollified_EE_barrier_gradient_hessian(
+                    g,
+                    H,
+                    distance::edge_edge_distance_flag(p[0], p[1], p[2], p[3]),
+                    k,
+                    h,
+                    t,
+                    rest(s(0)),
+                    rest(s(1)),
+                    rest(s(2)),
+                    rest(s(3)),
+                    p[0],
+                    p[1],
+                    p[2],
+                    p[3]);
+            else if(term.type == 2)
+            {
+                Vector9   g9;
+                Matrix9x9 H9;
+                PE_barrier_gradient_hessian(
+                    g9,
+                    H9,
+                    distance::point_edge_distance_flag(p[0], p[1], p[2]),
+                    k,
+                    h,
+                    t,
+                    p[0],
+                    p[1],
+                    p[2]);
+                g.head<9>()             = g9;
+                H.topLeftCorner<9, 9>() = H9;
+            }
+            else if(term.type == 3)
+            {
+                Vector6   g6;
+                Matrix6x6 H6;
+                PP_barrier_gradient_hessian(
+                    g6, H6, distance::point_point_distance_flag(p[0], p[1]), k, h, t, p[0], p[1]);
+                g.head<6>()             = g6;
+                H.topLeftCorner<6, 6>() = H6;
+            }
+            else
+            {
+                Vector3   g3;
+                Matrix3x3 H3;
+                sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
+                    g3, H3, k, h, t, p[0], term.plane_position, term.plane_normal);
+                g.head<3>()             = g3;
+                H.topLeftCorner<3, 3>() = H3;
+            }
+        }
+        gradients(e) = g;
+        hessians(e)  = H;
+    }
+
+    __global__ void stencil_frozen_gather_kernel(ct::CBufferView<Vector4i> ids,
+                                                 ct::CBufferView<Vector12> gradients,
+                                                 ct::CBufferView<IndexT> offsets,
+                                                 ct::CBufferView<IndexT> entries,
+                                                 ct::BufferView<Vector3> result)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= result.size())
+            return;
+        Vector3 g = Vector3::Zero();
+        for(int k = offsets(v); k < offsets(v + 1); ++k)
+        {
+            const int e = entries(k);
+            for(int a = 0; a < 4; ++a)
+                if(ids(e)(a) == v)
+                    g += gradients(e).segment<3>(3 * a);
+        }
+        result(v) = g;
+    }
+
+    __global__ void stencil_inner_contact_cap_kernel(LocalObjective objective,
+                                                     ct::CBufferView<Vector3> dx,
+                                                     ct::BufferView<Float> caps)
+    {
+        const int e = blockIdx.x * blockDim.x + threadIdx.x;
+        if(e >= objective.contacts.size())
+            return;
+        const auto ids = objective.contacts(e);
+        Vector12   d   = Vector12::Zero();
+        for(int a = 0; a < 4; ++a)
+            if(ids(a) >= 0)
+                d.segment<3>(3 * a) = dx(ids(a));
+        caps(e) = objective.contact_cap(e, ids, d);
+    }
+
+    __global__ void stencil_inner_energy_kernel(LocalObjective objective,
+                                                ct::CBufferView<Vector3> dx,
+                                                Float                    alpha,
+                                                ct::BufferView<Float> changes)
+    {
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= changes.size())
+            return;
+        int e = i;
+        if(e < objective.xs.size())
+        {
+            const Vector3 d = alpha * dx(e);
+            changes(i)      = objective.masses(e)
+                         * ((objective.xs(e) - objective.predicted(e)).dot(d)
+                            + .5 * d.squaredNorm());
+        }
+        else if((e -= objective.xs.size()) < objective.elements.size())
+        {
+            const auto ids  = objective.elements(e);
+            const auto term = objective.terms(e);
+            Vector3    p[4], q[4], d[4];
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                {
+                    p[a] = objective.xs(ids(a));
+                    d[a] = alpha * dx(ids(a));
+                    q[a] = p[a] + d[a];
+                }
+            Float change;
+            if(term.type == 10)
+            {
+                const Matrix3x3 F = fem::F(p[0], p[1], p[2], p[3], term.inverse);
+                const Matrix3x3 dF = fem::F(d[0], d[1], d[2], d[3], term.inverse);
+                change = (F + dF).determinant() > 0 ?
+                             term.weight
+                                 * fem::snk_stencil_energy_change(F, dF, term.mu, term.lambda) :
+                             std::numeric_limits<Float>::infinity();
+            }
+            else
+                change = fem::stencil_elastic_energy(term, q)
+                         - fem::stencil_elastic_energy(term, p);
+            changes(i) = objective.dt * objective.dt * change;
+        }
+        else
+        {
+            e -= objective.elements.size();
+            const auto ids = objective.contacts(e);
+            Vector12   d   = Vector12::Zero();
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                    d.segment<3>(3 * a) = dx(ids(a));
+            changes(i) = objective.barrier_energy(e, ids, d, alpha)
+                         - objective.barrier_energy(e, ids, d, 0);
+        }
+    }
+
+    __global__ void stencil_inner_slope_kernel(ct::CBufferView<Vector3> g,
+                                               ct::CBufferView<Vector3> dx,
+                                               ct::BufferView<Float>    slopes)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v < g.size())
+            slopes(v) = g(v).dot(dx(v));
+    }
+
+    __global__ void stencil_inner_commit_kernel(ct::BufferView<Vector3>  xs,
+                                                ct::CBufferView<Vector3> dx,
+                                                Float                    alpha)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v < xs.size())
+            xs(v) += alpha * dx(v);
+    }
+
     __global__ void stencil_local_linesearch_kernel(LocalObjective objective,
                                                     ct::BufferView<Vector12> directions,
                                                     ct::CBufferView<Float> slopes,
@@ -307,9 +534,92 @@ namespace
     }
 }  // namespace
 
+void FEMLocalStencilSolver::refresh_frozen_contacts()
+{
+    const int n        = static_cast<int>(m_contact_stencils.size());
+    const int vertices = static_cast<int>(m_fem->xs().size());
+    m_frozen_contact_gradients.resize_discard(n);
+    m_frozen_contact_hessians.resize_discard(n);
+    if(n)
+        stencil_frozen_derivatives_kernel<<<(n + 63) / 64, 64>>>(
+            m_contact_stencils.cview(),
+            m_barrier_terms.cview(),
+            m_fem->xs(),
+            m_fem->x_bars(),
+            m_frozen_contact_gradients.view(),
+            m_frozen_contact_hessians.view());
+    stencil_frozen_gather_kernel<<<(vertices + 127) / 128, 128>>>(
+        m_contact_stencils.cview(),
+        m_frozen_contact_gradients.cview(),
+        m_barrier_offsets.cview(),
+        m_barrier_entries.cview(),
+        m_contact_gradients.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+}
+
+bool FEMLocalStencilSolver::accept_inner_step()
+{
+    const int vertices = static_cast<int>(m_fem->xs().size());
+    stencil_inner_slope_kernel<<<(vertices + 127) / 128, 128>>>(
+        m_total_gradients.cview(), m_fem->m_impl.dxs.cview(), m_global_slopes.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    ct::DeviceReduce().Sum(m_global_slopes.data(), m_scalar.data(), vertices);
+    Float slope;
+    m_scalar.view().copy_to(&slope);
+    if(!std::isfinite(slope))
+        throw SimEngineException("Nonfinite frozen-objective slope.");
+    if(slope >= 0)
+        return false;
+    LocalObjective objective{m_elastic_stencils.cview(),
+                             m_contact_stencils.cview(),
+                             m_fem->xs(),
+                             m_fem->x_bars(),
+                             m_fem->x_tildes(),
+                             m_fem->masses(),
+                             m_elastic_terms.cview(),
+                             m_vertex_offsets.cview(),
+                             m_vertex_elements.cview(),
+                             m_barrier_offsets.cview(),
+                             m_barrier_entries.cview(),
+                             m_barrier_terms.cview(),
+                             world().scene().dt()};
+    Float          alpha    = 1;
+    const int      contacts = static_cast<int>(m_contact_stencils.size());
+    if(contacts)
+    {
+        m_inner_values.resize_discard(contacts);
+        stencil_inner_contact_cap_kernel<<<(contacts + 127) / 128, 128>>>(
+            objective, m_fem->m_impl.dxs.cview(), m_inner_values.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        ct::DeviceReduce().Min(m_inner_values.data(), m_scalar.data(), contacts);
+        m_scalar.view().copy_to(&alpha);
+        if(!std::isfinite(alpha) || alpha < 0 || alpha > 1)
+            throw SimEngineException("Invalid frozen-contact combined CCD bound.");
+    }
+    const int count = vertices + static_cast<int>(m_elastic_stencils.size()) + contacts;
+    m_inner_values.resize_discard(count);
+    for(int trial = 0; trial < 32 && alpha > 0; ++trial, alpha *= .5)
+    {
+        stencil_inner_energy_kernel<<<(count + 127) / 128, 128>>>(
+            objective, m_fem->m_impl.dxs.cview(), alpha, m_inner_values.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        ct::DeviceReduce().Sum(m_inner_values.data(), m_scalar.data(), count);
+        Float change;
+        m_scalar.view().copy_to(&change);
+        if(std::isfinite(change) && change <= 1e-4 * alpha * slope)
+        {
+            stencil_inner_commit_kernel<<<(vertices + 127) / 128, 128>>>(
+                m_fem->m_impl.xs.view(), m_fem->m_impl.dxs.cview(), alpha);
+            CUDA_TOOL_CHECK(cudaGetLastError());
+            return true;
+        }
+    }
+    logger::info("Local stencil rejected merged inner step; retaining frozen iterate");
+    return false;
+}
+
 void FEMLocalStencilSolver::filter_local_steps()
 {
-    prepare_barriers();
     CUDA_TOOL_CHECK(cudaMemset(m_local_statistics.data(), 0, 5 * sizeof(IndexT)));
     LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),

@@ -19,7 +19,9 @@ table. Each membrane triangle contributes a three-vertex stencil (fourth slot
 is -1); each bending edge and tetrahedron contributes four vertices. Padded slots
 are excluded from adjacency, restriction, coloring and all vertex accesses.
 All elastic stencils enter the shared-vertex conflict graph and complementary
-primary-coverage construction. Active contact stencils stay grey.
+independent-group coverage construction. Active contact stencils stay grey.
+`local_stencil_cloth.py --inner-sweeps N` exercises batched local updates; the
+default one retains per-pass global acceptance.
 
 Both elastic and contact solves restrict the complete union of incident membrane,
 bending, solid, inertia and contact terms. No term is counted twice within a local

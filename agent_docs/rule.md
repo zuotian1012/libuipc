@@ -136,6 +136,12 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS execution alignment (2026-10-06): align explicit stopping metrics,
+  complementary coverage and local/global iteration organization. Keep the
+  existing dense checkpoints as controls and compare the same contact frame;
+  distinguish scheduling gains from changed accuracy. Do not substitute a
+  larger iteration budget or an unlabeled relaxed tolerance for the fix.
+
 - SoS hybrid alignment (2026-10-01): align local direction computation, priority
   submission and Jacobi merging with the paper, and audit local line-search
   consistency. Keep direction solves independent of coloring; verify against the

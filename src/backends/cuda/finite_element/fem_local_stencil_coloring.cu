@@ -12,7 +12,7 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> elements,
     const SizeT    n = elements.size();
     vector<IndexT> order(n), degree(n), colors(n), packed;
     vector<U64>    rank(n, 0), occupied(incident.size(), 0);
-    vector<bool>   primary_seen(n, false);
+    vector<bool>   covered(n, false);
     std::iota(order.begin(), order.end(), 0);
     for(SizeT t = 0; t < n; ++t)
     {
@@ -38,11 +38,10 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> elements,
                          order.end(),
                          [&](IndexT a, IndexT b)
                          {
-                             // Rank-only greedy coloring can cycle on symmetric meshes.
-                             // Complete the paper's required primary coverage explicitly
-                             // after a stalled scheme, keeping the same conflict graph.
-                             if(complete_coverage && primary_seen[a] != primary_seen[b])
-                                 return !primary_seen[a];
+                             // Grey stencils must enter an independent group in some
+                             // scheme. Prefer uncovered stencils after stalled progress.
+                             if(complete_coverage && covered[a] != covered[b])
+                                 return !covered[a];
                              if(scheme == 0)
                                  return degree[a] > degree[b];
                              if(rank[a] != rank[b])
@@ -68,9 +67,9 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> elements,
                             occupied[elements[t](a)] |= U64{1} << c;
                     break;
                 }
-            if(colors[t] == 0 && !primary_seen[t])
+            if((m_primary_coverage ? colors[t] == 0 : colors[t] >= 0) && !covered[t])
             {
-                primary_seen[t] = true;
+                covered[t] = true;
                 --remaining;
             }
             rank[t] += colors[t] < 0 ? grey_rank : static_cast<U64>(colors[t]);
@@ -82,11 +81,12 @@ void FEMLocalStencilSolver::init_coloring(span<const Vector4i> elements,
         complete_coverage = remaining == before;
     }
     if(remaining)
-        throw SimEngineException("Complementary coloring failed to give every elastic stencil a primary-color pass.");
+        throw SimEngineException("Complementary coloring failed to cover every elastic stencil.");
     m_colors.copy_from(packed);
-    logger::info("Local stencil complementary coloring: {} schemes, {} color passes, all {} elastic stencils covered by primary color",
+    logger::info("Local stencil complementary coloring: {} schemes, {} color passes, all {} elastic stencils covered ({})",
                  packed.size() / n,
                  m_color_passes.size(),
-                 n);
+                 n,
+                 m_primary_coverage ? "primary" : "independent");
 }
 }  // namespace uipc::backend::cuda

@@ -1,5 +1,13 @@
 # 19 - Bunny and cloth solver experiment
 
+Current execution controls and measured limits are in [21](21-sos-execution-alignment.md):
+the demo defaults to strict velocity stopping, independent coverage with 15
+colors, and up to 15 inner passes per global acceptance round. `--stopping
+gradient_l2 --gradient-tolerance 1e-4` is an explicitly separate accuracy
+experiment. `--fork-checkpoint <solver-directory> --checkpoint-frame N --frames
+N+1` starts a same-state comparison in a new output, without altering physics.
+The inherited prefix is labeled and must not be described as a complete new run.
+
 For current convergence findings, optional `--initial-guess inertial`, full-precision
 frame output and `--resume`, see [20](20-sos-convergence-audit.md). Historical
 timings below predate those changes. The complete dense SoS landing is still

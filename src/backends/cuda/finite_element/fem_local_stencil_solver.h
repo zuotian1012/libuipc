@@ -22,9 +22,10 @@ struct StencilBarrierTerm
     Vector3 plane_position = Vector3::Zero(), plane_normal = Vector3::Zero();
 };
 
-// Frictionless stencil Newton-CG. One call produces one complementary-color
-// hybrid proposal (or the additive baseline); the engine accepts and commits it
-// before the next color. Local solves and CCD/Armijo filtering are color-blind;
+// Frictionless stencil Newton-CG. One call produces a single pass or a batch of
+// complementary-color proposals. Inner updates use a frozen contact objective;
+// the outer start is restored before engine acceptance of the accumulated step.
+// Local solves and CCD/Armijo filtering are color-blind;
 // priority selection and Jacobi averaging only compose the filtered directions.
 // Their local certificates do not certify the combined proposal. The engine's
 // global CCD/energy acceptance remains required. No global linear solve is performed.
@@ -41,6 +42,10 @@ class FEMLocalStencilSolver final : public SimSystem
     void                         init();
     void                         init_elastic();
     void                         prepare_contacts();
+    void                         solve_sweep(bool first);
+    void                         refresh_frozen_contacts();
+    bool                         accept_inner_step();
+    void                         cap_combined_elastic_step();
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void filter_local_steps();
@@ -49,19 +54,26 @@ class FEMLocalStencilSolver final : public SimSystem
     bool do_try_recover(RecoverInfo& info) override;
     void do_apply_recover(RecoverInfo& info) override;
 
-    FiniteElementMethod*                        m_fem               = nullptr;
-    FEMDyTopoEffectReceiver*                    m_contact_receiver  = nullptr;
-    FiniteElementVertexReporter*                m_vertex_reporter   = nullptr;
-    GlobalTrajectoryFilter*                     m_trajectory_filter = nullptr;
-    GlobalContactManager*                       m_contact_manager   = nullptr;
-    GlobalVertexManager*                        m_vertices          = nullptr;
-    HalfPlane*                                  m_planes            = nullptr;
-    HalfPlaneVertexReporter*                    m_plane_reporter    = nullptr;
-    bool                                        m_hybrid            = true;
-    bool                                        m_inertial_guess    = false;
-    IndexT                                      m_color_limit       = 8;
-    SizeT                                       m_sweep_index       = 0;
-    SizeT                                       m_recovered_sweep   = 0;
+    FiniteElementMethod*                        m_fem                = nullptr;
+    FEMDyTopoEffectReceiver*                    m_contact_receiver   = nullptr;
+    FiniteElementVertexReporter*                m_vertex_reporter    = nullptr;
+    GlobalTrajectoryFilter*                     m_trajectory_filter  = nullptr;
+    GlobalContactManager*                       m_contact_manager    = nullptr;
+    GlobalVertexManager*                        m_vertices           = nullptr;
+    HalfPlane*                                  m_planes             = nullptr;
+    HalfPlaneVertexReporter*                    m_plane_reporter     = nullptr;
+    bool                                        m_hybrid             = true;
+    bool                                        m_inertial_guess     = false;
+    bool                                        m_gradient_stopping  = false;
+    bool                                        m_primary_coverage   = false;
+    bool                                        m_restart_schedule   = false;
+    IndexT                                      m_inner_sweeps       = 1;
+    IndexT                                      m_inner_index        = 0;
+    Float                                       m_gradient_tolerance = 1e-4;
+    Float                                       m_gradient_norm      = 0;
+    IndexT                                      m_color_limit        = 8;
+    SizeT                                       m_sweep_index        = 0;
+    SizeT                                       m_recovered_sweep    = 0;
     vector<Vector2i>                            m_color_passes;
     cuda_tool::DeviceBuffer<IndexT>             m_colors, m_primary_owner;
     cuda_tool::DeviceBuffer<Vector3>            m_total_gradients;
@@ -85,6 +97,10 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Float>       m_residuals, m_determinants, m_scalar;
     cuda_tool::DeviceBuffer<Float>       m_gradient_norms;
     cuda_tool::DeviceBuffer<Vector3>     m_inertial_proposal;
+    cuda_tool::DeviceBuffer<Vector3> m_outer_start, m_outer_gradients, m_first_proposal;
+    cuda_tool::DeviceBuffer<Vector12>    m_frozen_contact_gradients;
+    cuda_tool::DeviceBuffer<Matrix12x12> m_frozen_contact_hessians;
+    cuda_tool::DeviceBuffer<Float>       m_inner_values;
     Float                                m_weight    = 1;
     Float                                m_residual  = 0;
     Float                                m_tolerance = 0;

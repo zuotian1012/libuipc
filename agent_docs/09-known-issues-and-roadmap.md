@@ -1,5 +1,16 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Current [execution alignment](21-sos-execution-alignment.md) adds selectable
+stopping norms, independent-group coverage and locally certified inner batches
+before global acceptance. Same-state strict frame 35 takes ~593 s before and
+after the changes; L2=1e-4 takes 14.4 s but differs by up to 18.5 mm on the cloth.
+Do not attribute changed stopping accuracy to scheduling speedup. The old 120-frame
+long run was deliberately stopped with 37 converged frames preserved as controls.
+Append-only full-primitive barriers across outer rounds and matrix-free GPU
+Hessian-vector products remain separate gaps. Slow local relaxation at matched
+accuracy is unresolved; a completed dense landing and a paper-level speedup
+remain unverified.
+
 The [2026-10-06 convergence audit](20-sos-convergence-audit.md) distinguishes slow
 global relaxation from local derivative errors. The dense old baseline can pass
 frame 1 with 11,423 color passes but fails frame 20 even with 16,384 allowed.

@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **SoS execution alignment (2026-10-06)**: [21](21-sos-execution-alignment.md)
+> adds explicit gradient/velocity stopping, independent-group coverage and
+> frozen-contact inner batches with full outer certification. Dense coloring is
+> now three schemes / 45 passes with 15 colors. Legacy primary coverage and
+> single-pass filtering remain selectable controls. The old long run was stopped
+> deliberately after preserving 37 converged frames. The new 120-frame mixed
+> drape run and 150 assertions pass. Same-state frame 35 remains ~593 s under
+> unchanged velocity tolerance, with 0.289 micrometer maximum position difference;
+> there is no meaningful strict-accuracy speedup. L2=1e-4 takes 14.4 s but changes
+> cloth positions by up to 18.5 mm, so velocity stopping remains the default.
+> No dense simulation remains running; full 120-frame dense landing is still open.
+
 > **SoS convergence work (2026-10-06, in progress)**: see
 > [20-sos-convergence-audit.md](20-sos-convergence-audit.md). Independent assembly
 > confirms the contact-free bunny gradient; the slow mode is bulk translation,

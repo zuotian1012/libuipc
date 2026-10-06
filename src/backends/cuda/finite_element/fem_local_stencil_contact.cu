@@ -192,6 +192,15 @@ void FEMLocalStencilSolver::prepare_contacts()
 
 fem::LocalStencilContactView FEMLocalStencilSolver::contact_view() const
 {
+    if(m_inner_sweeps > 1)
+        return {m_contact_gradients.cview(),
+                m_barrier_offsets.cview(),
+                m_barrier_entries.cview(),
+                {},
+                0,
+                m_contact_stencils.cview(),
+                m_frozen_contact_hessians.cview(),
+                true};
     return {m_contact_gradients.cview(),
             m_contact_offsets.cview(),
             m_contact_entries.cview(),

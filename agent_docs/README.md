@@ -29,6 +29,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | [`18-local-stencil-cloth.md`](18-local-stencil-cloth.md) | BW/NH membrane and discrete bending stencils, mixed cloth/solid contact, triangle degeneracy bounds and cloth examples |
 | [`19-bunny-cloth-experiment.md`](19-bunny-cloth-experiment.md) | Free bunny/cloth drop, reproducible scene parameters, serial solver comparison, timing and trajectory diagnostics |
 | [`20-sos-convergence-audit.md`](20-sos-convergence-audit.md) | Independent convergence diagnosis, energy increments, merged-motion validity, optional inertial initialization and recoverable runs |
+| [`21-sos-execution-alignment.md`](21-sos-execution-alignment.md) | Explicit stopping metrics, independent-group coverage, frozen-contact batches and same-state checkpoint comparisons |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |

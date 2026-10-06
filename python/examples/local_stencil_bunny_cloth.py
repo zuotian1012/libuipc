@@ -8,8 +8,9 @@ runtime. Both bodies are free; the cloth starts above the bunny without overlap.
     python python/examples/local_stencil_bunny_cloth.py --cloth-resolution 96 --bunny-refinement 2 --mesh-info
     python python/examples/local_stencil_bunny_cloth.py --replay --gui
 
-sos is the implemented SoS subset. Dense local runs at dt=.01 currently hit the
-iteration limit; the short dt=.001 example verifies switching, not a full landing.
+sos is the implemented SoS subset. Global acceptance rounds can contain several
+frozen-barrier color passes. Strict velocity stopping remains the default;
+gradient_l2 is an explicitly separate convergence experiment.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import time
 
@@ -95,12 +97,17 @@ def mesh_info(meshes):
 
 def run(args, output):
     previous = None
+    source = None
+    if args.fork_checkpoint:
+        source = args.fork_checkpoint.resolve()
+        previous = json.loads((source / "scene.json").read_text(encoding="utf-8"))
     if args.resume:
         previous = json.loads((output / "scene.json").read_text(encoding="utf-8"))
     elif (output / "history.csv").exists() or (output / "summary.json").exists():
         raise FileExistsError(f"Run data already exists in {output}; use --replay or a new --output directory")
     output.mkdir(parents=True, exist_ok=True)
     (output / "frames").mkdir(exist_ok=True)
+    (output / "frame-stats").mkdir(exist_ok=True)
     Logger.set_level(Logger.Level.Info if args.verbose else Logger.Level.Warn)
     bunny, tets, bunny_faces, cloth, cloth_faces = geometry(args)
     info = mesh_info((bunny, tets, bunny_faces, cloth, cloth_faces))
@@ -115,6 +122,12 @@ def run(args, output):
     config["newton"]["solver"] = args.solver
     config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["local_stencil"]["initial_guess"] = args.initial_guess
+    config["newton"]["local_stencil"]["stopping"] = args.stopping
+    config["newton"]["local_stencil"]["gradient_tol"] = args.gradient_tolerance
+    config["newton"]["local_stencil"]["color_limit"] = args.color_limit
+    config["newton"]["local_stencil"]["color_coverage"] = args.color_coverage
+    config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
+    config["newton"]["local_stencil"]["restart_schedule_on_recover"] = int(source is not None)
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -143,20 +156,51 @@ def run(args, output):
     floor = ground(0.)
     contact.apply_to(floor)
     scene.objects().create("Ground").geometries().create(floor)
-    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "resume", "verbose", "mesh_info"}}
+    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "resume", "verbose", "mesh_info", "fork_checkpoint", "checkpoint_frame"}}
     manifest = dict(parameters=parameters, config=config, mesh_sha256=fingerprint,
                     bunny_asset="assets/sim_data/tetmesh/bunny0.msh", **info,
                     refinement="Conforming edge-midpoint 1-to-8; original piecewise-linear shape preserved",
                     solver_scope="sos selects the implemented local_stencil subset, not the complete paper method",
                     initialization_scope="Optional inertial prediction is separate from the paper's inertia-barrier warm start",
+                    stopping_scope="gradient_l2 uses the absolute free-DOF gradient of J=0.5*(x-x_tilde)^T*M*(x-x_tilde)+dt^2*V (kg*m); 1e-4 is a paper-style experiment, not certified matched accuracy with Fig.13",
+                    iteration_scope="iterations counts global acceptance rounds; each contains up to inner_sweeps local color passes; a fresh outer residual certifies the accepted state",
                     units="meter, kilogram, second", friction=False,
                     runtime=str(ROOT / "build/python/src/uipc/_native"))
     binary = ROOT / "build/python/src/uipc/_native/uipc_backend_cuda.dll"
     if binary.exists():
         manifest["runtime_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
-    if previous:
+    if source:
+        physics_keys = {"resolution", "bunny_refinement", "dt", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young", "contact_distance"}
+        if previous["mesh_sha256"] != fingerprint or any(previous["parameters"][k] != parameters[k] for k in physics_keys):
+            raise ValueError("Checkpoint fork requires identical mesh, material, timestep and geometry")
+        with (source / "history.csv").open(newline="", encoding="utf-8") as stream:
+            prefix = [r for r in csv.DictReader(stream) if int(r["frame"]) <= args.checkpoint_frame]
+        if len(prefix) != args.checkpoint_frame or any(r["converged"] != "True" for r in prefix):
+            raise ValueError("Source must contain all converged frames through checkpoint-frame")
+        manifest["checkpoint_origin"] = dict(path=str(source), frame=args.checkpoint_frame,
+                                             parameters=previous["parameters"], schedule_restarted=True)
+        dump_source = source / "engine/dump"
+        for file in dump_source.rglob("*"):
+            if file.is_file() and (file.name.endswith(f".{args.checkpoint_frame}") or file.name.endswith(f".{args.checkpoint_frame}.json")):
+                target = output / "engine/dump" / file.relative_to(dump_source)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(file, target)
+        for frame in range(args.checkpoint_frame + 1):
+            shutil.copy2(source / "frames" / f"{frame:04d}.npy", output / "frames" / f"{frame:04d}.npy")
+        with (output / "history.csv").open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=prefix[0].keys())
+            writer.writeheader()
+            writer.writerows(prefix)
+        (output / "scene.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    elif previous:
         physics = lambda p: {k: v for k, v in p.items() if k not in {"frames", "max_iterations"}}
-        if previous["mesh_sha256"] != fingerprint or physics(previous["parameters"]) != physics(parameters):
+        previous_parameters = dict(previous["parameters"])
+        # Older manifests predate the explicit execution controls. Recover their
+        # actual settings, not today's demo defaults, before checking equality.
+        for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
+                               color_limit=8, color_coverage="primary", inner_sweeps=1).items():
+            previous_parameters.setdefault(key, value)
+        if previous["mesh_sha256"] != fingerprint or physics(previous_parameters) != physics(parameters):
             raise ValueError("Resume requires identical mesh, physics, solver, initialization and tolerance")
         (output / f"resume-{time.time_ns()}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     else:
@@ -174,7 +218,7 @@ def run(args, output):
     reference_area = np.linalg.norm(np.cross(tri[:, 1]-tri[:, 0], tri[:, 2]-tri[:, 0]), axis=1)
     positions = [rest]
     history = []
-    if args.resume:
+    if args.resume or source:
         with (output / "history.csv").open(newline="", encoding="utf-8") as stream:
             for raw in csv.DictReader(stream):
                 row = {key: (value == "True" if key == "converged" else
@@ -199,7 +243,8 @@ def run(args, output):
     print(f"{args.solver}: {len(bunny)} bunny vertices, {len(tets)} tets, "
           f"{len(cloth)} cloth vertices, {len(cloth_faces)} cloth triangles; init={init_ms:.0f} ms", flush=True)
     # Write diagnostics incrementally so an interrupted experiment retains data.
-    with (output / "history.csv").open("a" if args.resume else "w", newline="", encoding="utf-8") as stream:
+    first_simulated_frame = len(history) + 1
+    with (output / "history.csv").open("a" if args.resume or source else "w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=history[0].keys()) if history else None
         for frame in range(len(history)+1, args.frames + 1):
             start = time.perf_counter()
@@ -229,6 +274,7 @@ def run(args, output):
                 raise RuntimeError(f"Frame {frame} did not converge: {row}")
             if not world.dump():
                 raise RuntimeError(f"Could not checkpoint converged frame {frame}")
+            (output / "frame-stats" / f"{frame:04d}.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
             # History is the resume journal: only publish a frame after its
             # geometry, convergence and checkpoint have all been validated.
             if writer is None:
@@ -239,12 +285,15 @@ def run(args, output):
             history.append(row)
             positions.append(x)
             if frame == 1 or frame % 10 == 0:
-                print(f"{args.solver}: frame={frame}/{args.frames}, passes={row['iterations']}, "
+                print(f"{args.solver}: frame={frame}/{args.frames}, outer_iterations={row['iterations']}, "
                       f"advance={advance_ms:.1f} ms, det={row['min_det_F']:.4f}", flush=True)
     np.savez_compressed(output / "positions.npz", positions=np.asarray(positions), bunny_faces=bunny_faces,
                         cloth_faces=cloth_faces, tetrahedra=tets, bunny_vertices=len(bunny), dt=args.dt)
     times = [r["advance_ms"] for r in history]
     summary = dict(solver=args.solver, frames=args.frames, mesh_sha256=fingerprint, init_ms=init_ms,
+                   first_simulated_frame=first_simulated_frame,
+                   new_advance_s=sum(r["advance_ms"] for r in history if r["frame"] >= first_simulated_frame)/1000,
+                   trajectory_origin="checkpoint prefix plus current run" if source or previous and "checkpoint_origin" in previous else "original scene",
                    total_advance_s=sum(times)/1000, mean_advance_ms=float(np.mean(times)),
                    median_advance_ms=float(np.median(times)), max_iterations=max(r["iterations"] for r in history),
                    all_converged=all(r["converged"] for r in history),
@@ -366,7 +415,7 @@ def compare(root):
         axes[0].plot(frame, [float(r["advance_ms"]) for r in history], label=path.name)
         axes[1].plot(frame, [int(r["iterations"]) for r in history], label=path.name)
     axes[0].set(ylabel="Advance time (ms)", yscale="log")
-    axes[1].set(ylabel="Color passes / Newton iterations", yscale="log")
+    axes[1].set(ylabel="Outer iterations / Newton iterations", yscale="log")
     axes[2].plot(np.arange(len(error)), error[:, :bunny_count].max(axis=1)*1000, label="Bunny", color="#c98145")
     axes[2].plot(np.arange(len(error)), error[:, bunny_count:].max(axis=1)*1000, label="Cloth", color="#7657a8")
     axes[2].set(ylabel="Max vertex difference (mm)", xlabel="Frame")
@@ -389,6 +438,14 @@ def main():
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--initial-guess", choices=["previous", "inertial"], default="previous",
                         help="SoS only: previous keeps the baseline; inertial tries a CCD/energy-filtered predictor, without the paper's inertia-barrier warm start")
+    parser.add_argument("--stopping", choices=["velocity", "gradient_l2"], default="velocity",
+                        help="SoS stopping norm; velocity retains the strict legacy residual")
+    parser.add_argument("--gradient-tolerance", type=float, default=1e-4,
+                        help="Absolute free-DOF gradient L2 tolerance in kg*m; not a velocity tolerance")
+    parser.add_argument("--color-limit", type=int, default=15)
+    parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
+    parser.add_argument("--inner-sweeps", type=int, default=15,
+                        help="SoS local color passes per global CCD/energy acceptance; use 1 for the original outer loop")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--cloth-resolution", "--resolution", dest="resolution", type=int, default=48,
                         help="Cloth cells per edge: (N+1)^2 vertices and 2*N^2 triangles (default: 48)")
@@ -411,13 +468,21 @@ def main():
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--replay", action="store_true", help="Read existing trajectories without simulating")
     parser.add_argument("--resume", action="store_true", help="Recover the last converged checkpoint; only frame count and iteration budget may change")
+    parser.add_argument("--fork-checkpoint", type=Path, help="Existing solver output directory: fork physical state into a new run for same-frame algorithm comparisons")
+    parser.add_argument("--checkpoint-frame", type=int, default=0)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     if args.solver == "sos":
         args.solver = "local_stencil"
     if args.resume and (args.solver == "both" or args.replay):
         parser.error("Use --resume with one solver, without --replay")
-    for name in ["frames", "resolution", "dt", "tolerance", "max_iterations", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young", "contact_distance"]:
+    if args.fork_checkpoint and (args.resume or args.replay or args.solver == "both" or not 0 < args.checkpoint_frame < args.frames):
+        parser.error("Checkpoint fork requires one solver, a new output, and 0 < checkpoint-frame < frames")
+    if not 1 <= args.color_limit <= 64 or not 1 <= args.inner_sweeps <= 256:
+        parser.error("color-limit must be in [1,64], inner-sweeps in [1,256]")
+    if args.sweep == "additive" and args.inner_sweeps != 1:
+        parser.error("Use --inner-sweeps 1 with additive sweeps")
+    for name in ["frames", "resolution", "dt", "tolerance", "gradient_tolerance", "max_iterations", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young", "contact_distance"]:
         if not np.isfinite(getattr(args, name)) or getattr(args, name) <= 0:
             parser.error(f"{name} must be finite and positive")
     if args.mesh_info:
@@ -430,7 +495,7 @@ def main():
             for solver in ["local_stencil", "global"]:
                 command = [sys.executable, str(Path(__file__).resolve())]
                 for k, v in vars(args).items():
-                    if k in {"render", "gui", "replay", "solver"} or v is False:
+                    if k in {"render", "gui", "replay", "solver"} or v is False or v is None:
                         continue
                     command.append("--" + k.replace("_", "-"))
                     if v is not True:

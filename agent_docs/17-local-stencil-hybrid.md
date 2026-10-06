@@ -17,15 +17,20 @@ assigns the least available color, up to `newton/local_stencil/color_limit`
 degree, subsequent schemes use cumulative received color ranks. Grey has a
 finite rank penalty larger than all finite colors accumulated during the bounded
 construction, avoiding floating infinity ties. If a rank-only scheme makes no
-new primary coverage, the next scheme prioritizes uncovered stencils, then the
+new coverage, the next scheme prioritizes uncovered stencils, then the
 same cumulative rank. This explicit coverage completion avoids cycling on
 symmetric meshes while preserving the conflict graph and grey policy; it is an
 implementation addition to Algorithm 2's ranking heuristic. Schemes are generated until every
-elastic stencil has appeared in primary color zero. Construction fails explicitly
+elastic stencil has appeared in an independent non-grey group. This follows the
+Fig. 5 coverage description; the stronger color-zero interpretation remains
+available as `color_coverage="primary"` for controlled legacy comparisons.
+Construction fails explicitly
 if this coverage cannot be obtained; it never silently omits stencils.
 
 The solver cycles through nonempty colors of the complementary schemes. Each
-engine nonlinear iteration performs one hybrid sweep, not an entire cycle:
+color pass performs the following operations. With `inner_sweeps=1` (library
+default), one engine nonlinear iteration performs one pass. Larger values batch
+passes on a frozen barrier set before global acceptance:
 
 1. Solve all elastic and active contact stencils in parallel at the same frozen
    iterate. Only physical pins and padded slots are fixed. Colors/priority owners
@@ -38,9 +43,12 @@ engine nonlinear iteration performs one hybrid sweep, not an entire cycle:
 4. Copy current-color directions to their owned vertices. Sum and average the
    other stencil directions on unowned vertices. Contact stencils always remain
    grey; changing contacts never require recoloring the elastic graph.
-5. Reuse regular trajectory CCD and the engine's global energy acceptance for
-   the combined proposal, then commit positions. The next color reads those
-   accepted positions and freshly computed derivatives.
+5. For a batch, certify the combined inner motion against all frozen barriers
+   and elastic terms, then use Armijo on the complete frozen objective. Recompute
+   both elastic and contact derivatives before the next pass. Restore the outer
+   start and submit the accumulated displacement to regular CCD/global energy
+   acceptance. Only a fresh outer residual may terminate the frame. Single-pass
+   mode goes directly to this existing global acceptance.
 
 This is a buffered, synchronous implementation of priority-preserving hybrid
 submission. Kernels never write positions while another stencil reads them.

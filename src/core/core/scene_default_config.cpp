@@ -105,12 +105,42 @@ static SceneConfigContract make_scene_config_contract()
         "Optional inertial initial proposal, accepted only through global CCD and energy checks; no inertia-barrier warm start.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"previous", "inertial"})}});
+    add("newton/local_stencil/stopping",
+        std::string{"velocity"},
+        "string",
+        "Stopping norm: legacy max mass-scaled velocity residual or absolute gradient L2 of the incremental potential.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"velocity", "gradient_l2"})}});
+    add("newton/local_stencil/gradient_tol",
+        Float{1e-4},
+        "number",
+        "Absolute L2 tolerance of the free-DOF incremental-potential gradient (kg*m); used only by gradient_l2 stopping.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"exclusiveMinimum", 0.0}});
+    add("newton/local_stencil/color_coverage",
+        std::string{"independent"},
+        "string",
+        "Require each elastic stencil to appear in an independent color group, or use the legacy color-zero coverage experiment.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_coloring.cu"},
+        Json{{"enum", Json::array({"independent", "primary"})}});
+    add("newton/local_stencil/inner_sweeps",
+        IndexT{1},
+        "integer",
+        "Maximum frozen-barrier hybrid color passes in one globally certified proposal; one retains per-pass global filtering.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"minimum", 1}, {"maximum", 256}});
     add("newton/max_iter",
         IndexT{1024},
         "integer",
         "Maximum nonlinear iterations per frame.",
         {"src/backends/cuda/engine"},
         Json{{"minimum", 1}});
+    add("newton/local_stencil/restart_schedule_on_recover",
+        IndexT{0},
+        "integer",
+        "Explicit ablation option: recover physical state but restart coloring at pass zero, allowing a changed schedule.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        flag);
     add("newton/min_iter",
         IndexT{0},
         "integer",
