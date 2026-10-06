@@ -1,5 +1,19 @@
 # Handoff — Current State of the Repo
 
+> **SoS convergence work (2026-10-06, in progress)**: see
+> [20-sos-convergence-audit.md](20-sos-convergence-audit.md). Independent assembly
+> confirms the contact-free bunny gradient; the slow mode is bulk translation,
+> with a much stronger/different stopping metric than the paper's reported L2.
+> The old baseline reports 19 converged frames with a 16,384-pass budget, then
+> fails frame 20. New changes preserve the certified final iterate, evaluate
+> local energy increments, cache shared assembly, and certify combined inversion.
+> Optional inertial initialization is explicitly separate from paper warm start.
+> Full-precision frames and native checkpoints support verified resume. Dense
+> initialization/recovery and first contact (frame 9, residual 0.00947570 m/s,
+> 13,142 passes) passed. The final fused/shared-assembly binary resumed frame 9
+> toward 120; full dense landing remains pending. Its mixed drape regression
+> completed 120 frames with independent saved-frame surface checks passing.
+
 > **SoS hybrid direction/submission alignment (2026-10-01)**: local Newton-CG
 > no longer constrains vertices owned by the active color. Only physical pins and
 > padded slots are eliminated. Complete local directions, CCD and Armijo searches

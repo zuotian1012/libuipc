@@ -94,7 +94,10 @@ def mesh_info(meshes):
 
 
 def run(args, output):
-    if (output / "history.csv").exists() or (output / "summary.json").exists():
+    previous = None
+    if args.resume:
+        previous = json.loads((output / "scene.json").read_text(encoding="utf-8"))
+    elif (output / "history.csv").exists() or (output / "summary.json").exists():
         raise FileExistsError(f"Run data already exists in {output}; use --replay or a new --output directory")
     output.mkdir(parents=True, exist_ok=True)
     (output / "frames").mkdir(exist_ok=True)
@@ -111,6 +114,7 @@ def run(args, output):
     config["gravity"] = [[0.], [-9.8], [0.]]
     config["newton"]["solver"] = args.solver
     config["newton"]["local_stencil"]["sweep"] = args.sweep
+    config["newton"]["local_stencil"]["initial_guess"] = args.initial_guess
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -139,14 +143,24 @@ def run(args, output):
     floor = ground(0.)
     contact.apply_to(floor)
     scene.objects().create("Ground").geometries().create(floor)
-    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "verbose", "mesh_info"}}
+    parameters = {k: v for k, v in vars(args).items() if k not in {"output", "gui", "render", "replay", "resume", "verbose", "mesh_info"}}
     manifest = dict(parameters=parameters, config=config, mesh_sha256=fingerprint,
                     bunny_asset="assets/sim_data/tetmesh/bunny0.msh", **info,
                     refinement="Conforming edge-midpoint 1-to-8; original piecewise-linear shape preserved",
                     solver_scope="sos selects the implemented local_stencil subset, not the complete paper method",
+                    initialization_scope="Optional inertial prediction is separate from the paper's inertia-barrier warm start",
                     units="meter, kilogram, second", friction=False,
                     runtime=str(ROOT / "build/python/src/uipc/_native"))
-    (output / "scene.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    binary = ROOT / "build/python/src/uipc/_native/uipc_backend_cuda.dll"
+    if binary.exists():
+        manifest["runtime_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+    if previous:
+        physics = lambda p: {k: v for k, v in p.items() if k not in {"frames", "max_iterations"}}
+        if previous["mesh_sha256"] != fingerprint or physics(previous["parameters"]) != physics(parameters):
+            raise ValueError("Resume requires identical mesh, physics, solver, initialization and tolerance")
+        (output / f"resume-{time.time_ns()}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    else:
+        (output / "scene.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     engine = Engine("cuda", str(output / "engine"))
     world = World(engine)
     start = time.perf_counter()
@@ -160,13 +174,34 @@ def run(args, output):
     reference_area = np.linalg.norm(np.cross(tri[:, 1]-tri[:, 0], tri[:, 2]-tri[:, 0]), axis=1)
     positions = [rest]
     history = []
-    write_obj(output / "frames/0000.obj", rest, faces)
+    if args.resume:
+        with (output / "history.csv").open(newline="", encoding="utf-8") as stream:
+            for raw in csv.DictReader(stream):
+                row = {key: (value == "True" if key == "converged" else
+                             int(value) if key in {"frame", "iterations", "linear_iterations"} else float(value))
+                       for key, value in raw.items()}
+                if row["frame"] != len(history)+1 or not row["converged"]:
+                    raise ValueError("Resume history must contain contiguous converged frames")
+                history.append(row)
+                positions.append(np.load(output / "frames" / f"{row['frame']:04d}.npy"))
+        if not history or args.frames <= len(history):
+            raise ValueError("Resume requires a checkpoint and a larger target frame count")
+        if not world.recover(len(history)):
+            raise RuntimeError("Could not recover the last recorded frame")
+        world.retrieve()
+        recovered = np.concatenate([np.asarray(slot.geometry().positions().view()).reshape(-1, 3)
+                                    for slot in (bunny_slot, cloth_slot)])
+        if not np.array_equal(recovered, positions[-1]):
+            raise RuntimeError("Recovered positions do not match the saved full-precision frame")
+    else:
+        write_obj(output / "frames/0000.obj", rest, faces)
+        np.save(output / "frames/0000.npy", rest)
     print(f"{args.solver}: {len(bunny)} bunny vertices, {len(tets)} tets, "
           f"{len(cloth)} cloth vertices, {len(cloth_faces)} cloth triangles; init={init_ms:.0f} ms", flush=True)
     # Write diagnostics incrementally so an interrupted experiment retains data.
-    with (output / "history.csv").open("w", newline="", encoding="utf-8") as stream:
-        writer = None
-        for frame in range(1, args.frames + 1):
+    with (output / "history.csv").open("a" if args.resume else "w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=history[0].keys()) if history else None
+        for frame in range(len(history)+1, args.frames + 1):
             start = time.perf_counter()
             world.advance()
             advance_ms = 1000 * (time.perf_counter() - start)
@@ -185,6 +220,17 @@ def run(args, output):
                        converged=stats["converged"], min_det_F=float(determinant.min()),
                        min_area_ratio=float(area.min()), bunny_ground_gap=float(x[:len(bunny), 1].min()),
                        cloth_ground_gap=float(x[len(bunny):, 1].min()-.001))
+            # Preserve full precision even if a later strict-mode frame aborts.
+            np.save(output / "frames" / f"{frame:04d}.npy", x)
+            write_obj(output / "frames" / f"{frame:04d}.obj", x, faces)
+            if not np.isfinite(x).all() or min(row[k] for k in ["min_det_F", "min_area_ratio", "bunny_ground_gap", "cloth_ground_gap"]) <= 0:
+                raise RuntimeError(f"Invalid geometry at frame {frame}: {row}")
+            if not stats["converged"]:
+                raise RuntimeError(f"Frame {frame} did not converge: {row}")
+            if not world.dump():
+                raise RuntimeError(f"Could not checkpoint converged frame {frame}")
+            # History is the resume journal: only publish a frame after its
+            # geometry, convergence and checkpoint have all been validated.
             if writer is None:
                 writer = csv.DictWriter(stream, fieldnames=row)
                 writer.writeheader()
@@ -192,11 +238,6 @@ def run(args, output):
             stream.flush()
             history.append(row)
             positions.append(x)
-            write_obj(output / "frames" / f"{frame:04d}.obj", x, faces)
-            if not np.isfinite(x).all() or min(row[k] for k in ["min_det_F", "min_area_ratio", "bunny_ground_gap", "cloth_ground_gap"]) <= 0:
-                raise RuntimeError(f"Invalid geometry at frame {frame}: {row}")
-            if not stats["converged"]:
-                raise RuntimeError(f"Frame {frame} did not converge: {row}")
             if frame == 1 or frame % 10 == 0:
                 print(f"{args.solver}: frame={frame}/{args.frames}, passes={row['iterations']}, "
                       f"advance={advance_ms:.1f} ms, det={row['min_det_F']:.4f}", flush=True)
@@ -346,6 +387,8 @@ def main():
     parser.add_argument("--solver", choices=["sos", "global", "both", "local_stencil"], default="global",
                         help="sos: current SoS subset (local_stencil alias); global: standard IPC Newton solver (default); both: serial comparison")
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
+    parser.add_argument("--initial-guess", choices=["previous", "inertial"], default="previous",
+                        help="SoS only: previous keeps the baseline; inertial tries a CCD/energy-filtered predictor, without the paper's inertia-barrier warm start")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--cloth-resolution", "--resolution", dest="resolution", type=int, default=48,
                         help="Cloth cells per edge: (N+1)^2 vertices and 2*N^2 triangles (default: 48)")
@@ -367,10 +410,13 @@ def main():
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--replay", action="store_true", help="Read existing trajectories without simulating")
+    parser.add_argument("--resume", action="store_true", help="Recover the last converged checkpoint; only frame count and iteration budget may change")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     if args.solver == "sos":
         args.solver = "local_stencil"
+    if args.resume and (args.solver == "both" or args.replay):
+        parser.error("Use --resume with one solver, without --replay")
     for name in ["frames", "resolution", "dt", "tolerance", "max_iterations", "bunny_height", "drop_height", "cloth_size", "cloth_gap", "bunny_young", "contact_distance"]:
         if not np.isfinite(getattr(args, name)) or getattr(args, name) <= 0:
             parser.error(f"{name} must be finite and positive")

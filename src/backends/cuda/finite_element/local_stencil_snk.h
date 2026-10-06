@@ -4,6 +4,24 @@
 
 namespace uipc::backend::cuda::fem
 {
+// Exact polynomial energy increment. Subtracting two SNK1 energies loses tiny
+// descent steps against its nonzero rest-energy offset (mu^2 / (2 lambda)).
+UIPC_GENERIC inline Float snk_stencil_energy_change(const Matrix3x3& F,
+                                                    const Matrix3x3& dF,
+                                                    Float            mu,
+                                                    Float            lambda)
+{
+    const Vector3 a = F.col(0), b = F.col(1), c = F.col(2);
+    const Vector3 da = dF.col(0), db = dF.col(1), dc = dF.col(2);
+    const Float   higher = da.dot(db.cross(c)) + da.dot(b.cross(dc))
+                         + a.dot(db.cross(dc)) + da.dot(db.cross(dc));
+    const Float dJ = da.dot(b.cross(c)) + a.dot(db.cross(c)) + a.dot(b.cross(dc)) + higher;
+    Matrix3x3 stress;
+    snk1::dEdF(stress, mu, lambda, F);
+    return (stress.array() * dF.array()).sum() + 0.5 * mu * dF.squaredNorm()
+           + (lambda * (F.determinant() - 1) - mu) * higher + 0.5 * lambda * dJ * dJ;
+}
+
 // Unprojected directional stress derivative for the EXISTING SNK1 energy.
 // Keep this experimental path separate from the production SPD assembly.
 UIPC_GENERIC inline Matrix3x3 snk_stress_direction(const Matrix3x3& F,

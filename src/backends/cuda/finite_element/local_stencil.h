@@ -26,19 +26,23 @@ struct LocalStencilSystem
                                   const Vector12&    element_gradient,
                                   const Matrix12x12& element_hessian)
     {
+        int map[4] = {-1, -1, -1, -1};
+        for(int i = 0; i < 4; ++i)
+            if(stencil(i) >= 0)
+                for(int a = 0; a < 4; ++a)
+                    if(stencil(i) == element(a))
+                        map[i] = a;
+        // Most incident elements share only one vertex. Find the matching
+        // blocks once instead of repeating vertex comparisons for every block.
         for(int i = 0; i < 4; ++i)
         {
-            for(int a = 0; a < 4; ++a)
-            {
-                if(stencil(i) < 0 || stencil(i) != element(a))
-                    continue;
-                gradient.segment<3>(3 * i) += element_gradient.segment<3>(3 * a);
-                for(int j = 0; j < 4; ++j)
-                    for(int b = 0; b < 4; ++b)
-                        if(stencil(j) >= 0 && stencil(j) == element(b))
-                            hessian.block<3, 3>(3 * i, 3 * j) +=
-                                element_hessian.block<3, 3>(3 * a, 3 * b);
-            }
+            if(map[i] < 0)
+                continue;
+            gradient.segment<3>(3 * i) += element_gradient.segment<3>(3 * map[i]);
+            for(int j = 0; j < 4; ++j)
+                if(map[j] >= 0)
+                    hessian.block<3, 3>(3 * i, 3 * j) +=
+                        element_hessian.block<3, 3>(3 * map[i], 3 * map[j]);
         }
     }
 

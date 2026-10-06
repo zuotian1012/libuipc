@@ -49,8 +49,9 @@ are checked. Global acceptance also rejects degenerate endpoint shell triangles.
 
 As before, independent local bounds do not certify the combined simultaneous
 motion. Regular trajectory CCD and global energy acceptance still follow every
-combined proposal; continuous aggregate element-degeneracy certification remains
-future work. CCD uses the existing thickness-aware IPC infrastructure, including
+combined proposal. A separate continuous elastic cap now checks the actual
+combined motion, using the same determinant/projected-area root bounds.
+CCD uses the existing thickness-aware IPC infrastructure, including
 cloth/cloth and cloth/solid contacts and its normal self-contact candidate rules.
 
 The mixed drape demo exposed an existing local barrier evaluation defect: raw

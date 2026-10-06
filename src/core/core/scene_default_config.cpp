@@ -99,6 +99,12 @@ static SceneConfigContract make_scene_config_contract()
         "Maximum independent colors per complementary scheme; excess stencils stay grey.",
         {"src/backends/cuda/finite_element/fem_local_stencil_coloring.cu"},
         Json{{"minimum", 1}, {"maximum", 64}});
+    add("newton/local_stencil/initial_guess",
+        std::string{"previous"},
+        "string",
+        "Optional inertial initial proposal, accepted only through global CCD and energy checks; no inertia-barrier warm start.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"previous", "inertial"})}});
     add("newton/max_iter",
         IndexT{1024},
         "integer",

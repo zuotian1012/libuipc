@@ -45,6 +45,9 @@ class FEMLocalStencilSolver final : public SimSystem
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void filter_local_steps();
     void prepare_barriers();
+    bool do_dump(DumpInfo& info) override;
+    bool do_try_recover(RecoverInfo& info) override;
+    void do_apply_recover(RecoverInfo& info) override;
 
     FiniteElementMethod*                        m_fem               = nullptr;
     FEMDyTopoEffectReceiver*                    m_contact_receiver  = nullptr;
@@ -55,11 +58,14 @@ class FEMLocalStencilSolver final : public SimSystem
     HalfPlane*                                  m_planes            = nullptr;
     HalfPlaneVertexReporter*                    m_plane_reporter    = nullptr;
     bool                                        m_hybrid            = true;
+    bool                                        m_inertial_guess    = false;
     IndexT                                      m_color_limit       = 8;
     SizeT                                       m_sweep_index       = 0;
+    SizeT                                       m_recovered_sweep   = 0;
     vector<Vector2i>                            m_color_passes;
     cuda_tool::DeviceBuffer<IndexT>             m_colors, m_primary_owner;
     cuda_tool::DeviceBuffer<Vector3>            m_total_gradients;
+    cuda_tool::DeviceBuffer<Matrix3x3>          m_vertex_hessians;
     cuda_tool::DeviceBuffer<Float>              m_direction_slopes;
     cuda_tool::DeviceBuffer<Float>              m_global_slopes;
     cuda_tool::DeviceBuffer<IndexT>             m_local_statistics;
@@ -74,10 +80,11 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Vector4i> m_elastic_stencils;
     cuda_tool::DeviceBuffer<fem::StencilElasticTerm> m_elastic_terms;
     cuda_tool::DeviceBuffer<IndexT>      m_vertex_offsets, m_vertex_elements;
-    cuda_tool::DeviceBuffer<IndexT>      m_stencil_offsets, m_stencil_neighbors;
     cuda_tool::DeviceBuffer<Vector12>    m_element_gradients, m_directions;
     cuda_tool::DeviceBuffer<Matrix12x12> m_element_hessians;
     cuda_tool::DeviceBuffer<Float>       m_residuals, m_determinants, m_scalar;
+    cuda_tool::DeviceBuffer<Float>       m_gradient_norms;
+    cuda_tool::DeviceBuffer<Vector3>     m_inertial_proposal;
     Float                                m_weight    = 1;
     Float                                m_residual  = 0;
     Float                                m_tolerance = 0;

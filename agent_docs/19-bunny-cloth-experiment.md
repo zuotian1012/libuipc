@@ -1,5 +1,10 @@
 # 19 - Bunny and cloth solver experiment
 
+For current convergence findings, optional `--initial-guess inertial`, full-precision
+frame output and `--resume`, see [20](20-sos-convergence-audit.md). Historical
+timings below predate those changes. The complete dense SoS landing is still
+being validated; `previous` remains the initialization default.
+
 `python/examples/local_stencil_bunny_cloth.py` creates a shared scene for the
 experimental local stencil solver and the existing global fused-PCG solver.
 It uses the tracked `assets/sim_data/tetmesh/bunny0.msh` asset (1,869 vertices,

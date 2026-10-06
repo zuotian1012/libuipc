@@ -93,8 +93,10 @@ certify the merged displacement; regular global filtering remains mandatory.
 Local checks cannot discover previously unknown contacts or certify the sum of
 multiple stencil motions. Regular CCD and global energy acceptance therefore
 remain required; they are not substitutes for the new per-stencil checks.
-The combined proposal still has an endpoint determinant check. A continuous
-inversion guarantee for the *combined* simultaneous proposal is not claimed.
+The combined proposal now receives its own continuous elastic feasibility cap:
+tetrahedron determinant roots and projected shell-triangle collapse are checked
+along the actual merged path. Endpoint validity remains an additional guard.
+See [the convergence audit](20-sos-convergence-audit.md) for validation status.
 
 ## Select and run
 

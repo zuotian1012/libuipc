@@ -268,7 +268,22 @@ TEST_CASE("Local stencil SNK stress derivative remains unprojected under compres
         const Matrix3x3 exact =
             fem::snk_stress_direction(F, direction, patch.mu, patch.lambda);
         CHECK(((plus - minus) / (2 * eps) - exact).norm() < 1e-6);
+        Float before, after;
+        snk1::E(before, patch.mu, patch.lambda, F);
+        snk1::E(after, patch.mu, patch.lambda, F_plus);
+        CHECK(std::abs(fem::snk_stencil_energy_change(
+                           F, eps * direction, patch.mu, patch.lambda)
+                       - (after - before))
+              < 1e-12);
     }
+    // A tiny shear has energy mu*s^2/2, even when adding it to the nonzero
+    // rest energy rounds back to the same floating-point number.
+    Matrix3x3 tiny        = Matrix3x3::Zero();
+    tiny(0, 1)            = 1e-10;
+    const Float increment = fem::snk_stencil_energy_change(
+        Matrix3x3::Identity(), tiny, patch.mu, patch.lambda);
+    CHECK(increment > 0);
+    CHECK(std::abs(increment / (0.5 * patch.mu * 1e-20) - 1) < 1e-12);
     Vector12    gradient;
     Matrix12x12 hessian;
     fem::snk_stencil_element(states[2],

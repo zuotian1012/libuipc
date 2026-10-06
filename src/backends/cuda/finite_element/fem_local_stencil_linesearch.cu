@@ -40,15 +40,6 @@ namespace
         ct::CBufferView<StencilBarrierTerm> barriers;
         Float                               dt;
 
-        __device__ void element_positions(
-            int e, const Vector4i& s, const Vector12& d, Float alpha, Vector3* p) const
-        {
-            for(int a = 0; a < 4; ++a)
-                if(elements(e)(a) >= 0)
-                    p[a] = xs(elements(e)(a))
-                           + alpha * local_motion(elements(e)(a), s, d);
-        }
-
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
         {
             using namespace sym::codim_ipc_simplex_contact;
@@ -135,33 +126,93 @@ namespace
                 k, h, thickness, p[0], term.plane_position, term.plane_normal);
         }
 
-        __device__ Float energy(const Vector4i& s, const Vector12& d, Float alpha) const
+        struct Evaluation
         {
-            Float energy = 0;
+            Float change = 0, alpha = 1;
+            int   ccd = 0, inversion = 0;
+        };
+
+        // Evaluate the exact incident energy increment and, on the first
+        // trial, its continuous feasibility cap in one adjacency traversal.
+        __device__ Evaluation evaluate(const Vector4i& s, const Vector12& d, Float alpha, bool bound) const
+        {
+            Evaluation result;
+            Float      contact_alpha = 1, inversion_alpha = 1;
             for(int a = 0; a < 4; ++a)
             {
                 const int v = s(a);
                 if(v < 0)
                     continue;
-                const Vector3 x = xs(v) + alpha * d.segment<3>(3 * a);
-                energy += 0.5 * masses(v) * (x - predicted(v)).squaredNorm();
+                const Vector3 move = alpha * d.segment<3>(3 * a);
+                result.change +=
+                    masses(v)
+                    * ((xs(v) - predicted(v)).dot(move) + 0.5 * move.squaredNorm());
                 for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
                 {
-                    const int e = vertex_elements(k);
-                    if(visited_before(elements(e), s, a))
+                    const int  e   = vertex_elements(k);
+                    const auto ids = elements(e);
+                    if(visited_before(ids, s, a))
                         continue;
-                    Vector3 p[4];
-                    element_positions(e, s, d, alpha, p);
-                    energy += dt * dt * fem::stencil_elastic_energy(terms(e), p);
+                    const auto term = terms(e);
+                    Vector3    original[4], motion[4];
+                    for(int j = 0; j < 4; ++j)
+                        if(ids(j) >= 0)
+                        {
+                            original[j] = xs(ids(j));
+                            motion[j]   = local_motion(ids(j), s, d);
+                        }
+                    Float change;
+                    if(term.type == 10)
+                    {
+                        const Matrix3x3 F =
+                            fem::F(original[0], original[1], original[2], original[3], term.inverse);
+                        const Matrix3x3 dF =
+                            fem::F(motion[0], motion[1], motion[2], motion[3], term.inverse);
+                        if(bound)
+                            inversion_alpha =
+                                min(inversion_alpha, fem::stencil_inversion_cap(F, dF));
+                        const Matrix3x3 increment = alpha * dF;
+                        const Matrix3x3 trial     = F + increment;
+                        change                    = trial.determinant() > 0 ?
+                                                        term.weight
+                                         * fem::snk_stencil_energy_change(
+                                             F, increment, term.mu, term.lambda) :
+                                                        std::numeric_limits<Float>::infinity();
+                    }
+                    else
+                    {
+                        Vector3 trial[4], end[4];
+                        for(int j = 0; j < 4; ++j)
+                            if(ids(j) >= 0)
+                            {
+                                trial[j] = original[j] + alpha * motion[j];
+                                if(bound)
+                                    end[j] = original[j] + motion[j];
+                            }
+                        if(bound)
+                            inversion_alpha =
+                                min(inversion_alpha,
+                                    fem::stencil_elastic_cap(term, original, end));
+                        change = fem::stencil_elastic_energy(term, trial)
+                                 - fem::stencil_elastic_energy(term, original);
+                    }
+                    result.change += dt * dt * change;
                 }
                 for(int k = barrier_offsets(v); k < barrier_offsets(v + 1); ++k)
                 {
                     const int e = barrier_entries(k);
-                    if(!visited_before(contacts(e), s, a))
-                        energy += barrier_energy(e, s, d, alpha);
+                    if(visited_before(contacts(e), s, a))
+                        continue;
+                    if(bound)
+                        contact_alpha = min(contact_alpha, contact_cap(e, s, d));
+                    result.change +=
+                        barrier_energy(e, s, d, alpha) - barrier_energy(e, s, d, 0);
                 }
             }
-            return energy;
+            result.ccd       = contact_alpha < 1;
+            result.inversion = inversion_alpha < 1;
+            result.alpha     = min(contact_alpha, inversion_alpha);
+            return result;
         }
 
         __device__ Float contact_cap(int e, const Vector4i& s, const Vector12& d) const
@@ -201,37 +252,6 @@ namespace
             }
             return hit ? max(Float{0}, min(Float{1}, toi)) : Float{1};
         }
-
-        __device__ Float cap(const Vector4i& s, const Vector12& d, int& ccd, int& inversion) const
-        {
-            Float contact_alpha = 1, inversion_alpha = 1;
-            for(int a = 0; a < 4; ++a)
-            {
-                const int v = s(a);
-                if(v < 0)
-                    continue;
-                for(int k = barrier_offsets(v); k < barrier_offsets(v + 1); ++k)
-                {
-                    const int e = barrier_entries(k);
-                    if(!visited_before(contacts(e), s, a))
-                        contact_alpha = min(contact_alpha, contact_cap(e, s, d));
-                }
-                for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
-                {
-                    const int e = vertex_elements(k);
-                    if(visited_before(elements(e), s, a))
-                        continue;
-                    Vector3 p[4], end[4];
-                    element_positions(e, s, d, 0, p);
-                    element_positions(e, s, d, 1, end);
-                    inversion_alpha =
-                        min(inversion_alpha, fem::stencil_elastic_cap(terms(e), p, end));
-                }
-            }
-            ccd       = contact_alpha < 1;
-            inversion = inversion_alpha < 1;
-            return min(contact_alpha, inversion_alpha);
-        }
     };
 
     __global__ void stencil_local_linesearch_kernel(LocalObjective objective,
@@ -255,24 +275,27 @@ namespace
             atomicAdd(&statistics(4), 1);
             return;
         }
-        const Vector4i s   = t < objective.elements.size() ?
-                                 objective.elements(t) :
-                                 objective.contacts(t - objective.elements.size());
-        int            ccd = 0, inversion = 0;
-        Float          alpha = objective.cap(s, d, ccd, inversion);
-        const Float    E0    = objective.energy(s, d, 0);
-        UIPC_KERNEL_ASSERT(fem::stencil_finite(E0), "Nonfinite local stencil initial energy");
+        const Vector4i s          = t < objective.elements.size() ?
+                                        objective.elements(t) :
+                                        objective.contacts(t - objective.elements.size());
+        auto           evaluation = objective.evaluate(s, d, 1, true);
+        const int      ccd = evaluation.ccd, inversion = evaluation.inversion;
+        Float          alpha = evaluation.alpha;
+        if(alpha > 0 && alpha < 1)
+            evaluation = objective.evaluate(s, d, alpha, false);
         int  backtracks = 0;
         bool accepted   = false;
         for(; alpha > 0 && backtracks < 32; ++backtracks)
         {
-            const Float E = objective.energy(s, d, alpha);
-            if(fem::stencil_finite(E) && E <= E0 + 1e-4 * alpha * slope)
+            if(fem::stencil_finite(evaluation.change)
+               && evaluation.change <= 1e-4 * alpha * slope)
             {
                 accepted = true;
                 break;
             }
             alpha *= 0.5;
+            if(backtracks + 1 < 32)
+                evaluation = objective.evaluate(s, d, alpha, false);
         }
         directions(t) = accepted ? (alpha * d).eval() : Vector12::Zero().eval();
         if(ccd)

@@ -1,5 +1,16 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [2026-10-06 convergence audit](20-sos-convergence-audit.md) distinguishes slow
+global relaxation from local derivative errors. The dense old baseline can pass
+frame 1 with 11,423 color passes but fails frame 20 even with 16,384 allowed.
+Preserve its evidence; increasing the cap is not a convergence-rate fix. Current
+work adds precise local increments, a certified final state and combined inversion
+bounds, shared assembly, optional inertial initialization and recoverable dense
+runs. The optional inertial run passes first ground contact at frame 9 (13,142
+passes, certified residual 0.00947570 m/s) and is resumed toward 120 frames.
+A complete dense landing is still pending; do not hide this with a short
+pre-impact run or substitute global-solver output.
+
 The 2026-10-01 [hybrid alignment](17-local-stencil-hybrid.md) removes artificial
 color-dependent constraints from local Newton-CG and the extra uniform-secondary
 reweighting. Colors now control submission only, after full-direction local
