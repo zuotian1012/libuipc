@@ -123,6 +123,12 @@ baseline; diagnostic timers are disabled. No competing GPU work should be
 launched while it runs. Read `benchmark/process.json`, `suite-status.json` and
 actual per-case artifacts for current progress; pending runs are not results.
 
+The first formal mesh-U Hybrid/regular case has now completed all 30 frames and
+31 saved-state checks, with no intersection or iteration-limit failure. Minimum
+det(F) is 0.6965779690717397 and minimum plane gap is 8.940220665813481e-05 m.
+The suite advanced to Hybrid/local. This confirms a complete short mesh-contact
+trajectory, but one case is not the repeated performance comparison.
+
 ```powershell
 $env:UIPC_LOCAL_PACKAGE = (Resolve-Path output/sos-contact-20261007/runtime-final).Path
 python python/examples/local_stencil_bunny_ablation.py --suite `
