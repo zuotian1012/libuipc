@@ -8,10 +8,16 @@ remain open. This supersedes historical pending-full-run statements below.
 
 The [single-bunny ablation suite](23-single-bunny-ablation.md) adds actual Jacobi
 and full colored GS controls alongside hybrid, with regular/local globalization.
-All five configurations pass a short impact integration check. Formal floor/U
-timings have started after dense validation; no speedup or complete-suite convergence
-is established. CPU greedy GS and local CCD retaining global certification must
-be labeled explicitly; they are not the paper's Vivace/local-only implementations.
+All 24 full floor/U runs now pass (720 frames, 744 saved states). Formal timings
+show Hybrid/regular approximately matching Jacobi, current GS about 3.4-3.5 times
+slower, and Hybrid/local about 1.87 times slower than Hybrid/regular in U. Local
+batching saves about 25% versus unbatched local but remains slower than regular.
+Complete-suite convergence is established; paper acceleration is not. CPU greedy
+GS, local CCD retaining global certification, and the analytic-plane U channel
+must be distinguished from the paper's Vivace/local-only/mesh-contact workload.
+Next diagnosis should separate local-filter and retained global-check costs and
+align contact organization before removing correctness safeguards or claiming
+matched paper performance. See doc 23 for the raw-log audit and trajectory differences.
 
 The [relaxation diagnosis](22-sos-relaxation-diagnosis.md) finds no late CCD caps
 or widespread local-CG failures in the frame-35 tail. Spatially smooth error is

@@ -4,7 +4,8 @@ The owner authorized a simpler single-bunny ablation on 2026-10-07, following
 the comparison structure of Fig. 13 in Lan et al., *Second-order Stencil Descent
 for Interior-point Hyperelasticity*. This is an implementation ablation, not a
 reproduction of the paper's Dragon mesh, exact U geometry, Vivace implementation,
-or published speedups. Results remain pending until the serial suite finishes.
+or published speedups. All 24 runs completed and passed on 2026-10-07; the
+audited measurements and their limitations are recorded below.
 
 ## Implemented controls
 
@@ -132,3 +133,68 @@ CSFD remain outside this change. Any observed ranking belongs to this implementa
 hardware, strict criterion and these scenes. The earlier smooth-error diagnosis
 in [22](22-sos-relaxation-diagnosis.md) remains open; simplifying the scene does
 not by itself fix that limitation.
+
+## Completed measurements (2026-10-07)
+
+All 24 runs completed between 12:49:08 and 15:02:32 +08, following the successful
+dense validation. The native log intervals are strictly serial. No failed case
+was omitted, no tolerance was relaxed and no simulation was substituted.
+`completion-audit.json` independently audits all 720 native final residual
+certificates against raw logs, 720 native frame-stat records and 744 saved states.
+All saved-state self-surface check reports passed; the completion audit also
+recomputes determinants and analytic-plane gaps from the saved positions. Maximum
+final residual is 0.009999786613958946 m/s; minimum det(F) is 0.6374903115278401;
+minimum plane gap is 0.000031482235768917554 m. No Newton or line-search cap was
+hit. Mesh, physical controls and runtime hash match. Total advance time across
+the suite is 7,927.994 s (2.20 h), including native logging.
+
+Contact-phase seconds per frame, median [minimum, maximum] of three repetitions:
+
+| Update / globalization | Floor, frames 16-30 | U channel, frames 12-30 |
+| --- | --- | --- |
+| Jacobi / regular | 10.445 [10.186, 10.480] | 10.830 [10.821, 10.909] |
+| GS / regular | 36.509 [36.450, 37.406] | 36.995 [36.848, 37.241] |
+| Hybrid / regular | 10.319 [10.151, 10.419] | 10.734 [10.719, 10.755] |
+| Hybrid / local | Not run | 20.027 [20.026, 20.065] |
+| Hybrid / local, 15 inner passes | Not run | 15.017 [15.014, 15.039] |
+
+The measurements do **not** reproduce the paper's acceleration. Hybrid/regular
+and Jacobi are close (about 1% difference). The current GS baseline takes about
+3.4-3.5 times as long as Hybrid/regular. Its one-color pass does less local solve
+work and repeats global assembly/acceptance more frequently; this measurement
+also includes CPU greedy coloring, so it is not a verdict on GPU Vivace.
+
+U-channel evidence explains the local-filter overhead without attributing it to
+a hypothetical instability. In repeat zero, Hybrid/regular and Hybrid/local
+both have exactly 55,029 residual evaluations over the trajectory and 3,181 at
+first contact. Their maximum trajectory difference is 4.60e-12 m. The local
+variant records zero CCD caps and zero inversion caps, with 372 local Armijo
+backtracks across about 405.6 million accepted stencil trials. It retains global
+certification and is 1.866 times as expensive. Thus local filtering added work
+without reducing the number of passes on this scene. The 15-pass batch reduces
+time by about 25% relative to unbatched local filtering, but remains 1.399 times
+the regular variant; its 55,179 residual evaluations do not indicate improved
+relaxation. These counts include certification passes.
+
+Against Hybrid/regular repeat zero, maximum differences over all vertices,
+frames and repetitions are: floor Jacobi 0.01594 mm, floor GS 0.22056 mm;
+U Jacobi 0.05169 mm, U GS 0.45607 mm, U local 4.60e-12 m, and U batched
+0.004536 mm. These are cross-method differences, not errors against an exact
+solution. The common stopping criterion therefore should not be described as
+proof of equal physical error.
+
+The U channel uses three analytic planes. It does not exercise the complex
+triangle-mesh collision workload of the paper's Dragon in U comparison, and
+regular plane CCD is a different workload. To investigate the missing paper
+benefit next, separate the cost of local filtering from retained global checks,
+and use the paper's contact representation/execution organization and a suitable
+mesh-contact scene before making performance claims. The existing safeguards
+must not simply be removed without replacing their correctness guarantee.
+
+`timing-comparison.png` and the pass-based convergence plots were visually
+checked. `convergence-time.png` additionally plots first-contact residuals
+against actual native log timestamps, avoiding comparisons of unequal amounts
+of work per pass. The audit is reproducible with
+`python output/sos-ablation-20261007/benchmark/audit_completion.py` and does not
+rerun the simulation. Both this suite and the dense verification are complete;
+the thread heartbeat can now be paused after reporting these results.

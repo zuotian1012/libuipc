@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **Single-bunny ablations completed (2026-10-07)**: all 24 runs, 720 certified
+> frames and 744 saved-state checks passed. [23](23-single-bunny-ablation.md)
+> records audited timings and limits. Median contact seconds/frame, floor:
+> Jacobi 10.445, GS 36.509, Hybrid/regular 10.319; U: 10.830, 36.995, 10.734,
+> Hybrid/local 20.027, batched local 15.017. This does not reproduce paper speedup.
+> Local filtering adds cost with identical pass counts and almost identical
+> positions here; its CCD caps are zero. GS is CPU greedy, local CCD retains
+> global certification, and U uses analytic planes. The raw-log/geometry audit
+> and elapsed-time convergence plot are in the benchmark output directory.
+> Both authorized verification tasks are complete; pause their heartbeat after
+> reporting. This supersedes the pending ablation statuses below.
+
 > **Dense 120-frame validation completed (2026-10-07)**: [22](22-sos-relaxation-diagnosis.md)
 > records the fresh strict run passing all 120 frames, all 121 saved-state
 > independent surface checks, positive determinants/areas/gaps, and every actual
