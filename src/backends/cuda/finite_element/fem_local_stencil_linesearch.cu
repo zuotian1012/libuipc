@@ -8,6 +8,7 @@
 #include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
 #include <cuda_tool/cub.h>
+#include <uipc/common/timer.h>
 
 namespace uipc::backend::cuda
 {
@@ -40,6 +41,8 @@ namespace
         ct::CBufferView<IndexT> vertex_offsets, vertex_elements, barrier_offsets, barrier_entries;
         ct::CBufferView<StencilBarrierTerm> barriers;
         Float                               dt;
+        ct::CBufferView<Matrix3x3>          deformation;
+        ct::CBufferView<Float> elastic_energy, barrier_energy_at_start;
 
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
         {
@@ -159,14 +162,14 @@ namespace
                     for(int j = 0; j < 4; ++j)
                         if(ids(j) >= 0)
                         {
-                            original[j] = xs(ids(j));
-                            motion[j]   = local_motion(ids(j), s, d);
+                            if(term.type != 10)
+                                original[j] = xs(ids(j));
+                            motion[j] = local_motion(ids(j), s, d);
                         }
                     Float change;
                     if(term.type == 10)
                     {
-                        const Matrix3x3 F =
-                            fem::F(original[0], original[1], original[2], original[3], term.inverse);
+                        const Matrix3x3 F = deformation(e);
                         const Matrix3x3 dF =
                             fem::F(motion[0], motion[1], motion[2], motion[3], term.inverse);
                         if(bound)
@@ -195,7 +198,7 @@ namespace
                                 min(inversion_alpha,
                                     fem::stencil_elastic_cap(term, original, end));
                         change = fem::stencil_elastic_energy(term, trial)
-                                 - fem::stencil_elastic_energy(term, original);
+                                 - elastic_energy(e);
                     }
                     result.change += dt * dt * change;
                 }
@@ -207,7 +210,7 @@ namespace
                     if(bound)
                         contact_alpha = min(contact_alpha, contact_cap(e, s, d));
                     result.change +=
-                        barrier_energy(e, s, d, alpha) - barrier_energy(e, s, d, 0);
+                        barrier_energy(e, s, d, alpha) - barrier_energy_at_start(e);
                 }
             }
             result.ccd       = contact_alpha < 1;
@@ -254,6 +257,39 @@ namespace
             return hit ? max(Float{0}, min(Float{1}, toi)) : Float{1};
         }
     };
+
+    // Rebuilt at each frozen iterate, shared by all incident local trials and
+    // the merged inner search. Directions and acceptance inequalities are unchanged.
+    __global__ void stencil_filter_state_kernel(LocalObjective objective,
+                                                ct::BufferView<Matrix3x3> deformation,
+                                                ct::BufferView<Float> elastic_energy,
+                                                ct::BufferView<Float> barrier_energy)
+    {
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i < objective.elements.size())
+        {
+            const auto ids  = objective.elements(i);
+            const auto term = objective.terms(i);
+            Vector3    p[4];
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                    p[a] = objective.xs(ids(a));
+            Matrix3x3 F      = Matrix3x3::Zero();
+            Float     energy = 0;
+            if(term.type == 10)
+                F = fem::F(p[0], p[1], p[2], p[3], term.inverse);
+            else
+                energy = fem::stencil_elastic_energy(term, p);
+            deformation(i)    = F;
+            elastic_energy(i) = energy;
+        }
+        else if(i < objective.elements.size() + objective.contacts.size())
+        {
+            const int e = i - objective.elements.size();
+            barrier_energy(e) =
+                objective.barrier_energy(e, objective.contacts(e), Vector12::Zero(), 0);
+        }
+    }
 
     __global__ void stencil_frozen_derivatives_kernel(ct::CBufferView<Vector4i> ids,
                                                       ct::CBufferView<StencilBarrierTerm> terms,
@@ -438,7 +474,7 @@ namespace
             Float change;
             if(term.type == 10)
             {
-                const Matrix3x3 F = fem::F(p[0], p[1], p[2], p[3], term.inverse);
+                const Matrix3x3 F = objective.deformation(e);
                 const Matrix3x3 dF = fem::F(d[0], d[1], d[2], d[3], term.inverse);
                 change = (F + dF).determinant() > 0 ?
                              term.weight
@@ -447,7 +483,7 @@ namespace
             }
             else
                 change = fem::stencil_elastic_energy(term, q)
-                         - fem::stencil_elastic_energy(term, p);
+                         - objective.elastic_energy(e);
             changes(i) = objective.dt * objective.dt * change;
         }
         else
@@ -459,7 +495,7 @@ namespace
                 if(ids(a) >= 0)
                     d.segment<3>(3 * a) = dx(ids(a));
             changes(i) = objective.barrier_energy(e, ids, d, alpha)
-                         - objective.barrier_energy(e, ids, d, 0);
+                         - objective.barrier_energy_at_start(e);
         }
     }
 
@@ -559,6 +595,7 @@ void FEMLocalStencilSolver::refresh_frozen_contacts()
 
 bool FEMLocalStencilSolver::accept_inner_step()
 {
+    Timer     timer{"Stencil Merged Inner Acceptance"};
     const int vertices = static_cast<int>(m_fem->xs().size());
     stencil_inner_slope_kernel<<<(vertices + 127) / 128, 128>>>(
         m_total_gradients.cview(), m_fem->m_impl.dxs.cview(), m_global_slopes.view());
@@ -582,7 +619,10 @@ bool FEMLocalStencilSolver::accept_inner_step()
                              m_barrier_offsets.cview(),
                              m_barrier_entries.cview(),
                              m_barrier_terms.cview(),
-                             world().scene().dt()};
+                             world().scene().dt(),
+                             m_filter_deformation.cview(),
+                             m_filter_elastic_energy.cview(),
+                             m_filter_barrier_energy.cview()};
     Float          alpha    = 1;
     const int      contacts = static_cast<int>(m_contact_stencils.size());
     if(contacts)
@@ -620,6 +660,12 @@ bool FEMLocalStencilSolver::accept_inner_step()
 
 void FEMLocalStencilSolver::filter_local_steps()
 {
+    Timer     timer{"Stencil Local Filtering"};
+    const int elastic_count = static_cast<int>(m_elastic_stencils.size());
+    const int contact_count = static_cast<int>(m_contact_stencils.size());
+    m_filter_deformation.resize_discard(elastic_count);
+    m_filter_elastic_energy.resize_discard(elastic_count);
+    m_filter_barrier_energy.resize_discard(contact_count);
     CUDA_TOOL_CHECK(cudaMemset(m_local_statistics.data(), 0, 5 * sizeof(IndexT)));
     LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),
@@ -633,8 +679,17 @@ void FEMLocalStencilSolver::filter_local_steps()
                              m_barrier_offsets.cview(),
                              m_barrier_entries.cview(),
                              m_barrier_terms.cview(),
-                             world().scene().dt()};
-    const int      n = static_cast<int>(m_directions.size());
+                             world().scene().dt(),
+                             m_filter_deformation.cview(),
+                             m_filter_elastic_energy.cview(),
+                             m_filter_barrier_energy.cview()};
+    stencil_filter_state_kernel<<<(elastic_count + contact_count + 127) / 128, 128>>>(
+        objective,
+        m_filter_deformation.view(),
+        m_filter_elastic_energy.view(),
+        m_filter_barrier_energy.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    const int n = static_cast<int>(m_directions.size());
     stencil_local_linesearch_kernel<<<(n + 63) / 64, 64>>>(objective,
                                                            m_directions.view(),
                                                            m_direction_slopes.cview(),

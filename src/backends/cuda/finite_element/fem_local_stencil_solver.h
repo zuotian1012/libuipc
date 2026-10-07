@@ -90,6 +90,8 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Float>              m_global_slopes;
     cuda_tool::DeviceBuffer<IndexT>             m_local_statistics;
     cuda_tool::DeviceBuffer<StencilBarrierTerm> m_barrier_terms;
+    cuda_tool::DeviceBuffer<Matrix3x3>          m_filter_deformation;
+    cuda_tool::DeviceBuffer<Float> m_filter_elastic_energy, m_filter_barrier_energy;
     cuda_tool::DeviceBuffer<IndexT>   m_barrier_counts, m_barrier_offsets;
     cuda_tool::DeviceBuffer<IndexT>   m_barrier_cursors, m_barrier_entries;
     cuda_tool::DeviceBuffer<Vector4i> m_contact_stencils;

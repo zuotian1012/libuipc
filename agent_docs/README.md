@@ -32,6 +32,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | [`21-sos-execution-alignment.md`](21-sos-execution-alignment.md) | Explicit stopping metrics, independent-group coverage, frozen-contact batches and same-state checkpoint comparisons |
 | [`22-sos-relaxation-diagnosis.md`](22-sos-relaxation-diagnosis.md) | Slow smooth-error relaxation, local CG audit and supervised full dense validation |
 | [`23-single-bunny-ablation.md`](23-single-bunny-ablation.md) | Jacobi/GS/hybrid update controls, regular/local globalization and serial floor/U-channel benchmark protocol |
+| [`24-sos-contact-execution.md`](24-sos-contact-execution.md) | Shared local evaluation state, continuous inversion certification shortcut, native cost profiles and triangle-mesh U comparison |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |

@@ -136,6 +136,12 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS contact execution follow-up (2026-10-07): continue from the ablation
+  results by measuring local/global checking costs, reducing repeated work and
+  comparing a triangle-mesh U channel. Preserve strict accuracy, safety checks
+  and existing baseline artifacts; distinguish implementation gains from paper
+  algorithm alignment.
+
 - Single-bunny ablations (2026-10-07): execute the authorized floor/U-channel
   comparisons of Jacobi, GS and hybrid stencil updates with regular/local CCD.
   Keep physical controls and stopping criteria matched, record failures honestly,

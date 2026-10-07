@@ -7,6 +7,10 @@ reproduction of the paper's Dragon mesh, exact U geometry, Vivace implementation
 or published speedups. All 24 runs completed and passed on 2026-10-07; the
 audited measurements and their limitations are recorded below.
 
+The next authorized stage is [24](24-sos-contact-execution.md): shared local
+evaluation state, a continuous-inversion fast certificate, and a triangle-mesh U
+comparison. The original completed results in this document remain the baseline.
+
 ## Implemented controls
 
 `newton/local_stencil/sweep` now accepts `jacobi` and `gs` in addition to the

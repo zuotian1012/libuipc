@@ -1,5 +1,18 @@
 # Handoff — Current State of the Repo
 
+> **Contact execution follow-up (2026-10-07, formal results pending)**:
+> [24](24-sos-contact-execution.md) caches per-iterate deformation/start energy
+> for local trials and adds a rigorous small-motion determinant certificate.
+> Global acceptance and convergence remain unchanged. All 156 stencil assertions,
+> the 120-frame cloth drape and independent saved-state checks pass. Analytic U
+> short-run positions exactly match the preserved runtime. A 425-vertex/768-face
+> fixed triangle U exercises actual PT/EE contact and passes first impact.
+> The 18-run mesh/analytic-U suite is active under `output/sos-contact-20261007/benchmark/`
+> using `runtime-final/`; read its process/status files. No competing GPU work.
+> Native scopes locate the extra cost inside local filtering; hardware counters
+> were unavailable. Short profile improvements are not final benchmark evidence.
+> Earlier dense/full-ablation tasks remain complete; follow only this new suite.
+
 > **Single-bunny ablations completed (2026-10-07)**: all 24 runs, 720 certified
 > frames and 744 saved-state checks passed. [23](23-single-bunny-ablation.md)
 > records audited timings and limits. Median contact seconds/frame, floor:

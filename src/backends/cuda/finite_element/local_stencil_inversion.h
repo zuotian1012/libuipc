@@ -20,6 +20,11 @@ UIPC_GENERIC inline Float stencil_inversion_cap(const Matrix3x3& F, const Matrix
     const Float scale = abs(c1) + abs(c2) + abs(c3);
     if(scale == 0)
         return 1;
+    // On [0,1], det(F+t*dF) >= c0-(|c1|+|c2|+|c3|). Certify small
+    // motions directly; retain the root search (including tangencies) otherwise.
+    // The extra margin covers rounding and the root search's positive floor.
+    if(scale < c0 * (1 - 1e-12 - 64 * std::numeric_limits<Float>::epsilon()))
+        return 1;
     const Float tol       = 64 * std::numeric_limits<Float>::epsilon() * scale;
     Float       points[4] = {0, 1, 1, 1};
     int         count     = 2;

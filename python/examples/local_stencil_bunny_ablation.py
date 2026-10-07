@@ -32,11 +32,30 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
 
 
+def channel_mesh(width, angle, subdivisions):
+    """Connected zero-contact-thickness triangle surface of the analytic channel."""
+    height, depth = .65, .75
+    corner = width / 2 + height * np.tan(angle)
+    knots = np.array([[-corner, height], [-width / 2, 0.],
+                      [width / 2, 0.], [corner, height]])
+    profile = np.concatenate([np.linspace(a, b, subdivisions + 1)[:-1]
+                              for a, b in zip(knots[:-1], knots[1:])] + [knots[-1:]])
+    zs = np.linspace(-depth, depth, 2 * subdivisions + 1)
+    x = np.array([[p[0], p[1], z] for p in profile for z in zs])
+    faces = []
+    for i in range(len(profile) - 1):
+        for j in range(len(zs) - 1):
+            a = i * len(zs) + j
+            b, c, d = a + len(zs), a + 1, a + len(zs) + 1
+            faces.extend([(a, c, b), (c, d, b)])
+    return x, np.asarray(faces, dtype=np.int32)
+
+
 def case(args):
     from local_stencil_bunny_cloth import boundary_faces, refine_bunny, write_obj
-    from uipc import Scene, Engine, World, Logger
-    from uipc.geometry import SimplicialComplexIO, tetmesh, label_surface, label_triangle_orient, halfplane
-    from uipc.constitution import StableNeoHookean, ElasticModuli
+    from uipc import Scene, Engine, World, Logger, Timer, builtin, view
+    from uipc.geometry import SimplicialComplexIO, tetmesh, trimesh, label_surface, label_triangle_orient, halfplane
+    from uipc.constitution import StableNeoHookean, ElasticModuli, NeoHookeanShell, ElasticModuli2D
     from validate_stencil_bunny_cloth import check_surfaces
 
     out = args.output.resolve()
@@ -62,7 +81,7 @@ def case(args):
     planes = [(np.zeros(3), np.array([0., 1., 0.]))]
     width = .65 * np.ptp(x[:, 0])
     angle = np.deg2rad(25.)
-    if args.scene == "u":
+    if args.scene in {"u", "mesh-u"}:
         planes += [(np.array([-width / 2, 0., 0.]), np.array([np.cos(angle), np.sin(angle), 0.])),
                    (np.array([width / 2, 0., 0.]), np.array([-np.cos(angle), np.sin(angle), 0.]))]
     def gap(positions):
@@ -86,6 +105,8 @@ def case(args):
     config["contact"]["d_hat"] = args.contact_distance
     config["extras"]["strict_mode"]["enable"] = True
     Logger.set_level(Logger.Level.Info)
+    if args.timers:
+        Timer.enable_all()
     scene = Scene(config)
     scene.contact_tabular().default_model(0., 1e8)
     contact = scene.contact_tabular().default_element()
@@ -95,14 +116,31 @@ def case(args):
     StableNeoHookean().apply_to(solid, ElasticModuli.youngs_poisson(args.bunny_young, .3), 1000.)
     contact.apply_to(solid)
     slot, _ = scene.objects().create("Stanford bunny").geometries().create(solid)
-    for i, (point, normal) in enumerate(planes):
-        collider = halfplane(point, normal)
+    collider_slot = None
+    collider_x, collider_faces = np.empty((0, 3)), np.empty((0, 3), dtype=np.int32)
+    if args.scene == "mesh-u":
+        collider_x, collider_faces = channel_mesh(width, angle, args.collider_subdivisions)
+        collider = trimesh(collider_x, collider_faces)
+        label_surface(collider)
+        NeoHookeanShell().apply_to(collider, ElasticModuli2D.youngs_poisson(1e6, .3), 1000., .001)
+        view(collider.vertices().find(builtin.is_fixed))[:] = 1
+        # Constitutive shell thickness supplies positive mass; the fixed contact
+        # surface itself is zero-thickness, like the analytic-plane control.
+        view(collider.vertices().find(builtin.thickness))[:] = 0.
         contact.apply_to(collider)
-        scene.objects().create(f"Collider {i}").geometries().create(collider)
+        collider_slot, _ = scene.objects().create("Fixed triangle U channel").geometries().create(collider)
+        write_obj(out / "collider.obj", collider_x, collider_faces)
+    else:
+        for i, (point, normal) in enumerate(planes):
+            collider = halfplane(point, normal)
+            contact.apply_to(collider)
+            scene.objects().create(f"Collider {i}").geometries().create(collider)
     runtime = Path(os.environ.get("UIPC_LOCAL_PACKAGE", ROOT / "build/python/src")) / "uipc/_native"
     manifest = dict(scene=args.scene, mode=args.mode, config=config,
                     vertices=len(x), tetrahedra=len(tets), surface_triangles=len(faces),
                     mesh_sha256=hashlib.sha256(x.tobytes() + tets.tobytes()).hexdigest(),
+                    collider_vertices=len(collider_x), collider_triangles=len(collider_faces),
+                    collider_sha256=hashlib.sha256(collider_x.tobytes() + collider_faces.tobytes()).hexdigest(),
                     runtime=str(runtime.resolve()),
                     runtime_sha256=hashlib.sha256((runtime / "uipc_backend_cuda.dll").read_bytes()).hexdigest(),
                     planes=[dict(point=p.tolist(), normal=n.tolist()) for p, n in planes],
@@ -119,6 +157,9 @@ def case(args):
     init_ms = 1000 * (time.perf_counter() - start)
     if not world.is_valid():
         raise RuntimeError("World initialization failed")
+    timer_frames = []
+    if args.timers:
+        Timer.report_as_json()
     positions, rows, stats_all = [x.copy()], [], []
     np.save(out / "frames/0000.npy", x)
     with (out / "history.csv").open("w", newline="", encoding="utf-8") as stream:
@@ -127,9 +168,15 @@ def case(args):
             start = time.perf_counter()
             world.advance()
             elapsed = 1000 * (time.perf_counter() - start)
+            if args.timers:
+                timer_frames.append(Timer.report_as_json())
             world.retrieve()
             stats = engine.frame_stats()
             current = np.asarray(slot.geometry().positions().view()).reshape(-1, 3).copy()
+            if collider_slot is not None:
+                fixed = np.asarray(collider_slot.geometry().positions().view()).reshape(-1, 3)
+                if not np.isfinite(fixed).all() or np.max(np.abs(fixed - collider_x)) > 1e-12:
+                    raise RuntimeError(f"Fixed collider moved at frame {frame}")
             np.save(out / "frames" / f"{frame:04d}.npy", current)
             tet = current[tets]
             determinants = np.linalg.det((tet[:, 1:] - tet[:, :1]).transpose(0, 2, 1)) / rest_det
@@ -147,12 +194,19 @@ def case(args):
             rows.append(row)
             stats_all.append(stats)
             positions.append(current)
-    np.savez_compressed(out / "positions.npz", positions=np.asarray(positions), faces=faces, tetrahedra=tets, dt=args.dt)
+    np.savez_compressed(out / "positions.npz", positions=np.asarray(positions), faces=faces,
+                        tetrahedra=tets, dt=args.dt, collider_positions=collider_x, collider_faces=collider_faces)
     write_obj(out / "final.obj", positions[-1], faces)
     write_json(out / "frame-stats.json", stats_all)
+    if args.timers:
+        write_json(out / "timer_frames.json", timer_frames)
     # Independent saved-state self-intersection check, excluded from advance time.
     checks = [check_surfaces(p, faces, faces, 0., same=True) for p in positions]
     write_json(out / "surface-verification.json", checks)
+    if collider_slot is not None:
+        cross = [check_surfaces(np.concatenate([p, collider_x]), faces,
+                                collider_faces + len(x), 0.) for p in positions]
+        write_json(out / "collider-verification.json", cross)
     contact_start = next((r["frame"] for r in rows if r["min_gap"] < args.contact_distance), None)
     if contact_start is None:
         raise RuntimeError("No collider contact occurred; this is not a valid landing benchmark")
@@ -226,13 +280,21 @@ def suite(args):
     if root.exists() and (root / "suite.json").exists() and not args.resume_suite:
         raise FileExistsError("Use a new output or explicit --resume-suite")
     root.mkdir(parents=True, exist_ok=True)
+    selections = {s: args.modes or (["jacobi", "gs", "hybrid"] if s == "floor" else list(MODES))
+                  for s in args.scenes}
+    total_runs = sum(map(len, selections.values())) * args.repeats
     spec = dict(frames=args.frames, repeats=args.repeats, bunny_refinement=args.bunny_refinement,
                 bunny_height=args.bunny_height, drop_height=args.drop_height, dt=args.dt,
                 tolerance=args.tolerance, bunny_young=args.bunny_young, contact_distance=args.contact_distance,
-                max_iterations=args.max_iterations, modes=MODES,
+                max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
+                selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
         previous = json.loads((root / "suite.json").read_text())
+        previous.setdefault("scenes", ["floor", "u"])
+        previous.setdefault("selected_modes", {"floor": ["jacobi", "gs", "hybrid"], "u": list(MODES)})
+        previous.setdefault("collider_subdivisions", 8)
+        previous.setdefault("timers", False)
         if json.loads(json.dumps(spec)) != previous:
             raise ValueError("Suite resume requires identical controls")
     else:
@@ -240,8 +302,7 @@ def suite(args):
     if args.wait_for:
         wait_for_prior(root, args.wait_for.resolve())
     results = []
-    for scene in ["floor", "u"]:
-        modes = ["jacobi", "gs", "hybrid"] if scene == "floor" else list(MODES)
+    for scene, modes in selections.items():
         for repeat in range(args.repeats):
             # Rotate order across repetitions to reduce systematic order bias.
             order = modes[repeat % len(modes):] + modes[:repeat % len(modes)]
@@ -252,9 +313,11 @@ def suite(args):
                     continue
                 folder.mkdir(parents=True, exist_ok=True)
                 command = [sys.executable, str(Path(__file__).resolve()), "--case", "--scene", scene, "--mode", mode, "--output", str(folder)]
-                for name in ["frames", "bunny_refinement", "bunny_height", "drop_height", "dt", "tolerance", "bunny_young", "contact_distance", "max_iterations"]:
+                for name in ["frames", "bunny_refinement", "bunny_height", "drop_height", "dt", "tolerance", "bunny_young", "contact_distance", "max_iterations", "collider_subdivisions"]:
                     command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
-                write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=8 * args.repeats, updated_unix=time.time()))
+                if args.timers:
+                    command.append("--timers")
+                write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
                 with (folder / "simulation.log").open("w") as stdout, (folder / "stderr.log").open("w") as stderr:
                     process = subprocess.run(command, stdout=stdout, stderr=stderr)
                 result = dict(scene=scene, mode=mode, repeat=repeat, returncode=process.returncode, folder=str(folder), passed=False)
@@ -270,13 +333,15 @@ def suite(args):
                 results.append(result)
                 write_json(root / "results.json", results)
     summarize(root, results)
-    write_json(root / "suite-status.json", dict(state="complete" if all(r["passed"] for r in results) else "completed_with_failures", completed_runs=len(results), total_runs=8 * args.repeats, updated_unix=time.time()))
+    write_json(root / "suite-status.json", dict(state="complete" if all(r["passed"] for r in results) else "completed_with_failures", completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
 
 
 def summarize(root, results):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    specification = json.loads((root / "suite.json").read_text())
+    scenes = specification.get("scenes", ["floor", "u"])
     # Fail rather than draw a timing comparison of different physical problems.
     controls = {}
     for result in results:
@@ -288,16 +353,17 @@ def summarize(root, results):
         for key in ["sweep", "globalization", "inner_sweeps"]:
             del config["newton"]["local_stencil"][key]
         control = dict(config=config, mesh_sha256=manifest["mesh_sha256"],
-                       runtime_sha256=manifest["runtime_sha256"], planes=manifest["planes"])
+                       runtime_sha256=manifest["runtime_sha256"], planes=manifest["planes"],
+                       collider_sha256=manifest.get("collider_sha256"))
         scene = result["scene"]
         if scene in controls and control != controls[scene]:
             raise RuntimeError(f"Mismatched benchmark controls in {path}")
         controls[scene] = control
     write_json(root / "matched-controls.json", controls)
     comparison = []
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5), layout="constrained")
-    for ax, scene in zip(axes, ["floor", "u"]):
-        modes = ["jacobi", "gs", "hybrid"] if scene == "floor" else list(MODES)
+    fig, axes = plt.subplots(1, len(scenes), figsize=(6 * len(scenes), 5), layout="constrained")
+    for ax, scene in zip(np.atleast_1d(axes), scenes):
+        modes = specification.get("selected_modes", {}).get(scene, ["jacobi", "gs", "hybrid"] if scene == "floor" else list(MODES))
         valid_scene = [r for r in results if r["scene"] == scene and r["passed"]]
         contact_frame = min((r["first_contact_frame"] for r in valid_scene), default=None)
         for index, mode in enumerate(modes):
@@ -330,7 +396,7 @@ def summarize(root, results):
     write_json(root / "comparison.json", comparison)
     # Distinguish cross-method differences from an exact physical reference.
     differences = []
-    for scene in ["floor", "u"]:
+    for scene in scenes:
         if not any(r["scene"] == scene and r["mode"] == "hybrid" and r["repeat"] == 0
                    and r["passed"] for r in results):
             continue
@@ -344,7 +410,7 @@ def summarize(root, results):
                 error = np.linalg.norm(a - b, axis=2)
                 differences.append(dict(scene=scene, mode=r["mode"], repeat=r["repeat"], maximum_position_difference_m=float(error.max()), final_rms_difference_m=float(np.sqrt(np.mean(error[-1] ** 2)))))
     write_json(root / "position-differences.json", dict(reference="hybrid regular CCD repeat 0; not exact ground truth", values=differences))
-    for scene in ["floor", "u"]:
+    for scene in scenes:
         fig, ax = plt.subplots(figsize=(8, 4), layout="constrained")
         reference_run = next((r for r in results if r["scene"] == scene and r["mode"] == "hybrid" and r["repeat"] == 0 and r["passed"]), None)
         impact_frame = reference_run["first_contact_frame"] if reference_run else None
@@ -369,7 +435,10 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--suite", action="store_true")
     group.add_argument("--case", action="store_true")
-    parser.add_argument("--scene", choices=["floor", "u"], default="floor")
+    parser.add_argument("--scene", choices=["floor", "u", "mesh-u"], default="floor")
+    parser.add_argument("--scenes", nargs="+", choices=["floor", "u", "mesh-u"], default=["floor", "u"])
+    parser.add_argument("--modes", nargs="+", choices=list(MODES))
+    parser.add_argument("--collider-subdivisions", type=int, default=8)
     parser.add_argument("--mode", choices=list(MODES), default="hybrid")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frames", type=int, default=30)
@@ -384,8 +453,9 @@ def main():
     parser.add_argument("--max-iterations", type=int, default=65536)
     parser.add_argument("--wait-for", type=Path, help="Wait for an existing supervised dense run before timing")
     parser.add_argument("--resume-suite", action="store_true")
+    parser.add_argument("--timers", action="store_true", help="Save native per-frame timer trees for profiling")
     args = parser.parse_args()
-    for key in ["frames", "repeats", "bunny_height", "drop_height", "bunny_young", "dt", "tolerance", "contact_distance", "max_iterations"]:
+    for key in ["frames", "repeats", "bunny_height", "drop_height", "bunny_young", "dt", "tolerance", "contact_distance", "max_iterations", "collider_subdivisions"]:
         if not np.isfinite(getattr(args, key)) or getattr(args, key) <= 0:
             parser.error(f"{key} must be finite and positive")
     try:

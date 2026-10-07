@@ -1,5 +1,14 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [contact execution follow-up](24-sos-contact-execution.md) reuses per-iterate
+elastic/barrier evaluation state and certifies small-motion inversion bounds
+without unnecessary root searches. Strict 120-frame cloth integration and 156
+stencil assertions pass; short analytic-U trajectories match bitwise. The new
+triangle-mesh U benchmark is running 18 serial cases; repeated timing results
+are pending. Global checks remain necessary for merged paths/new primitives.
+Append-only barrier history, paper warm start and slow global relaxation remain
+open; this optimization is not their implementation or a paper-speedup claim.
+
 The fresh strict dense 120-frame run is now **verified** (2026-10-07): all 120
 residual certificates and 121 saved-state geometry/surface checks pass; native
 iteration/search limits were not hit. Replay GIF and images are generated.

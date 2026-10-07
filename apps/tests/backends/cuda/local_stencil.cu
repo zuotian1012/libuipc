@@ -1,5 +1,6 @@
 #include <finite_element/local_stencil.h>
 #include <finite_element/local_stencil_snk.h>
+#include <finite_element/local_stencil_inversion.h>
 #include <cuda_tool/cuda_tool.h>
 #include <app/app.h>
 #include <Eigen/Cholesky>
@@ -482,5 +483,23 @@ TEST_CASE("Local stencil two tetrahedron convergence experiment", "[cuda][fem][s
               << ", dense Newton steps=" << newton_steps << ", residual=" << local_residual
               << ", max vertex error=" << max_error << ", energy=" << initial_energy
               << " -> " << energy(local, local.x) << std::endl;
+}
+TEST_CASE("Local inversion certification retains interior and tangential roots", "[cuda][fem][stencil]")
+{
+    const Matrix3x3 F  = Matrix3x3::Identity();
+    Matrix3x3       dF = Matrix3x3::Zero();
+    dF.diagonal() << .01, -.02, .03;
+    CHECK(fem::stencil_inversion_cap(F, dF) == 1);
+    // Both endpoints are positive; the path still touches det=0 at t=1/2.
+    dF.diagonal() << -2, -2, 0;
+    const Float tangent = fem::stencil_inversion_cap(F, dF);
+    CHECK(tangent > .39999);
+    CHECK(tangent < .4);
+    // A negative interior interval lies between roots 1/4 and 1/2.
+    dF.diagonal() << -4, -2, 0;
+    const Float interior = fem::stencil_inversion_cap(F, dF);
+    CHECK(interior > .19999);
+    CHECK(interior <= .2);
+    CHECK(fem::stencil_inversion_cap(Matrix3x3::Zero(), dF) == 0);
 }
 }  // namespace local_stencil_test
