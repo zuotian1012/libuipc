@@ -18,7 +18,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-LOCAL_PACKAGE = ROOT / "build/python/src"
+LOCAL_PACKAGE = Path(os.environ.get("UIPC_LOCAL_PACKAGE", ROOT / "build/python/src")).resolve()
 DLL_HANDLES = []
 if (LOCAL_PACKAGE / "uipc/_native").is_dir():
     sys.path.insert(0, str(LOCAL_PACKAGE))

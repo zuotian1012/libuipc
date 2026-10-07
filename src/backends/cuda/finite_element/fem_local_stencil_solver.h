@@ -48,6 +48,7 @@ class FEMLocalStencilSolver final : public SimSystem
     void                         cap_combined_elastic_step();
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
+    void prepare_gs_coloring();
     void filter_local_steps();
     void prepare_barriers();
     bool do_dump(DumpInfo& info) override;
@@ -63,6 +64,9 @@ class FEMLocalStencilSolver final : public SimSystem
     HalfPlane*                                  m_planes             = nullptr;
     HalfPlaneVertexReporter*                    m_plane_reporter     = nullptr;
     bool                                        m_hybrid             = true;
+    bool                                        m_jacobi             = false;
+    bool                                        m_gs                 = false;
+    bool                                        m_local_filter       = true;
     bool                                        m_inertial_guess     = false;
     bool                                        m_gradient_stopping  = false;
     bool                                        m_primary_coverage   = false;
@@ -76,6 +80,10 @@ class FEMLocalStencilSolver final : public SimSystem
     SizeT                                       m_recovered_sweep    = 0;
     vector<Vector2i>                            m_color_passes;
     cuda_tool::DeviceBuffer<IndexT>             m_colors, m_primary_owner;
+    cuda_tool::DeviceBuffer<IndexT>             m_gs_colors;
+    vector<IndexT>                              m_gs_elastic_colors;
+    vector<vector<IndexT>>                      m_gs_vertex_colors;
+    IndexT                                      m_gs_color_count = 0;
     cuda_tool::DeviceBuffer<Vector3>            m_total_gradients;
     cuda_tool::DeviceBuffer<Matrix3x3>          m_vertex_hessians;
     cuda_tool::DeviceBuffer<Float>              m_direction_slopes;

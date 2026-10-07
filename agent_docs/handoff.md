@@ -1,5 +1,15 @@
 # Handoff — Current State of the Repo
 
+> **Single-bunny ablations (2026-10-07, results pending)**: [23](23-single-bunny-ablation.md)
+> adds per-vertex averaged Jacobi, full dynamically colored GS and regular/local
+> globalization controls. GS uses CPU greedy coloring, not GPU Vivace. All five
+> modes passed a strict one-frame impact integration check; those timings shared
+> the GPU and are not benchmark evidence. The 24-run floor/U-channel suite uses
+> an isolated runtime under `output/sos-ablation-20261007/runtime/`, preserving
+> the checkout DLL used by the dense run. Consult `benchmark/process.json` and
+> `suite-status.json`; timed runs wait for the dense simulation and verifier.
+> Full comparisons remain unverified until results and geometry checks pass.
+
 > **SoS relaxation diagnosis / fresh full run (2026-10-06, active)**: see
 > [22](22-sos-relaxation-diagnosis.md). Frame-35 evidence identifies slowly
 > damped smooth global error, not late CCD caps or widespread local CG failures.

@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [single-bunny ablation suite](23-single-bunny-ablation.md) adds actual Jacobi
+and full colored GS controls alongside hybrid, with regular/local globalization.
+All five configurations pass a short impact integration check. Formal floor/U
+timings are queued behind the dense run; no speedup or complete-suite convergence
+is established. CPU greedy GS and local CCD retaining global certification must
+be labeled explicitly; they are not the paper's Vivace/local-only implementations.
+
 The [relaxation diagnosis](22-sos-relaxation-diagnosis.md) finds no late CCD caps
 or widespread local-CG failures in the frame-35 tail. Spatially smooth error is
 poorly damped by the one-level local updates; an offline full-Hessian correction

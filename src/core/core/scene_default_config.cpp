@@ -90,9 +90,15 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/local_stencil/sweep",
         std::string{"hybrid"},
         "string",
-        "Local stencil update: complementary-color hybrid sweeps or the additive baseline.",
+        "Local stencil update: hybrid, vertex-averaged Jacobi, dynamically colored GS, or legacy uniformly scaled additive.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
-        Json{{"enum", Json::array({"hybrid", "additive"})}});
+        Json{{"enum", Json::array({"hybrid", "jacobi", "gs", "additive"})}});
+    add("newton/local_stencil/globalization",
+        std::string{"local"},
+        "string",
+        "Local applies per-stencil CCD/Armijo before merging; regular filters only the combined proposal. Global CCD/energy acceptance remains in both. Additive ignores this option.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"local", "regular"})}});
     add("newton/local_stencil/color_limit",
         IndexT{8},
         "integer",

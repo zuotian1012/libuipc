@@ -1,5 +1,10 @@
 # 17 - Complementary-color hybrid stencil updates
 
+The later [single-bunny ablations](23-single-bunny-ablation.md) add selectable
+Jacobi and full colored GS modes, plus `globalization="regular"` to bypass local
+filtering while retaining global acceptance. The hybrid/local defaults and the
+hybrid direction/submission rules documented below remain unchanged.
+
 Cloth support is now added in [18](18-local-stencil-cloth.md): the same conflict
 and priority rules apply to membrane triangles and bending hinges as well as
 tetrahedra. The tetrahedral measurements below are historical stage evidence.

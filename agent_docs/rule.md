@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- Single-bunny ablations (2026-10-07): execute the authorized floor/U-channel
+  comparisons of Jacobi, GS and hybrid stencil updates with regular/local CCD.
+  Keep physical controls and stopping criteria matched, record failures honestly,
+  and preserve the ongoing dense 120-frame validation.
+
 - SoS relaxation diagnosis (2026-10-06): locate why local updates need thousands
   of passes and actually verify the complete dense 120-frame bunny/cloth landing.
   A started run or a partial trajectory is not a completed validation.

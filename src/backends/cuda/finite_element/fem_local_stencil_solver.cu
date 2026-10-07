@@ -142,11 +142,21 @@ namespace
                                                fem::LocalStencilContactView contact,
                                                ct::BufferView<Vector12> directions,
                                                ct::BufferView<Float> slopes,
-                                               ct::BufferView<Vector4> diagnostics)
+                                               ct::BufferView<Vector4> diagnostics,
+                                               ct::CBufferView<IndexT> active_colors,
+                                               IndexT active_color)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
             return;
+        if(active_colors.size() && active_colors(t) != active_color)
+        {
+            directions(t).setZero();
+            slopes(t) = 0;
+            if(diagnostics.size())
+                diagnostics(t).setZero();
+            return;
+        }
         const Vector4i stencil =
             t < elements.size() ? elements(t) : contacts(t - elements.size());
         fem::LocalStencilSystem system;
@@ -216,7 +226,26 @@ namespace
             }
     }
 
+    __global__ void stencil_gs_contact_owners_kernel(ct::CBufferView<Vector4i> contacts,
+                                                     ct::CBufferView<IndexT> colors,
+                                                     ct::BufferView<IndexT> owners,
+                                                     IndexT elastic_count,
+                                                     IndexT color)
+    {
+        const int t = blockIdx.x * blockDim.x + threadIdx.x;
+        if(t >= contacts.size() || colors(elastic_count + t) != color)
+            return;
+        for(int a = 0; a < 4; ++a)
+            if(contacts(t)(a) >= 0)
+            {
+                const int v = contacts(t)(a);
+                UIPC_KERNEL_ASSERT(owners(v) < 0, "Conflicting GS contact owner");
+                owners(v) = elastic_count + t;
+            }
+    }
+
     __global__ void stencil_gather_kernel(ct::CBufferView<Vector4i> elements,
+                                          ct::CBufferView<Vector4i> contacts,
                                           ct::CBufferView<Vector3>  xs,
                                           ct::CBufferView<Float>    masses,
                                           ct::CBufferView<IndexT>   fixed,
@@ -249,9 +278,11 @@ namespace
         }
         if(hybrid && primary_owner(v) >= 0)
         {
-            const int t = primary_owner(v);
+            const int      t = primary_owner(v);
+            const Vector4i ids =
+                t < elements.size() ? elements(t) : contacts(t - elements.size());
             for(int a = 0; a < 4; ++a)
-                if(elements(t)(a) == v)
+                if(ids(a) == v)
                     dx = directions(t).segment<3>(3 * a);
         }
         displacements(v) = fixed(v) ? Vector3::Zero().eval() : (weight * dx).eval();
@@ -382,7 +413,14 @@ void FEMLocalStencilSolver::do_build()
 void FEMLocalStencilSolver::init()
 {
     const auto& config = world().scene().config();
-    m_hybrid = config.find<std::string>("newton/local_stencil/sweep")->view()[0] == "hybrid";
+    const auto& sweep =
+        config.find<std::string>("newton/local_stencil/sweep")->view()[0];
+    m_hybrid = sweep == "hybrid";
+    m_jacobi = sweep == "jacobi";
+    m_gs     = sweep == "gs";
+    m_local_filter =
+        sweep != "additive"
+        && config.find<std::string>("newton/local_stencil/globalization")->view()[0] == "local";
     m_inertial_guess =
         config.find<std::string>("newton/local_stencil/initial_guess")->view()[0] == "inertial";
     m_color_limit = config.find<IndexT>("newton/local_stencil/color_limit")->view()[0];
@@ -396,8 +434,9 @@ void FEMLocalStencilSolver::init()
         config.find<IndexT>("newton/local_stencil/inner_sweeps")->view()[0];
     m_restart_schedule =
         config.find<IndexT>("newton/local_stencil/restart_schedule_on_recover")->view()[0] != 0;
-    if(m_inner_sweeps < 1 || m_inner_sweeps > 256 || (!m_hybrid && m_inner_sweeps != 1))
-        throw SimEngineException("local_stencil inner_sweeps must be in [1,256]; additive requires one.");
+    if(m_inner_sweeps < 1 || m_inner_sweeps > 256
+       || ((!m_hybrid || !m_local_filter) && m_inner_sweeps != 1))
+        throw SimEngineException("local_stencil inner_sweeps must be in [1,256]; batching requires hybrid/local globalization.");
     if(!std::isfinite(m_gradient_tolerance) || m_gradient_tolerance <= 0)
         throw SimEngineException("local_stencil gradient_tol must be finite and positive.");
     if(m_color_limit < 1 || m_color_limit > 64)
@@ -584,12 +623,18 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
     if(first)
     {
         prepare_contacts();
-        if(m_hybrid)
+        if(m_local_filter)
             prepare_barriers();
+        if(m_gs)
+            prepare_gs_coloring();
     }
     if(m_inner_sweeps > 1)
         refresh_frozen_contacts();
     mark("derivatives/contact");
+    const Vector2i pass =
+        m_gs ? Vector2i(0, static_cast<IndexT>(m_sweep_index++ % m_gs_color_count)) :
+        m_hybrid ? m_color_passes[m_sweep_index++ % m_color_passes.size()] :
+                   Vector2i::Zero().eval();
     const int stencil_count = count + static_cast<int>(m_contact_stencils.size());
     if(stencil_count > m_directions.capacity())
         m_directions.reserve_discard(stencil_count + stencil_count / 10);
@@ -620,30 +665,37 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         contact_view(),
         m_directions.view(),
         m_direction_slopes.view(),
-        m_cg_diagnostics.view());
+        m_cg_diagnostics.view(),
+        m_gs ? m_gs_colors.cview() : ct::CBufferView<IndexT>{},
+        pass(1));
     CUDA_TOOL_CHECK(cudaGetLastError());
     mark("directions");
-    if(m_hybrid)
+    if(m_local_filter)
         filter_local_steps();
     mark("filtering");
     // All directions and their local CCD/Armijo filters use the same frozen x.
     // Only now select priority owners for the displacement submission.
-    const Vector2i pass =
-        m_hybrid ? m_color_passes[m_sweep_index++ % m_color_passes.size()] :
-                   Vector2i::Zero().eval();
     stencil_primary_owners_kernel<<<(vertices + 127) / 128, 128>>>(
         m_vertex_offsets.cview(),
         m_vertex_elements.cview(),
-        m_colors.cview(),
+        m_gs ? m_gs_colors.cview() : m_colors.cview(),
         m_primary_owner.view(),
         pass(0) * count,
         pass(1),
-        m_hybrid);
+        m_hybrid || m_gs);
     CUDA_TOOL_CHECK(cudaGetLastError());
     if(m_hybrid)
         logger::info("Local stencil hybrid sweep: scheme={}, color={}", pass(0), pass(1));
+    const int contact_count = static_cast<int>(m_contact_stencils.size());
+    if(m_gs && contact_count)
+        stencil_gs_contact_owners_kernel<<<(contact_count + 127) / 128, 128>>>(
+            m_contact_stencils.cview(), m_gs_colors.cview(), m_primary_owner.view(), count, pass(1));
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_gs)
+        logger::info("Local stencil GS sweep: color={}, colors={}", pass(1), m_gs_color_count);
     stencil_gather_kernel<<<(vertices + 127) / 128, 128>>>(
         m_elastic_stencils.cview(),
+        m_contact_stencils.cview(),
         m_fem->xs(),
         m_fem->masses(),
         m_fem->is_fixed(),
@@ -656,21 +708,20 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_contact_gradients.cview(),
         m_primary_owner.cview(),
         m_total_gradients.view(),
-        m_hybrid,
-        m_hybrid ? 1.0 : m_weight,
+        m_hybrid || m_gs,
+        m_hybrid || m_jacobi || m_gs ? 1.0 : m_weight,
         dt);
     CUDA_TOOL_CHECK(cudaGetLastError());
-    const int contact_count = static_cast<int>(m_contact_stencils.size());
-    if(contact_count)
+    if(contact_count && !m_gs)
         stencil_scatter_contact_kernel<<<(contact_count + 127) / 128, 128>>>(
             m_contact_stencils.cview(),
             m_directions.cview(),
             m_fem->m_impl.dxs.view(),
             m_primary_owner.cview(),
             count,
-            m_hybrid ? 1.0 : m_weight);
+            m_hybrid || m_jacobi ? 1.0 : m_weight);
     CUDA_TOOL_CHECK(cudaGetLastError());
-    if(m_hybrid)
+    if(m_hybrid || m_jacobi || m_gs)
     {
         stencil_hybrid_average_kernel<<<(vertices + 127) / 128, 128>>>(
             m_fem->m_impl.dxs.view(),
@@ -693,7 +744,7 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
             // entire proposal and try the next color at the unchanged iterate;
             // do not alter Jacobi weights or report this as convergence.
             CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, vertices * sizeof(Vector3)));
-            logger::info("Local stencil rejected non-descent hybrid proposal");
+            logger::info("Local stencil rejected non-descent merged proposal");
         }
     }
     cuda_tool::DeviceReduce().Max(m_residuals.data(), m_scalar.data(), vertices);
