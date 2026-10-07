@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Dense 120-frame validation completed (2026-10-07)**: [22](22-sos-relaxation-diagnosis.md)
+> records the fresh strict run passing all 120 frames, all 121 saved-state
+> independent surface checks, positive determinants/areas/gaps, and every actual
+> residual <= 0.01. No native iteration/search limit was hit. GIF and final image
+> are verified under `output/sos-relaxation-20261006/full-strict/local_stencil/`.
+> Measured advance time is 49,860.944 s (13.85 h), so this closes the full-landing
+> verification but not slow relaxation or paper-level performance. The queued
+> ablation suite has started automatically; its first four floor runs passed at
+> the 13:13 inspection. Keep the shared heartbeat active for the pending suite.
+> This completion supersedes the older in-progress dense statuses below.
+
 > **Single-bunny ablations (2026-10-07, results pending)**: [23](23-single-bunny-ablation.md)
 > adds per-vertex averaged Jacobi, full dynamically colored GS and regular/local
 > globalization controls. GS uses CPU greedy coloring, not GPU Vivace. All five

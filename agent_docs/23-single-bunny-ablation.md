@@ -100,6 +100,12 @@ follows both tasks every 30 minutes; normal progress stays quiet. It must not
 pause after dense completion while the ablations remain pending. Read process
 files for current PIDs instead of relying on this launch-time record.
 
+The prerequisite dense validation/rendering completed on 2026-10-07 at 12:49
++08, and the queued suite automatically started formal serial runs. At the
+13:13 inspection, the first four floor runs passed (Jacobi/GS/Hybrid repeat zero
+and GS repeat one); Hybrid repeat one was active. Full aggregate results remain
+pending. Preserve the isolated timing run; do not launch competing GPU checks.
+
 Important outputs: `results.json`, `comparison.json`, `matched-controls.json`,
 `position-differences.json`, `timing-comparison.png`, `floor-convergence.png`,
 `u-convergence.png`, and per-case logs, residuals, histories and saved positions.

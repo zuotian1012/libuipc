@@ -107,9 +107,31 @@ It then writes `validation.json` and optionally renders `bunny_cloth.gif` plus
 initial/final images. Any incomplete simulation/check failure is recorded as
 `incomplete`, never `complete`.
 
-At implementation time this run is still in progress. Do not claim 120 frames
-passed based on the launch or a partial history. Read `completion-status.json`,
-`validation.json` and the actual history before reporting completion.
+The fresh run completed on 2026-10-07 at 12:47 +08; independent validation and
+rendering completed at 12:49. The completion artifacts were audited at 13:13:
+
+- All 120 frames converged, with 121 full-precision saved states and no resumed
+  prefix. All 120 native frame-stat records have no Newton/line-search limit.
+- Maximum final mass-scaled residual across frames: 0.009995206569057707 m/s,
+  below the unchanged 0.01 threshold. Final frame: 0.009663387906425291 m/s.
+- Minimum det(F): 0.680176940712448; minimum cloth area ratio:
+  0.8337471435385195. Minimum bunny/cloth ground gaps are respectively
+  0.00004175183120161177 m and 0.0003965012068621854 m.
+- All 121 independent saved-state cross-body and nonincident self-surface
+  checks passed, including cloth thickness clearances; zero intersections.
+- Total measured advance time: 49,860.944 s (13.85 h); mean 415.508 s/frame,
+  median 386.217 s/frame. Maximum outer rounds: 1,348. Logs contain 1,305,012
+  local-pass residual evaluations overall, maximum 20,198 in a frame; counts
+  include convergence certification. This is completion evidence, not a speedup.
+  Native logging is included and brief integration checks shared the GPU during
+  part of this run, so these timings are not an isolated performance benchmark.
+- `local_stencil/bunny_cloth.gif` contains 61 rendered samples of the trajectory
+  (every other saved state); `initial.png` and `final.png` are also verified.
+
+The strict full dense landing is now verified within the stated saved-state
+check scope. Slow relaxation remains unresolved, and this does not establish
+complete paper reproduction or paper-level performance. The single-bunny suite
+in [23](23-single-bunny-ablation.md) automatically began after validation/rendering.
 
 The thread follow-up `bunny-cloth` checks this run every 30 minutes, remains quiet
 while it advances normally and reports completion or an actionable failure. Its

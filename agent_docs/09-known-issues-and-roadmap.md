@@ -1,9 +1,15 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The fresh strict dense 120-frame run is now **verified** (2026-10-07): all 120
+residual certificates and 121 saved-state geometry/surface checks pass; native
+iteration/search limits were not hit. Replay GIF and images are generated.
+Observed advance time is 13.85 h, so slow relaxation and paper-level performance
+remain open. This supersedes historical pending-full-run statements below.
+
 The [single-bunny ablation suite](23-single-bunny-ablation.md) adds actual Jacobi
 and full colored GS controls alongside hybrid, with regular/local globalization.
 All five configurations pass a short impact integration check. Formal floor/U
-timings are queued behind the dense run; no speedup or complete-suite convergence
+timings have started after dense validation; no speedup or complete-suite convergence
 is established. CPU greedy GS and local CCD retaining global certification must
 be labeled explicitly; they are not the paper's Vivace/local-only implementations.
 
@@ -11,9 +17,9 @@ The [relaxation diagnosis](22-sos-relaxation-diagnosis.md) finds no late CCD cap
 or widespread local-CG failures in the frame-35 tail. Spatially smooth error is
 poorly damped by the one-level local updates; an offline full-Hessian correction
 closely matches the remaining error but is not used in the simulation. A fresh
-strict 120-frame dense run and independent completion validator are active under
-`output/sos-relaxation-20261006/full-strict/`. Read its live status and validation
-artifacts before reporting success; merely launching it does not close this issue.
+strict 120-frame dense run and independent completion validator have passed under
+`output/sos-relaxation-20261006/full-strict/`. The verified completion does not
+resolve this slow-error mode or imply a convergence-rate improvement.
 
 Current [execution alignment](21-sos-execution-alignment.md) adds selectable
 stopping norms, independent-group coverage and locally certified inner batches
