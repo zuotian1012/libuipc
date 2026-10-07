@@ -4,8 +4,14 @@ The [contact execution follow-up](24-sos-contact-execution.md) reuses per-iterat
 elastic/barrier evaluation state and certifies small-motion inversion bounds
 without unnecessary root searches. Strict 120-frame cloth integration and 156
 stencil assertions pass; short analytic-U trajectories match bitwise. The new
-triangle-mesh U benchmark is running 18 serial cases; repeated timing results
-are pending. Global checks remain necessary for merged paths/new primitives.
+triangle-mesh/analytic-U benchmark completed all 18 serial cases, 540 strict
+certificates and 558 saved-state checks. Analytic local/batched time decreases
+11.04%/15.17% versus the preserved baseline, with unchanged per-frame pass counts
+and <=5.242e-12 m before/after position differences. Mesh-U medians are 17.866 s
+regular, 31.035 s local and 20.783 s batched per contact frame; batched positions
+differ by up to 0.6964 mm from the regular control. Local CCD actually caps steps
+in mesh U, but does not improve pass counts. Global checks remain necessary for
+merged paths/new primitives. No verification task or simulation remains active.
 Append-only barrier history, paper warm start and slow global relaxation remain
 open; this optimization is not their implementation or a paper-speedup claim.
 

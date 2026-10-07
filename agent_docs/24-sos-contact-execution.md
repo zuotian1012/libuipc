@@ -116,18 +116,13 @@ Within each scene all update variants retain identical geometry/material data.
 The focused native-test log is `../tmp/sos-contact-tests.log`; its launch adds
 the isolated native package to PATH for DLL resolution.
 
-The formal suite starts with mesh U, then analytic U. Each scene runs
+The formal suite completed on 2026-10-07 at approximately 23:06 local time,
+starting with mesh U, then analytic U. Each scene ran
 Hybrid/regular, Hybrid/local and Hybrid/batched local, three repetitions each,
 30 frames each: 18 serial runs. Native Info logging remains enabled as in the
-baseline; diagnostic timers are disabled. No competing GPU work should be
-launched while it runs. Read `benchmark/process.json`, `suite-status.json` and
-actual per-case artifacts for current progress; pending runs are not results.
-
-The first formal mesh-U Hybrid/regular case has now completed all 30 frames and
-31 saved-state checks, with no intersection or iteration-limit failure. Minimum
-det(F) is 0.6965779690717397 and minimum plane gap is 8.940220665813481e-05 m.
-The suite advanced to Hybrid/local. This confirms a complete short mesh-contact
-trajectory, but one case is not the repeated performance comparison.
+baseline; diagnostic timers were disabled. All 18 runs passed, and native log
+intervals confirm serial execution. No simulation processes remain. The raw
+case artifacts, runtime and baseline are preserved.
 
 ```powershell
 $env:UIPC_LOCAL_PACKAGE = (Resolve-Path output/sos-contact-20261007/runtime-final).Path
@@ -136,18 +131,78 @@ python python/examples/local_stencil_bunny_ablation.py --suite `
   --repeats 3 --frames 30 --output output/sos-contact-20261007/benchmark
 ```
 
-On completion, audit all 540 residual certificates, 558 saved states, collider
-checks, unchanged pins, runtime/geometry/control hashes and common contact-frame
-windows. Compare analytic U with the preserved three-repeat baseline in
-`output/sos-ablation-20261007/benchmark/u/`, reporting trajectory differences,
-iteration counts and timing ranges. Those before/after runs are separated in
-time, not interleaved; do not overstate small timing changes. Compare mesh-U
-variants separately. Record failures rather than filtering them from plots.
+`benchmark/audit_completion.py` independently checks the recorded results,
+raw native residual logs, hashes, physical parameters, serial log intervals,
+saved determinants/gaps and completed independent surface reports. Its
+`completion-audit.json` confirms:
 
-The shared thread heartbeat is to follow this suite, remaining quiet during
-ordinary progress and reporting completion or actionable failure. The dense
-120-frame validation and first ablation suite are already complete and must
-not be rerun automatically.
+- All 540 final native residual certificates <= 0.01 m/s; maximum
+  0.009993883681524759. No iteration or line-search limit was hit.
+- All 558 saved bunny states passed self-surface checks; all 279 mesh-channel
+  states passed bunny/collider intersection checks. Minimum det(F) is
+  0.6939206328507838; minimum signed plane gap is 0.00003148223576886838 m.
+- Collider geometry hashes match. The verified runner source checks fixed
+  positions on every retrieved frame (1e-12 bound); independent per-frame
+  collider snapshots were not stored, so this is an executed runtime guard,
+  not a second independent pin-motion measurement.
+- All scene/runtime/material/accuracy controls match within each scene;
+  all before/after analytic-U physical controls match. Total measured advance
+  time across the 18 runs is 6338.851 s (105.65 min), excluding postchecks.
+
+### Repeated timing and trajectory results
+
+Contact window is frames 12-30 for every run. Values below are median seconds
+per contact frame and min-max across three repetitions. The before/after runs
+were separated in time, not interleaved; timings include native logging.
+
+| Analytic U mode | Before median [range] | After median [range] | Observed reduction |
+| --- | ---: | ---: | ---: |
+| Hybrid / regular CCD | 10.734 [10.719, 10.755] | 10.483 [10.482, 10.628] | 2.34% |
+| Hybrid / local CCD | 20.027 [20.026, 20.065] | 17.817 [17.712, 18.044] | 11.04% |
+| Hybrid / batched local CCD | 15.017 [15.014, 15.039] | 12.739 [12.727, 12.759] | 15.17% |
+
+These changes reduce execution cost, not iteration count. Each analytic-U run
+has exactly the same per-frame residual evaluation counts as its corresponding
+baseline: 55,029 over 30 frames for regular/local, 55,179 for batched local.
+Maximum before/after saved-position difference across all modes/repeats is
+5.242e-12 m. The small regular-mode timing change should not be read as a
+significant algorithmic improvement. Batched local still costs 1.215 times
+regular CCD after optimization; unbatched local costs 1.700 times regular.
+
+| Triangle-mesh U mode | Median [range], s/contact frame | Residual evaluations / 30 frames |
+| --- | ---: | ---: |
+| Hybrid / regular CCD | 17.866 [17.783, 18.439] | 54,188 |
+| Hybrid / local CCD | 31.035 [30.910, 31.652] | 54,188 |
+| Hybrid / batched local CCD | 20.783 [20.780, 20.844] | 54,504-54,549 |
+
+The mesh case genuinely exercises local CCD: repeat 0 has 104 local collision
+caps and two inversion caps in unbatched local, and 259/eight in batched local.
+The trajectory filter records up to 48 PT and 147 EE candidates (candidate
+counts, not simultaneous active barriers). Yet unbatched local does not reduce
+the 54,188 residual evaluations. Batching cuts contact time about 33% versus
+unbatched local, but is still 16.3% slower than regular CCD. These observations
+do not establish a benefit comparable to the paper. Plane-versus-mesh timing
+also includes pinned elastic stencils and a different contact representation.
+
+Relative to mesh-U regular repeat 0 (a control, not exact ground truth), maximum
+saved-position differences are 0.000757 mm for unbatched local and 0.696362 mm
+for batched local. Batched final RMS differences are 0.3143-0.3146 mm. Thus all
+modes meet the same stopping criterion, but the batched mesh trajectories are
+not identical; do not confuse before/after cache equivalence with cross-mode
+trajectory equivalence. Even the simple bunny continues to need roughly
+2,500-3,500 local residual evaluations in a contact frame. Smaller outer
+iteration counts in batched mode do not mean fewer local passes.
+
+Reviewable artifacts under `output/sos-contact-20261007/benchmark/`:
+`completion-audit.json`, `before-after.json`, `comparison.json`,
+`position-differences.json`, `before-after.png`, `timing-comparison.png`,
+`convergence-time.png`, `mesh-u-trajectory.png` and `mesh-u.gif`.
+The mesh render uses saved batched-local repeat-0 geometry and transparent
+colliders for visibility. The GIF displays all 31 states at quarter speed.
+The audit and rendering scripts are retained next to these artifacts.
+
+This verification stage is complete. Pause the shared heartbeat after reporting
+the findings; do not automatically rerun the dense, ablation or contact suites.
 
 ## Remaining scope
 
@@ -157,3 +212,7 @@ global acceptance. Existing local certificates cover retained contact stencils;
 they cannot by themselves certify a merged path against newly encountered
 primitives. Paper-level contact organization and slow global error relaxation
 remain separate algorithmic work. No paper-level speedup is claimed here.
+The next algorithmic decision should address contact-history organization and
+the slowly decaying global error (including the paper's initialization/warm
+start), then measure pass counts at the same strict stopping threshold. More
+cache tuning alone cannot establish a convergence-rate improvement.

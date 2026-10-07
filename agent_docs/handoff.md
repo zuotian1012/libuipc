@@ -1,17 +1,23 @@
 # Handoff — Current State of the Repo
 
-> **Contact execution follow-up (2026-10-07, formal results pending)**:
+> **Contact execution follow-up completed (2026-10-07)**:
 > [24](24-sos-contact-execution.md) caches per-iterate deformation/start energy
 > for local trials and adds a rigorous small-motion determinant certificate.
 > Global acceptance and convergence remain unchanged. All 156 stencil assertions,
 > the 120-frame cloth drape and independent saved-state checks pass. Analytic U
 > short-run positions exactly match the preserved runtime. A 425-vertex/768-face
 > fixed triangle U exercises actual PT/EE contact and passes first impact.
-> The 18-run mesh/analytic-U suite is active under `output/sos-contact-20261007/benchmark/`
-> using `runtime-final/`; read its process/status files. No competing GPU work.
-> Native scopes locate the extra cost inside local filtering; hardware counters
-> were unavailable. Short profile improvements are not final benchmark evidence.
-> Earlier dense/full-ablation tasks remain complete; follow only this new suite.
+> All 18 mesh/analytic-U runs passed: 540 strict residual certificates, 558 saved
+> bunny states and 279 mesh-collider checks; full audit and renders are under
+> `output/sos-contact-20261007/benchmark/`. Analytic-U median local time drops
+> 20.027 -> 17.817 s/frame, batched 15.017 -> 12.739, but all per-frame pass counts
+> remain unchanged. Before/after positions agree within 5.242e-12 m. Mesh-U
+> medians are 17.866 regular, 31.035 local, 20.783 batched s/contact frame.
+> Real PT/EE local caps occur, but local still provides no pass-count advantage.
+> Batched mesh trajectories differ from regular by up to 0.6964 mm at the same
+> strict threshold. This improves overhead, not slow global error relaxation or
+> paper-level performance. No simulation remains active. Pause the heartbeat
+> after reporting; earlier dense/full-ablation tasks are also already complete.
 
 > **Single-bunny ablations completed (2026-10-07)**: all 24 runs, 720 certified
 > frames and 744 saved-state checks passed. [23](23-single-bunny-ablation.md)
