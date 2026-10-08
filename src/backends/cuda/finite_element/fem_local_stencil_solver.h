@@ -71,6 +71,7 @@ class FEMLocalStencilSolver final : public SimSystem
     bool                                        m_gradient_stopping  = false;
     bool                                        m_primary_coverage   = false;
     bool                                        m_restart_schedule   = false;
+    bool                                        m_csfd_product       = false;
     IndexT                                      m_inner_sweeps       = 1;
     IndexT                                      m_inner_index        = 0;
     Float                                       m_gradient_tolerance = 1e-4;

@@ -99,6 +99,7 @@ def case(args):
     local.update(sweep=sweep, globalization=globalization, inner_sweeps=inner,
                  initial_guess="inertial", stopping="velocity", color_limit=15,
                  color_coverage="independent")
+    local["hessian_product"] = args.hessian_product
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -291,6 +292,7 @@ def suite(args):
                 tolerance=args.tolerance, bunny_young=args.bunny_young, contact_distance=args.contact_distance,
                 max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
                 selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
+                hessian_product=args.hessian_product,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
         previous = json.loads((root / "suite.json").read_text())
@@ -298,6 +300,7 @@ def suite(args):
         previous.setdefault("selected_modes", {"floor": ["jacobi", "gs", "hybrid"], "u": list(MODES)})
         previous.setdefault("collider_subdivisions", 8)
         previous.setdefault("timers", False)
+        previous.setdefault("hessian_product", "assembled")
         if json.loads(json.dumps(spec)) != previous:
             raise ValueError("Suite resume requires identical controls")
     else:
@@ -320,6 +323,7 @@ def suite(args):
                     command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
                 if args.timers:
                     command.append("--timers")
+                command += ["--hessian-product", args.hessian_product]
                 write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
                 with (folder / "simulation.log").open("w") as stdout, (folder / "stderr.log").open("w") as stderr:
                     process = subprocess.run(command, stdout=stdout, stderr=stderr)
@@ -442,6 +446,7 @@ def main():
     parser.add_argument("--scenes", nargs="+", choices=["floor", "u", "mesh-u"], default=["floor", "u"])
     parser.add_argument("--modes", nargs="+", choices=list(MODES))
     parser.add_argument("--collider-subdivisions", type=int, default=8)
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
     parser.add_argument("--mode", choices=[*MODES, "global"], default="hybrid",
                         help="Single-case solver; global uses native displacement stopping and is excluded from stencil-only suites")
     parser.add_argument("--output", type=Path, required=True)

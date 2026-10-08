@@ -99,6 +99,12 @@ static SceneConfigContract make_scene_config_contract()
         "Local applies per-stencil CCD/Armijo before merging; regular filters only the combined proposal. Global CCD/energy acceptance remains in both. Additive ignores this option.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"local", "regular"})}});
+    add("newton/local_stencil/hessian_product",
+        std::string{"assembled"},
+        "string",
+        "Local CG operator: assembled control or direct restricted CSFD for SNK1 stress derivatives with analytic shell/contact operators. CSFD does not yet use the section-7.1 packed layout.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"assembled", "csfd"})}});
     add("newton/local_stencil/color_limit",
         IndexT{8},
         "integer",

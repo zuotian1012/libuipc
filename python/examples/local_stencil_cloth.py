@@ -47,6 +47,7 @@ def main():
     parser.add_argument("--solver", choices=["local_stencil", "global"], default="local_stencil")
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--inner-sweeps", type=int, default=1)
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
     parser.add_argument("--resolution", type=int, default=6)
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--dt", type=float, default=.01)
@@ -68,6 +69,7 @@ def main():
     config["newton"]["solver"] = args.solver
     config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
+    config["newton"]["local_stencil"]["hessian_product"] = args.hessian_product
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations

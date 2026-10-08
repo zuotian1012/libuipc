@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Complete SoS implementation authorized (2026-10-08, active)**: the owner
+> requests the full paper pipeline before further comparisons. Follow
+> [25](25-sos-paper-completion.md); earlier exclusions of warm start, custom
+> barriers, conservative history and CSFD are superseded. Preserve the completed
+> baselines. This new task is not complete; no full-paper performance claim.
+
 > **Native global baseline completed (2026-10-08)**: [24](24-sos-contact-execution.md)
 > now records six full global Newton/fused-PCG runs on the same runtime/physics.
 > Mesh-U contact median is 0.05986 s/frame (30 frames: 1.4804 s), analytic U

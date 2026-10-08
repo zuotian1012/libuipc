@@ -79,8 +79,12 @@ struct LocalStencilDirection
 // an undocumented sigma for Algorithm 1's negative-curvature replacement.
 // A first-iteration curvature failure falls back to steepest descent.
 // Twelve steps are a budget, not an exact-solve guarantee in floating point.
+template <typename HessianProduct>
 UIPC_GENERIC inline LocalStencilDirection local_stencil_direction(
-    const LocalStencilSystem& system, Float relative_tolerance = 1e-10, Float absolute_tolerance = 1e-12)
+    const Vector12&       gradient,
+    const HessianProduct& product,
+    Float                 relative_tolerance = 1e-10,
+    Float                 absolute_tolerance = 1e-12)
 {
     LocalStencilDirection result;
     if(!stencil_finite(relative_tolerance) || relative_tolerance < 0
@@ -88,14 +92,11 @@ UIPC_GENERIC inline LocalStencilDirection local_stencil_direction(
         return result;
     for(int i = 0; i < 12; ++i)
     {
-        if(!stencil_finite(system.gradient(i)))
+        if(!stencil_finite(gradient(i)))
             return result;
-        for(int j = 0; j < 12; ++j)
-            if(!stencil_finite(system.hessian(i, j)))
-                return result;
     }
 
-    Vector12 residual  = -system.gradient;
+    Vector12 residual  = -gradient;
     Vector12 direction = residual;
     Float    r2        = residual.squaredNorm();
     if(!stencil_finite(r2))
@@ -113,7 +114,7 @@ UIPC_GENERIC inline LocalStencilDirection local_stencil_direction(
 
     for(int iteration = 0; iteration < 12 && sqrt(r2) > tolerance; ++iteration)
     {
-        const Vector12 Hd        = system.hessian * direction;
+        const Vector12 Hd        = product(direction);
         const Float    curvature = direction.dot(Hd);
         if(!stencil_finite(curvature))
             return result;
@@ -136,19 +137,41 @@ UIPC_GENERIC inline LocalStencilDirection local_stencil_direction(
     }
 
     // A descent check also protects a truncated solve from roundoff breakdown.
-    if(system.gradient.squaredNorm() > 0 && system.gradient.dot(result.displacement) >= 0)
+    if(gradient.squaredNorm() > 0 && gradient.dot(result.displacement) >= 0)
     {
-        result.displacement      = -system.gradient;
+        result.displacement      = -gradient;
         result.gradient_fallback = true;
     }
     for(int i = 0; i < 12; ++i)
         if(!stencil_finite(result.displacement(i)))
             return result;
-    result.residual_norm =
-        (system.gradient + system.hessian * result.displacement).norm();
-    result.valid     = stencil_finite(result.residual_norm);
-    result.converged = result.valid && result.residual_norm <= tolerance;
+    result.residual_norm = (gradient + product(result.displacement)).norm();
+    result.valid         = stencil_finite(result.residual_norm);
+    result.converged     = result.valid && result.residual_norm <= tolerance;
     return result;
+}
+
+struct LocalStencilMatrixProduct
+{
+    const Matrix12x12&    matrix;
+    UIPC_GENERIC Vector12 operator()(const Vector12& direction) const
+    {
+        return matrix * direction;
+    }
+};
+
+// Preserve the assembled operator as a control and an independent HVP oracle.
+UIPC_GENERIC inline LocalStencilDirection local_stencil_direction(
+    const LocalStencilSystem& system, Float relative_tolerance = 1e-10, Float absolute_tolerance = 1e-12)
+{
+    for(int i = 0; i < 12; ++i)
+        for(int j = 0; j < 12; ++j)
+            if(!stencil_finite(system.hessian(i, j)))
+                return {};
+    return local_stencil_direction(system.gradient,
+                                   LocalStencilMatrixProduct{system.hessian},
+                                   relative_tolerance,
+                                   absolute_tolerance);
 }
 
 struct LocalStencilStep

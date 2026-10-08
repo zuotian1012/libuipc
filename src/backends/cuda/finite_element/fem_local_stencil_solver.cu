@@ -2,6 +2,7 @@
 #include <finite_element/finite_element_method.h>
 #include <finite_element/local_stencil.h>
 #include <finite_element/local_stencil_elastic.h>
+#include <finite_element/local_stencil_operator.h>
 #include <sim_engine.h>
 #include <finite_element/fem_dytopo_effect_receiver.h>
 #include <finite_element/finite_element_vertex_reporter.h>
@@ -144,7 +145,12 @@ namespace
                                                ct::BufferView<Float> slopes,
                                                ct::BufferView<Vector4> diagnostics,
                                                ct::CBufferView<IndexT> active_colors,
-                                               IndexT active_color)
+                                               IndexT active_color,
+                                               bool   csfd,
+                                               ct::CBufferView<fem::StencilElasticTerm> terms,
+                                               ct::CBufferView<Vector3> xs,
+                                               ct::CBufferView<Float>   masses,
+                                               Float                    dt)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
@@ -159,6 +165,27 @@ namespace
         }
         const Vector4i stencil =
             t < elements.size() ? elements(t) : contacts(t - elements.size());
+        if(csfd)
+        {
+            Vector12 gradient = Vector12::Zero();
+            for(int a = 0; a < 4; ++a)
+                if(stencil(a) >= 0 && !fixed(stencil(a)))
+                    gradient.segment<3>(3 * a) = vertex_gradients(stencil(a))
+                                                 + contact.gradients(stencil(a));
+            const fem::LocalStencilCSFDOperator product{
+                stencil, elements, terms, xs, masses, fixed, vertex_offsets, vertex_elements, hessians, contact, dt};
+            const auto result = fem::local_stencil_direction(gradient, product);
+            UIPC_KERNEL_ASSERT(result.valid, "Invalid CSFD stencil direction %d", t);
+            directions(t) = result.displacement;
+            slopes(t)     = gradient.dot(result.displacement);
+            if(diagnostics.size())
+                diagnostics(t) =
+                    Vector4(result.iterations,
+                            result.nonpositive_curvature,
+                            result.gradient_fallback,
+                            result.residual_norm / (gradient.norm() + 1e-30));
+            return;
+        }
         fem::LocalStencilSystem system;
         // Shared diagonal blocks and gradients are assembled once per vertex.
         // Off-diagonal blocks are still the exact restriction of ALL incident
@@ -434,6 +461,8 @@ void FEMLocalStencilSolver::init()
         config.find<IndexT>("newton/local_stencil/inner_sweeps")->view()[0];
     m_restart_schedule =
         config.find<IndexT>("newton/local_stencil/restart_schedule_on_recover")->view()[0] != 0;
+    m_csfd_product =
+        config.find<std::string>("newton/local_stencil/hessian_product")->view()[0] == "csfd";
     if(m_inner_sweeps < 1 || m_inner_sweeps > 256
        || ((!m_hybrid || !m_local_filter) && m_inner_sweeps != 1))
         throw SimEngineException("local_stencil inner_sweeps must be in [1,256]; batching requires hybrid/local globalization.");
@@ -667,7 +696,12 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_direction_slopes.view(),
         m_cg_diagnostics.view(),
         m_gs ? m_gs_colors.cview() : ct::CBufferView<IndexT>{},
-        pass(1));
+        pass(1),
+        m_csfd_product,
+        m_elastic_terms.cview(),
+        m_fem->xs(),
+        m_fem->masses(),
+        dt);
     CUDA_TOOL_CHECK(cudaGetLastError());
     mark("directions");
     if(m_local_filter)

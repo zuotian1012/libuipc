@@ -1,11 +1,14 @@
 #include <finite_element/local_stencil.h>
 #include <finite_element/local_stencil_snk.h>
+#include <finite_element/local_stencil_csfd.h>
+#include <finite_element/sos_barrier_history.h>
 #include <finite_element/local_stencil_inversion.h>
 #include <cuda_tool/cuda_tool.h>
 #include <app/app.h>
 #include <Eigen/Cholesky>
 #include <Eigen/Eigenvalues>
 #include <iostream>
+#include <vector>
 
 namespace local_stencil_test
 {
@@ -501,5 +504,83 @@ TEST_CASE("Local inversion certification retains interior and tangential roots",
     CHECK(interior > .19999);
     CHECK(interior <= .2);
     CHECK(fem::stencil_inversion_cap(Matrix3x3::Zero(), dF) == 0);
+}
+
+__global__ void csfd_element_check_kernel(ct::BufferView<Vector12> result)
+{
+    Matrix3x3 F, inverse;
+    F << 1.1, .2, -.1, .05, .8, .12, .15, -.07, 1.2;
+    inverse << 1.3, .2, 0, 0, 1.1, -.1, .1, 0, .9;
+    Vector12 direction;
+    for(int i = 0; i < 12; ++i)
+        direction(i) = (i - 5.0) * .037;
+    Vector12    g;
+    Matrix12x12 H;
+    fem::snk_stencil_element(F, inverse, 80, 120, .013, g, H);
+    result(0) = H * direction;
+    result(1) = fem::snk_stencil_product_csfd(F, inverse, 80, 120, .013, direction);
+    // Translation is a null direction of an isolated elastic element.
+    for(int a = 0; a < 4; ++a)
+        direction.segment<3>(3 * a) = Vector3(.2, -.3, .4);
+    result(2) = fem::snk_stencil_product_csfd(F, inverse, 80, 120, .013, direction);
+}
+
+TEST_CASE("CSFD stress product matches the independent analytic element Hessian", "[cuda][fem][stencil]")
+{
+    ct::DeviceBuffer<Vector12> result(3);
+    csfd_element_check_kernel<<<1, 1>>>(result.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    Vector12 host[3];
+    result.view().copy_to(host);
+    CHECK((host[0] - host[1]).norm() < 1e-12 * host[0].norm());
+    CHECK(host[2].norm() < 1e-13);
+}
+
+TEST_CASE("SoS customized barrier and conservative primitive history", "[cuda][fem][stencil]")
+{
+    const auto parameters = fem::SoSBarrierParameters::from_reference(.01, .001, 10);
+    CHECK(parameters.kappa == 1);
+    CHECK(fem::sos_barrier(.01, parameters).energy == 0);
+    CHECK(fem::sos_barrier(.02, parameters).first == 0);
+    const Float d = .004, step = 1e-7;
+    const auto  value = fem::sos_barrier(d, parameters);
+    const auto  plus  = fem::sos_barrier(d + step, parameters);
+    const auto  minus = fem::sos_barrier(d - step, parameters);
+    CHECK(std::abs((plus.energy - minus.energy) / (2 * step) - value.first) < 1e-10);
+    CHECK(std::abs((plus.first - minus.first) / (2 * step) - value.second) < 1e-7);
+
+    std::vector<fem::SoSBarrierRecord> records(130);
+    for(int i = 0; i < records.size(); ++i)
+    {
+        records[i].key        = fem::sos_pair_key(0, i % 65, 7);
+        records[i].parameters = parameters;
+    }
+    ct::DeviceBuffer<fem::SoSBarrierRecord> input;
+    input.copy_from(records);
+    fem::SoSBarrierHistory history;
+    history.append(input.cview());
+    CHECK(history.records().size() == 65);
+    records.resize(258);
+    for(int i = 0; i < records.size(); ++i)
+    {
+        records[i].key        = fem::sos_pair_key(0, i, 7);
+        records[i].parameters = {.02, 2};
+    }
+    input.copy_from(records);
+    history.append(input.cview());
+    REQUIRE(history.records().size() == 258);
+    std::vector<fem::SoSBarrierRecord> saved(258);
+    history.records().copy_to(saved.data());
+    bool retained = true;
+    for(const auto& record : saved)
+    {
+        const auto vertex = (record.key >> 31) & 0x7fffffff;
+        retained &= record.parameters.activation_distance == (vertex < 65 ? .01 : .02);
+    }
+    CHECK(retained);
+    CHECK(fem::sos_pair_key(1, 3, 7) == fem::sos_pair_key(1, 7, 3));
+    CHECK(fem::sos_pair_key(0, 3, 7) != fem::sos_pair_key(1, 3, 7));
+    history.reset();
+    CHECK(history.records().size() == 0);
 }
 }  // namespace local_stencil_test

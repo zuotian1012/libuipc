@@ -136,6 +136,13 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- Complete SoS reproduction (2026-10-08): the owner now requests the complete
+  paper algorithm before another performance comparison. This supersedes the
+  earlier staged exclusions of custom barriers, conservative history, warm start
+  and CSFD. Preserve previous controls; implement a coherent objective across
+  derivatives, warm start, local/global acceptance and convergence evaluation.
+  Do not declare completion from partial modules or changed tolerances.
+
 - SoS contact execution follow-up (2026-10-07): continue from the ablation
   results by measuring local/global checking costs, reducing repeated work and
   comparing a triangle-mesh U channel. Preserve strict accuracy, safety checks
