@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Native global baseline completed (2026-10-08)**: [24](24-sos-contact-execution.md)
+> now records six full global Newton/fused-PCG runs on the same runtime/physics.
+> Mesh-U contact median is 0.05986 s/frame (30 frames: 1.4804 s), analytic U
+> 0.02802 s/frame (0.7769 s total). Current stencil mesh timings are
+> 17.866/31.035/20.783 s/frame. All 180 native convergence certificates and 186
+> saved states pass. The stopping metrics differ (global displacement vs stencil
+> mass-scaled gradient), with up to 2.0473 mm mesh trajectory difference: these
+> are not matched-accuracy speedup factors. `--case --mode global` selects the
+> original backend; stencil-only suites are unchanged. Full evidence is under
+> `output/sos-global-20261008/`. No simulation or follow-up automation is active.
+
 > **Contact execution follow-up completed (2026-10-07)**:
 > [24](24-sos-contact-execution.md) caches per-iterate deformation/start energy
 > for local trials and adds a rigorous small-motion determinant certificate.

@@ -204,6 +204,81 @@ The audit and rendering scripts are retained next to these artifacts.
 This verification stage is complete. Pause the shared heartbeat after reporting
 the findings; do not automatically rerun the dense, ablation or contact suites.
 
+## Native global-solver comparison (2026-10-08)
+
+The owner asked how the same scene performs with libuipc's existing solver,
+without stencil updates. The example now accepts `--case --mode global`, which
+selects the existing CUDA global Newton / fused-PCG path. No backend code or
+solver implementation was changed. Global is intentionally excluded from the
+stencil-only suite and its gradient-convergence plots because it has a different
+stopping rule.
+
+Six new serial runs (mesh U and analytic U, three repetitions of 30 frames)
+use the same isolated `runtime-final` backend SHA256 as the preceding suite.
+The 1869-vertex/7356-tet bunny, 425-vertex/768-triangle mesh collider, initial
+positions, materials, dt=0.01, frictionless contact and kappa are unchanged.
+Full scene configuration matches Hybrid/regular except `newton/solver`.
+Local-stencil configuration entries are ignored by the global solver. Its
+native initialization and globalization are retained. Semi-implicit early
+termination is disabled in both arms. Both use native Info logging, and the
+before/after measurements occurred on different dates, not interleaved.
+
+**Stopping is not equivalent.** The global path checks maximum-axis Newton
+displacement <= `velocity_tol * dt = 0.0001 m` and requires CCD alpha >= 1.
+The stencil path checks max free-vertex `||gradient||/(mass*dt) <= 0.01 m/s`.
+The same numeric tolerance does not imply the same accuracy. The measurements
+below are observed execution-time ratios of these configurations, not
+matched-accuracy speedups or a comparison against the complete paper method.
+
+Median seconds per contact frame (common frames 12-30, three repetitions):
+
+| Scene | Native global [range] | Stencil Hybrid/regular | Stencil Hybrid/local | Stencil batched local |
+| --- | ---: | ---: | ---: | ---: |
+| Triangle-mesh U | 0.05986 [0.05946, 0.06227] | 17.8656 | 31.0353 | 20.7829 |
+| Analytic U | 0.02802 [0.02783, 0.02839] | 10.4825 | 17.8165 | 12.7394 |
+
+For mesh U, observed stencil/global ratios are 298.5, 518.5 and 347.2.
+For analytic U, they are 374.1, 635.8 and 454.6. Native global median total
+advance time for all 30 frames is 1.4804 s (mesh U) and 0.7769 s (analytic U),
+excluding initialization, retrieving/saving geometry and independent checks.
+Mesh-U process wall time including those tasks is 4.55-6.41 s. Global Newton
+uses 2-14 iterations in a mesh contact frame (2-12 for analytic U); these are
+not equivalent work units to stencil passes, and include PCG inner iterations.
+Across the full mesh runs, PCG uses 8295-8570 accumulated iterations.
+
+All six runs passed: 180 native displacement/CCD convergence certificates,
+186 saved-state self checks and 93 mesh-collider intersection checks. The
+audit verifies positive determinants/gaps, no iteration/search limits, source
+and runtime hashes, physical parameters, serial log intervals and executed
+fixed-collider guards. Raw logs confirm RTX 3060 Ti and the fused-PCG path,
+with no local-stencil residual records. This is an actual global solve, not
+CPU execution or an accidentally reused stencil result.
+
+Paired global-versus-stencil maximum saved-position differences are 2.0473 mm
+(mesh Hybrid/regular), 2.0469 mm (mesh local), 1.8783 mm (mesh batched), and
+at most 0.2504 mm in analytic U. Mesh final RMS difference against regular is
+1.431-1.580 mm. Neither trajectory is designated exact ground truth. These
+differences must accompany the timing comparison: a future fair algorithmic
+benchmark needs a common independently evaluated accuracy target.
+
+Results, per-frame/native logs, snapshots, independent check reports and the
+reproducible `run.py`/`analyze.py` are under `output/sos-global-20261008/`;
+`comparison-audit.json` records the complete comparison and its limits.
+The Python example compiles and all six full simulations passed; no native
+rebuild or additional unit-test suite was needed for this selector-only change.
+
+```powershell
+$env:UIPC_LOCAL_PACKAGE = (Resolve-Path output/sos-contact-20261007/runtime-final).Path
+python python/examples/local_stencil_bunny_ablation.py --case --mode global `
+  --scene mesh-u --frames 30 --output output/bunny-global-mesh-u
+```
+
+The benchmark is complete with no background run. The existing solver can
+simulate this small scene quickly; the current stencil path has a large
+performance gap. The different stopping rules, global error relaxation and
+per-pass execution/logging overhead must be separated before attributing the
+entire observed ratio to a single algorithmic cause.
+
 ## Remaining scope
 
 This stage reduces repeated evaluation work. It does not implement append-only

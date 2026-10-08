@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The native global Newton baseline (2026-10-08, [24](24-sos-contact-execution.md))
+completes the same mesh-U contact frames in 0.05986 s/frame and analytic U in
+0.02802 s/frame, with all six runs verified. This confirms a large current
+stencil performance gap on a scene the existing backend handles quickly.
+Stopping metrics are different and mesh trajectories differ by up to 2.0473 mm;
+the observed hundreds-fold time ratios are not matched-accuracy speedups.
+A common accuracy target remains necessary for an algorithmic comparison.
+
 The [contact execution follow-up](24-sos-contact-execution.md) reuses per-iterate
 elastic/barrier evaluation state and certifies small-motion inversion bounds
 without unnecessary root searches. Strict 120-frame cloth integration and 156

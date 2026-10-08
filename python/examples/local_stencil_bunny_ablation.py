@@ -1,6 +1,8 @@
 """Serial single-bunny update/CCD ablations with unchanged solve accuracy.
 
 Use --suite for floor and analytic U-channel runs, or --case for one run.
+Use --case --mode global for the existing global Newton solver; its native
+displacement stopping rule differs from the stencil gradient criterion.
 Set UIPC_LOCAL_PACKAGE to an isolated built Python runtime when another
 simulation is using the checkout runtime. Timings include native logging.
 """
@@ -88,11 +90,11 @@ def case(args):
         return min(float(((positions - p) @ n).min()) for p, n in planes)
     if gap(x) <= args.contact_distance:
         raise RuntimeError("Initial bunny must be separated from every collider")
-    sweep, globalization, inner = MODES[args.mode]
+    sweep, globalization, inner = MODES.get(args.mode, MODES["hybrid"])
     config = Scene.default_config()
     config["dt"] = args.dt
     config["gravity"] = [[0.], [-9.8], [0.]]
-    config["newton"]["solver"] = "local_stencil"
+    config["newton"]["solver"] = "global" if args.mode == "global" else "local_stencil"
     local = config["newton"]["local_stencil"]
     local.update(sweep=sweep, globalization=globalization, inner_sweeps=inner,
                  initial_guess="inertial", stopping="velocity", color_limit=15,
@@ -145,7 +147,8 @@ def case(args):
                     runtime_sha256=hashlib.sha256((runtime / "uipc_backend_cuda.dll").read_bytes()).hexdigest(),
                     planes=[dict(point=p.tolist(), normal=n.tolist()) for p, n in planes],
                     channel_bottom_width=width, channel_wall_angle_degrees=25.,
-                    stopping="max free-vertex ||gradient||/(mass*dt), identical in every mode",
+                    stopping=("Native global Newton displacement tolerance plus CCD; not equivalent to the stencil gradient criterion"
+                              if args.mode == "global" else "max free-vertex ||gradient||/(mass*dt), identical in every stencil mode"),
                     gs_scope="Full elastic and dynamic contact vertex-conflict coloring; CPU greedy, not GPU Vivace",
                     local_scope="Local CCD/Armijo with retained global certification; no append-only barrier history or paper warm start",
                     parameters={k: v for k, v in vars(args).items() if k not in {"output", "suite", "case", "wait_for", "repeats", "resume_suite"}})
@@ -439,7 +442,8 @@ def main():
     parser.add_argument("--scenes", nargs="+", choices=["floor", "u", "mesh-u"], default=["floor", "u"])
     parser.add_argument("--modes", nargs="+", choices=list(MODES))
     parser.add_argument("--collider-subdivisions", type=int, default=8)
-    parser.add_argument("--mode", choices=list(MODES), default="hybrid")
+    parser.add_argument("--mode", choices=[*MODES, "global"], default="hybrid",
+                        help="Single-case solver; global uses native displacement stopping and is excluded from stencil-only suites")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frames", type=int, default=30)
     parser.add_argument("--repeats", type=int, default=3)
