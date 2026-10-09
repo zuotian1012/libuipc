@@ -6,6 +6,22 @@
 > barriers, conservative history and CSFD are superseded. Preserve the completed
 > baselines. This new task is not complete; no full-paper performance claim.
 
+> **Custom objective integration in progress (2026-10-09)**: custom barriers,
+> per-frame full-primitive history and inertia-barrier warm start are wired to
+> local/global energy evaluation. Diagnostics found a monotone merge rejection
+> loop, excess inactive solver supports, unrelaxed Jacobi instability and a new
+> squared-distance/distance kappa-unit mismatch. Details and failed-run evidence
+> are in [25](25-sos-paper-completion.md). Do not call the full method complete
+> or use these partial trajectories as performance results. Original controls
+> remain available; no tolerance was relaxed.
+
+> **Guarded custom-objective trajectory verified (2026-10-09)**: objective
+> expansion now invalidates the old direction, not only its convergence flag.
+> Primary coverage + monotone merge + single sweeps completed 120 cloth drape
+> frames (65.22 s advance, max 70 iterations); independent checks passed 121
+> states and 120 certificates. Local merge still fails at frame 27. This is a
+> control result, not completed paper reproduction. See [25](25-sos-paper-completion.md).
+
 > **Native global baseline completed (2026-10-08)**: [24](24-sos-contact-execution.md)
 > now records six full global Newton/fused-PCG runs on the same runtime/physics.
 > Mesh-U contact median is 0.05986 s/frame (30 frames: 1.4804 s), analytic U

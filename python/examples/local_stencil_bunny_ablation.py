@@ -100,6 +100,11 @@ def case(args):
                  initial_guess="inertial", stopping="velocity", color_limit=15,
                  color_coverage="independent")
     local["hessian_product"] = args.hessian_product
+    local["barrier_model"] = args.barrier_model
+    local["barrier_stiffness"] = args.barrier_stiffness
+    local["merge_acceptance"] = args.merge_acceptance
+    local["warm_start"] = int(args.warm_start)
+    local["warm_start_relaxation"] = args.warm_relaxation
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -292,7 +297,7 @@ def suite(args):
                 tolerance=args.tolerance, bunny_young=args.bunny_young, contact_distance=args.contact_distance,
                 max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
                 selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
-                hessian_product=args.hessian_product,
+                hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
         previous = json.loads((root / "suite.json").read_text())
@@ -301,6 +306,11 @@ def suite(args):
         previous.setdefault("collider_subdivisions", 8)
         previous.setdefault("timers", False)
         previous.setdefault("hessian_product", "assembled")
+        previous.setdefault("barrier_model", "ipc")
+        previous.setdefault("barrier_stiffness", "distance" if previous.get("barrier_model") == "sos" else "ipc")
+        previous.setdefault("merge_acceptance", "monotone")
+        previous.setdefault("warm_start", False)
+        previous.setdefault("warm_relaxation", 1.)
         if json.loads(json.dumps(spec)) != previous:
             raise ValueError("Suite resume requires identical controls")
     else:
@@ -323,7 +333,9 @@ def suite(args):
                     command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
                 if args.timers:
                     command.append("--timers")
-                command += ["--hessian-product", args.hessian_product]
+                command += ["--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
+                if args.warm_start:
+                    command += ["--warm-start"]
                 write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
                 with (folder / "simulation.log").open("w") as stdout, (folder / "stderr.log").open("w") as stderr:
                     process = subprocess.run(command, stdout=stdout, stderr=stderr)
@@ -447,6 +459,11 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=list(MODES))
     parser.add_argument("--collider-subdivisions", type=int, default=8)
     parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
+    parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
+    parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
+    parser.add_argument("--warm-start", action="store_true", help="SoS inertia-barrier warm start; requires --barrier-model sos")
     parser.add_argument("--mode", choices=[*MODES, "global"], default="hybrid",
                         help="Single-case solver; global uses native displacement stopping and is excluded from stencil-only suites")
     parser.add_argument("--output", type=Path, required=True)

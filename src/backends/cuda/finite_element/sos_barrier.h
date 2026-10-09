@@ -6,6 +6,22 @@ namespace uipc::backend::cuda::fem
 // Equation 11 uses a distance, not libuipc's squared-distance IPC parameter.
 // The caller supplies positive geometric clearance (distance minus thickness).
 // kappa includes the incremental-potential time scale exactly once.
+// The native IPC dispatcher uses a squared-distance log^2 barrier, whereas
+// Eq.11 uses a distance log barrier. Their kappas have different dimensions.
+// Match normal force at clearance c=h/2, before per-pair compensation. This
+// explicit reference calibration does not equate the two potentials elsewhere.
+UIPC_GENERIC inline Float sos_distance_stiffness(Float ipc_kappa, Float h, Float thickness)
+{
+    const Float c = .5 * h, q = c * c + 2 * thickness * c,
+                range = h * h + 2 * thickness * h;
+    const Float delta = q - range, logarithm = log(q / range);
+    const Float native_derivative =
+        ipc_kappa * (2 * delta * logarithm * logarithm + 2 * delta * delta * logarithm / q)
+        * 2 * (c + thickness);
+    const Float distance_derivative = -(c - h) * (2 * log(c / h) + (c - h) / c);
+    return native_derivative / distance_derivative;
+}
+
 struct SoSBarrierParameters
 {
     Float activation_distance = 0;

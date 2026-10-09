@@ -137,7 +137,7 @@ void SimEngine::advance()
         return alpha;
     };
 
-    auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
+    auto compute_energy = [this, filter_dcd_candidates, stencil_solver](Float alpha) -> Float
     {
         // Step Forward => x = x_0 + alpha * dx
         m_global_vertex_manager->step_forward(alpha);
@@ -153,7 +153,9 @@ void SimEngine::advance()
         filter_dcd_candidates();
 
         // Compute New Energy => E
-        return m_line_searcher->compute_energy(false);
+        return stencil_solver && stencil_solver->customized_barriers() ?
+                   stencil_solver->objective_energy() :
+                   m_line_searcher->compute_energy(false);
     };
 
     auto compute_animation_substep_ratio = [this](SizeT newton_iter)
@@ -412,10 +414,20 @@ void SimEngine::advance()
                     detect_trajectory_candidates(alpha);
 
                     // Compute Current Energy => E_0
-                    Float E0 = m_line_searcher->compute_energy(true);  // initial energy
+                    const bool objective_expanded =
+                        stencil_solver && stencil_solver->customized_barriers()
+                        && stencil_solver->prepare_global_objective(alpha);
+                    Float E0 = stencil_solver && stencil_solver->customized_barriers() ?
+                                   stencil_solver->objective_energy() :
+                                   m_line_searcher->compute_energy(true);
 
                     // CCD filter
                     alpha = filter_toi(alpha);
+                    if(objective_expanded)
+                    {
+                        alpha = 0;
+                        logger::info("SoS objective expanded; recomputing direction at unchanged iterate");
+                    }
 
                     // CFL Condition (Stiff-GIPC design: the per-step speed cap
                     // applies only when some trajectory pair actually hits within
@@ -449,7 +461,10 @@ void SimEngine::advance()
 
                         // Check Energy Decrease
                         // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
-                        bool energy_decrease = (E <= E0);
+                        bool energy_decrease =
+                            (E <= E0)
+                            || (stencil_solver && stencil_solver->accepts_local_merges()
+                                && std::isfinite(E));
 
                         // Check Inversion
                         // TODO: Inversion check if needed

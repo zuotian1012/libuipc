@@ -47,7 +47,13 @@ def main():
     parser.add_argument("--solver", choices=["local_stencil", "global"], default="local_stencil")
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--inner-sweeps", type=int, default=1)
+    parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
     parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
+    parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
+    parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
+    parser.add_argument("--warm-start", action="store_true", help="SoS inertia-barrier warm start; requires --barrier-model sos")
     parser.add_argument("--resolution", type=int, default=6)
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--dt", type=float, default=.01)
@@ -59,17 +65,28 @@ def main():
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.solver == "global" and (args.barrier_model != "ipc" or args.warm_start
+                                   or args.hessian_product != "assembled"
+                                   or args.merge_acceptance != "monotone"):
+        parser.error("SoS objective, warm start, local merge and CSFD controls require --solver local_stencil")
     if min(args.frames, args.resolution, args.max_iterations) < 1 or args.dt <= 0 or args.tolerance <= 0 or args.bending_scale < 0:
         parser.error("counts, dt and tolerance must be positive; bending scale must be nonnegative")
     run = f"{args.solver}-{args.sweep}" if args.solver == "local_stencil" else args.solver
     output = (args.output or ROOT / "output/local-stencil-cloth" / args.scene / args.membrane / run).resolve()
     (output / "frames").mkdir(parents=True, exist_ok=True)
+    (output / "run.json").write_text(json.dumps(vars(args), default=str, indent=2), encoding="utf-8")
     Logger.set_level(Logger.Level.Info if args.verbose else Logger.Level.Warn)
     config = Scene.default_config()
     config["newton"]["solver"] = args.solver
     config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
+    config["newton"]["local_stencil"]["color_coverage"] = args.color_coverage
     config["newton"]["local_stencil"]["hessian_product"] = args.hessian_product
+    config["newton"]["local_stencil"]["barrier_model"] = args.barrier_model
+    config["newton"]["local_stencil"]["barrier_stiffness"] = args.barrier_stiffness
+    config["newton"]["local_stencil"]["merge_acceptance"] = args.merge_acceptance
+    config["newton"]["local_stencil"]["warm_start"] = int(args.warm_start)
+    config["newton"]["local_stencil"]["warm_start_relaxation"] = args.warm_relaxation
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -157,6 +174,8 @@ def main():
             raise RuntimeError(f"Simulation failed at frame {frame}")
         x = np.concatenate([np.asarray(s.geometry().positions().view()).reshape(-1, 3).copy() for s in slots])
         stats = engine.frame_stats()
+        with (output / "frame-stats.jsonl").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({**stats, "frame": frame, "elapsed_ms": elapsed}) + "\n")
         tri = x[cloth_faces]
         area_ratio = np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1) / rest_areas
         pin_error = float(np.linalg.norm(x[fixed_ids] - rest[fixed_ids], axis=1).max()) if len(fixed_ids) else 0.
@@ -186,6 +205,9 @@ def main():
         writer.writeheader()
         writer.writerows(history)
     summary = dict(scene=args.scene, membrane=args.membrane, solver=args.solver, sweep=args.sweep,
+                   barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
+                   tolerance=args.tolerance, inner_sweeps=args.inner_sweeps,
+                   color_coverage=args.color_coverage,
                    frames=args.frames, vertices=len(rest), cloth_triangles=len(cloth_faces),
                    tetrahedra=len(tets), bending_scale=args.bending_scale,
                    min_area_ratio=min(h["min_area_ratio"] for h in history),

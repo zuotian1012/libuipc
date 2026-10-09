@@ -111,6 +111,8 @@ namespace
 
 void FEMLocalStencilSolver::prepare_barriers()
 {
+    if(m_custom_barriers)
+        return;
     const int n = static_cast<int>(m_contact_stencils.size());
     CUDA_TOOL_CHECK(
         cudaMemset(m_barrier_counts.data(), 0, m_barrier_counts.size() * sizeof(IndexT)));

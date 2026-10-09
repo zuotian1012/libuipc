@@ -99,6 +99,37 @@ static SceneConfigContract make_scene_config_contract()
         "Local applies per-stencil CCD/Armijo before merging; regular filters only the combined proposal. Global CCD/energy acceptance remains in both. Additive ignores this option.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"local", "regular"})}});
+    add("newton/local_stencil/merge_acceptance",
+        std::string{"monotone"},
+        "string",
+        "Monotone retains an additional global energy-decrease guard. Local accepts independently Armijo-filtered stencil merges after combined CCD/inversion and finite-energy certification, without imposing global monotonicity. Requires local globalization.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
+         "src/backends/cuda/engine/advance_ipc.cu"},
+        Json{{"enum", Json::array({"monotone", "local"})}});
+    add("newton/local_stencil/warm_start_relaxation",
+        Float{1},
+        "number",
+        "Maximum local trial fraction during inertia-barrier warm start. One is the unrelaxed paper control; smaller values explicitly under-relax Jacobi before local Armijo. Final residual tolerances are unchanged.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_linesearch.cu"},
+        Json{{"exclusiveMinimum", 0}, {"maximum", 1}});
+    add("newton/local_stencil/warm_start",
+        IndexT{0},
+        "integer",
+        "Enable acceleration prediction and a separate inertia-barrier Jacobi solve before elasticity. Requires the SoS barrier model; zero disables.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({0, 1})}});
+    add("newton/local_stencil/barrier_stiffness",
+        std::string{"ipc"},
+        "string",
+        "SoS kappa interpretation. IPC calibrates the native squared-distance coefficient to the distance barrier by matching normal force at half the global activation clearance for the native log-squared barrier; distance interprets the coefficient directly in Eq.11 units. Effective only with barrier_model=sos.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_history.cu"},
+        Json{{"enum", Json::array({"ipc", "distance"})}});
+    add("newton/local_stencil/barrier_model",
+        std::string{"ipc"},
+        "string",
+        "IPC control or SoS distance barriers with immutable per-step coefficients and conservative full-primitive history. SoS requires local globalization.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_barriers.cu"},
+        Json{{"enum", Json::array({"ipc", "sos"})}});
     add("newton/local_stencil/hessian_product",
         std::string{"assembled"},
         "string",

@@ -2,6 +2,7 @@
 #include <finite_element/finite_element_method.h>
 #include <finite_element/local_stencil_elastic.h>
 #include <finite_element/local_stencil_inversion.h>
+#include <finite_element/sos_contact.h>
 #include <contact_system/contact_models/codim_ipc_simplex_normal_contact_function.h>
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
 #include <utils/distance/ccd.h>
@@ -44,6 +45,10 @@ namespace
         ct::CBufferView<Matrix3x3>          deformation;
         ct::CBufferView<Float> elastic_energy, barrier_energy_at_start;
 
+        bool                      inertia_only = false;
+        ct::CBufferView<Vector4i> update_stencils;
+        Float                     direction_fraction = 1;
+
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
         {
             using namespace sym::codim_ipc_simplex_contact;
@@ -82,6 +87,8 @@ namespace
                     return std::numeric_limits<Float>::infinity();
                 D = gap * gap;
             }
+            if(term.customized)
+                return fem::sos_contact_energy(term, p, D);
             const auto range = D_range(term.thickness, term.d_hat);
             if(D <= range(0))
                 return std::numeric_limits<Float>::infinity();
@@ -200,7 +207,8 @@ namespace
                         change = fem::stencil_elastic_energy(term, trial)
                                  - elastic_energy(e);
                     }
-                    result.change += dt * dt * change;
+                    if(!inertia_only)
+                        result.change += dt * dt * change;
                 }
                 for(int k = barrier_offsets(v); k < barrier_offsets(v + 1); ++k)
                 {
@@ -331,9 +339,16 @@ namespace
             UIPC_KERNEL_ASSERT(gap > term.thickness, "Infeasible frozen plane barrier %d", e);
             D = gap * gap;
         }
-        Vector12    g     = Vector12::Zero();
-        Matrix12x12 H     = Matrix12x12::Zero();
-        const auto  range = D_range(term.thickness, term.d_hat);
+        Vector12    g = Vector12::Zero();
+        Matrix12x12 H = Matrix12x12::Zero();
+        if(term.customized)
+        {
+            fem::sos_contact_derivatives(term, p, g, H);
+            gradients(e) = g;
+            hessians(e)  = H;
+            return;
+        }
+        const auto range = D_range(term.thickness, term.d_hat);
         UIPC_KERNEL_ASSERT(fem::stencil_finite(D) && D > range(0),
                            "Infeasible frozen barrier %d",
                            e);
@@ -484,7 +499,7 @@ namespace
             else
                 change = fem::stencil_elastic_energy(term, q)
                          - objective.elastic_energy(e);
-            changes(i) = objective.dt * objective.dt * change;
+            changes(i) = objective.inertia_only ? 0 : objective.dt * objective.dt * change;
         }
         else
         {
@@ -496,6 +511,36 @@ namespace
                     d.segment<3>(3 * a) = dx(ids(a));
             changes(i) = objective.barrier_energy(e, ids, d, alpha)
                          - objective.barrier_energy_at_start(e);
+        }
+    }
+
+    __global__ void stencil_objective_energy_kernel(LocalObjective objective,
+                                                    ct::BufferView<Float> values)
+    {
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= values.size())
+            return;
+        int e = i;
+        if(e < objective.xs.size())
+            values(i) = .5 * objective.masses(e)
+                        * (objective.xs(e) - objective.predicted(e)).squaredNorm();
+        else if((e -= objective.xs.size()) < objective.elements.size())
+        {
+            Vector3    p[4];
+            const auto ids = objective.elements(e);
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                    p[a] = objective.xs(ids(a));
+            values(i) = objective.inertia_only ?
+                            0 :
+                            objective.dt * objective.dt
+                                * fem::stencil_elastic_energy(objective.terms(e), p);
+        }
+        else
+        {
+            e -= objective.elements.size();
+            values(i) =
+                objective.barrier_energy(e, objective.contacts(e), Vector12::Zero(), 0);
         }
     }
 
@@ -538,12 +583,14 @@ namespace
             atomicAdd(&statistics(4), 1);
             return;
         }
-        const Vector4i s          = t < objective.elements.size() ?
+        const Vector4i s          = objective.update_stencils.size() ?
+                                        objective.update_stencils(t) :
+                                    t < objective.elements.size() ?
                                         objective.elements(t) :
                                         objective.contacts(t - objective.elements.size());
         auto           evaluation = objective.evaluate(s, d, 1, true);
         const int      ccd = evaluation.ccd, inversion = evaluation.inversion;
-        Float          alpha = evaluation.alpha;
+        Float alpha = min(evaluation.alpha, objective.direction_fraction);
         if(alpha > 0 && alpha < 1)
             evaluation = objective.evaluate(s, d, alpha, false);
         int  backtracks = 0;
@@ -605,7 +652,7 @@ bool FEMLocalStencilSolver::accept_inner_step()
     m_scalar.view().copy_to(&slope);
     if(!std::isfinite(slope))
         throw SimEngineException("Nonfinite frozen-objective slope.");
-    if(slope >= 0)
+    if(slope >= 0 && !m_local_merge_acceptance)
         return false;
     LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),
@@ -622,7 +669,8 @@ bool FEMLocalStencilSolver::accept_inner_step()
                              world().scene().dt(),
                              m_filter_deformation.cview(),
                              m_filter_elastic_energy.cview(),
-                             m_filter_barrier_energy.cview()};
+                             m_filter_barrier_energy.cview(),
+                             m_warm_active};
     Float          alpha    = 1;
     const int      contacts = static_cast<int>(m_contact_stencils.size());
     if(contacts)
@@ -646,7 +694,8 @@ bool FEMLocalStencilSolver::accept_inner_step()
         ct::DeviceReduce().Sum(m_inner_values.data(), m_scalar.data(), count);
         Float change;
         m_scalar.view().copy_to(&change);
-        if(std::isfinite(change) && change <= 1e-4 * alpha * slope)
+        if(std::isfinite(change)
+           && (m_local_merge_acceptance || change <= 1e-4 * alpha * slope))
         {
             stencil_inner_commit_kernel<<<(vertices + 127) / 128, 128>>>(
                 m_fem->m_impl.xs.view(), m_fem->m_impl.dxs.cview(), alpha);
@@ -682,7 +731,11 @@ void FEMLocalStencilSolver::filter_local_steps()
                              world().scene().dt(),
                              m_filter_deformation.cview(),
                              m_filter_elastic_energy.cview(),
-                             m_filter_barrier_energy.cview()};
+                             m_filter_barrier_energy.cview(),
+                             m_warm_active,
+                             m_custom_barriers ? m_update_stencils.cview() :
+                                                 ct::CBufferView<Vector4i>{},
+                             m_warm_active ? m_warm_relaxation : 1};
     stencil_filter_state_kernel<<<(elastic_count + contact_count + 127) / 128, 128>>>(
         objective,
         m_filter_deformation.view(),
@@ -703,5 +756,35 @@ void FEMLocalStencilSolver::filter_local_steps()
                  statistics[2],
                  statistics[3],
                  statistics[4]);
+}
+Float FEMLocalStencilSolver::objective_energy()
+{
+    LocalObjective objective{m_elastic_stencils.cview(),
+                             m_contact_stencils.cview(),
+                             m_fem->xs(),
+                             m_fem->x_bars(),
+                             m_fem->x_tildes(),
+                             m_fem->masses(),
+                             m_elastic_terms.cview(),
+                             m_vertex_offsets.cview(),
+                             m_vertex_elements.cview(),
+                             m_barrier_offsets.cview(),
+                             m_barrier_entries.cview(),
+                             m_barrier_terms.cview(),
+                             world().scene().dt(),
+                             {},
+                             {},
+                             {},
+                             m_warm_active};
+    const SizeT    count =
+        m_fem->xs().size() + m_elastic_stencils.size() + m_contact_stencils.size();
+    m_objective_values.resize_discard(count);
+    stencil_objective_energy_kernel<<<(count + 127) / 128, 128>>>(
+        objective, m_objective_values.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    ct::DeviceReduce().Sum(m_objective_values.data(), m_scalar.data(), count);
+    Float energy;
+    m_scalar.view().copy_to(&energy);
+    return energy;
 }
 }  // namespace uipc::backend::cuda

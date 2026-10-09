@@ -33,6 +33,8 @@ struct LocalStencilCSFDOperator
             if(v < 0)
                 continue;
             result.segment<3>(3 * a) += masses(v) * direction.segment<3>(3 * a);
+            if(dt == 0)
+                continue;  // Inertia-barrier warm start excludes every elastic term.
             for(int k = offsets(v); k < offsets(v + 1); ++k)
             {
                 const int  e       = incident(k);

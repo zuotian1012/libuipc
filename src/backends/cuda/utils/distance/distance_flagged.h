@@ -731,7 +731,7 @@ UIPC_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
-            G.segment<3>(offsets[i] * 3) = G6.segment<3>(i * 3);
+            G.template segment<3>(offsets[i] * 3) = G6.template segment<3>(i * 3);
     }
     else if(dim == 3)
     {
@@ -745,7 +745,7 @@ UIPC_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)
-            G.segment<3>(offsets[i] * 3) = G9.segment<3>(i * 3);
+            G.template segment<3>(offsets[i] * 3) = G9.template segment<3>(i * 3);
     }
     else if(dim == 4)
     {
@@ -782,7 +782,7 @@ UIPC_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
-            G.segment<3>(offsets[i] * 3) = G6.segment<3>(i * 3);
+            G.template segment<3>(offsets[i] * 3) = G6.template segment<3>(i * 3);
     }
     else if(dim == 3)
     {
@@ -796,7 +796,7 @@ UIPC_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)
-            G.segment<3>(offsets[i] * 3) = G9.segment<3>(i * 3);
+            G.template segment<3>(offsets[i] * 3) = G9.template segment<3>(i * 3);
     }
     else if(dim == 4)
     {

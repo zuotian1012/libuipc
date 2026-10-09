@@ -127,6 +127,12 @@ namespace
 
 void FEMLocalStencilSolver::prepare_contacts()
 {
+    if(m_custom_barriers)
+    {
+        prepare_custom_contacts(0);
+        m_history_changed = false;  // Derivatives will use the newly built list.
+        return;
+    }
     const int vertices = static_cast<int>(m_contact_gradients.size());
     stencil_contact_reset_kernel<<<(vertices + 127) / 128, 128>>>(
         m_contact_gradients.view(),
@@ -192,7 +198,7 @@ void FEMLocalStencilSolver::prepare_contacts()
 
 fem::LocalStencilContactView FEMLocalStencilSolver::contact_view() const
 {
-    if(m_inner_sweeps > 1)
+    if(m_inner_sweeps > 1 || m_custom_barriers)
         return {m_contact_gradients.cview(),
                 m_barrier_offsets.cview(),
                 m_barrier_entries.cview(),

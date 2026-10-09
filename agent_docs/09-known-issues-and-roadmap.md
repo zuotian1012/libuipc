@@ -1,5 +1,15 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+The [complete SoS implementation](25-sos-paper-completion.md) is active.
+The CSFD foundation completed a 120-frame cloth drape. Custom-objective/history
+and warm-start integration pass 187 assertions. Kappa calibration resolves the
+initial warm-start stall, but full elasticity still oscillates at frame 27 even
+without batching. EE mollification is complete; recomputation after objective
+expansion fixes a separate stale-direction failure. A monotone/primary-coverage
+control now passes 120 drape frames, but local merge still fails at frame 27.
+Paper-path trajectories and packed products remain open. This is
+not yet the complete paper method.
+
 The native global Newton baseline (2026-10-08, [24](24-sos-contact-execution.md))
 completes the same mesh-U contact frames in 0.05986 s/frame and analytic U in
 0.02802 s/frame, with all six runs verified. This confirms a large current

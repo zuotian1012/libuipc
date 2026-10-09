@@ -3,6 +3,9 @@
 #include <finite_element/local_stencil_elastic_data.h>
 #include <cuda_tool/cuda_tool.h>
 #include <finite_element/local_stencil_contact.h>
+#include <finite_element/local_stencil_barrier.h>
+#include <finite_element/sos_barrier_history.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -12,15 +15,9 @@ class FiniteElementVertexReporter;
 class GlobalTrajectoryFilter;
 class GlobalContactManager;
 class GlobalVertexManager;
+class GlobalSimplicialSurfaceManager;
 class HalfPlane;
 class HalfPlaneVertexReporter;
-
-struct StencilBarrierTerm
-{
-    IndexT  type      = 0;  // PT, EE, PE, PP, PH
-    Float   kappa_dt2 = 0, d_hat = 0, thickness = 0;
-    Vector3 plane_position = Vector3::Zero(), plane_normal = Vector3::Zero();
-};
 
 // Frictionless stencil Newton-CG. One call produces a single pass or a batch of
 // complementary-color proposals. Inner updates use a frozen contact objective;
@@ -33,15 +30,23 @@ class FEMLocalStencilSolver final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    void solve();
-    bool converged() const;
-    bool valid_configuration();
+    void  solve();
+    bool  converged() const;
+    bool  valid_configuration();
+    bool  customized_barriers() const { return m_custom_barriers; }
+    bool  accepts_local_merges() const { return m_local_merge_acceptance; }
+    bool  prepare_global_objective(Float alpha);
+    Float objective_energy();
 
   private:
     void                         do_build() override;
     void                         init();
     void                         init_elastic();
     void                         prepare_contacts();
+    void                         prepare_custom_contacts(Float alpha);
+    void                         build_custom_barriers();
+    bool                         begin_warm_start();
+    bool                         residual_converged() const;
     void                         solve_sweep(bool first);
     void                         refresh_frozen_contacts();
     bool                         accept_inner_step();
@@ -55,43 +60,61 @@ class FEMLocalStencilSolver final : public SimSystem
     bool do_try_recover(RecoverInfo& info) override;
     void do_apply_recover(RecoverInfo& info) override;
 
-    FiniteElementMethod*                        m_fem                = nullptr;
-    FEMDyTopoEffectReceiver*                    m_contact_receiver   = nullptr;
-    FiniteElementVertexReporter*                m_vertex_reporter    = nullptr;
-    GlobalTrajectoryFilter*                     m_trajectory_filter  = nullptr;
-    GlobalContactManager*                       m_contact_manager    = nullptr;
-    GlobalVertexManager*                        m_vertices           = nullptr;
-    HalfPlane*                                  m_planes             = nullptr;
-    HalfPlaneVertexReporter*                    m_plane_reporter     = nullptr;
-    bool                                        m_hybrid             = true;
-    bool                                        m_jacobi             = false;
-    bool                                        m_gs                 = false;
-    bool                                        m_local_filter       = true;
-    bool                                        m_inertial_guess     = false;
-    bool                                        m_gradient_stopping  = false;
-    bool                                        m_primary_coverage   = false;
-    bool                                        m_restart_schedule   = false;
-    bool                                        m_csfd_product       = false;
-    IndexT                                      m_inner_sweeps       = 1;
-    IndexT                                      m_inner_index        = 0;
-    Float                                       m_gradient_tolerance = 1e-4;
-    Float                                       m_gradient_norm      = 0;
-    IndexT                                      m_color_limit        = 8;
-    SizeT                                       m_sweep_index        = 0;
-    SizeT                                       m_recovered_sweep    = 0;
-    vector<Vector2i>                            m_color_passes;
-    cuda_tool::DeviceBuffer<IndexT>             m_colors, m_primary_owner;
-    cuda_tool::DeviceBuffer<IndexT>             m_gs_colors;
-    vector<IndexT>                              m_gs_elastic_colors;
-    vector<vector<IndexT>>                      m_gs_vertex_colors;
-    IndexT                                      m_gs_color_count = 0;
-    cuda_tool::DeviceBuffer<Vector3>            m_total_gradients;
-    cuda_tool::DeviceBuffer<Matrix3x3>          m_vertex_hessians;
-    cuda_tool::DeviceBuffer<Float>              m_direction_slopes;
-    cuda_tool::DeviceBuffer<Float>              m_global_slopes;
-    cuda_tool::DeviceBuffer<IndexT>             m_local_statistics;
-    cuda_tool::DeviceBuffer<StencilBarrierTerm> m_barrier_terms;
-    cuda_tool::DeviceBuffer<Matrix3x3>          m_filter_deformation;
+    FiniteElementMethod*            m_fem                    = nullptr;
+    FEMDyTopoEffectReceiver*        m_contact_receiver       = nullptr;
+    FiniteElementVertexReporter*    m_vertex_reporter        = nullptr;
+    GlobalTrajectoryFilter*         m_trajectory_filter      = nullptr;
+    GlobalContactManager*           m_contact_manager        = nullptr;
+    GlobalVertexManager*            m_vertices               = nullptr;
+    HalfPlane*                      m_planes                 = nullptr;
+    HalfPlaneVertexReporter*        m_plane_reporter         = nullptr;
+    bool                            m_hybrid                 = true;
+    bool                            m_jacobi                 = false;
+    bool                            m_gs                     = false;
+    bool                            m_local_filter           = true;
+    bool                            m_inertial_guess         = false;
+    bool                            m_gradient_stopping      = false;
+    bool                            m_primary_coverage       = false;
+    bool                            m_restart_schedule       = false;
+    bool                            m_convert_ipc_stiffness  = true;
+    GlobalSimplicialSurfaceManager* m_surface                = nullptr;
+    Float                           m_warm_relaxation        = 1;
+    bool                            m_local_merge_acceptance = false;
+    bool                            m_custom_barriers        = false;
+    bool                            m_history_changed        = false;
+    SizeT                           m_history_frame          = ~SizeT{0};
+    bool   m_warm_enabled = false, m_warm_active = false;
+    SizeT  m_warm_frame  = ~SizeT{0};
+    Float  m_previous_dt = 0, m_recovered_dt = 0;
+    IndexT m_warm_iterations = 0;
+    cuda_tool::DeviceBuffer<Vector3>               m_previous_velocity;
+    BufferDump                                     m_velocity_dump;
+    cuda_tool::DeviceBuffer<Vector4i>              m_update_stencils;
+    fem::SoSBarrierHistory                         m_history;
+    cuda_tool::DeviceBuffer<fem::SoSBarrierRecord> m_history_candidates;
+    cuda_tool::DeviceBuffer<Vector3>               m_step_origin;
+    cuda_tool::DeviceBuffer<Float>                 m_objective_values;
+    bool                                           m_csfd_product       = false;
+    IndexT                                         m_inner_sweeps       = 1;
+    IndexT                                         m_inner_index        = 0;
+    Float                                          m_gradient_tolerance = 1e-4;
+    Float                                          m_gradient_norm      = 0;
+    IndexT                                         m_color_limit        = 8;
+    SizeT                                          m_sweep_index        = 0;
+    SizeT                                          m_recovered_sweep    = 0;
+    vector<Vector2i>                               m_color_passes;
+    cuda_tool::DeviceBuffer<IndexT>                m_colors, m_primary_owner;
+    cuda_tool::DeviceBuffer<IndexT>                m_gs_colors;
+    vector<IndexT>                                 m_gs_elastic_colors;
+    vector<vector<IndexT>>                         m_gs_vertex_colors;
+    IndexT                                         m_gs_color_count = 0;
+    cuda_tool::DeviceBuffer<Vector3>               m_total_gradients;
+    cuda_tool::DeviceBuffer<Matrix3x3>             m_vertex_hessians;
+    cuda_tool::DeviceBuffer<Float>                 m_direction_slopes;
+    cuda_tool::DeviceBuffer<Float>                 m_global_slopes;
+    cuda_tool::DeviceBuffer<IndexT>                m_local_statistics;
+    cuda_tool::DeviceBuffer<StencilBarrierTerm>    m_barrier_terms;
+    cuda_tool::DeviceBuffer<Matrix3x3>             m_filter_deformation;
     cuda_tool::DeviceBuffer<Float> m_filter_elastic_energy, m_filter_barrier_energy;
     cuda_tool::DeviceBuffer<IndexT>   m_barrier_counts, m_barrier_offsets;
     cuda_tool::DeviceBuffer<IndexT>   m_barrier_cursors, m_barrier_entries;

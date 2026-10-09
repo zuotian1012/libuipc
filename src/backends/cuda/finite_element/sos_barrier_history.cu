@@ -51,6 +51,8 @@ namespace
         if(i >= candidates.size())
             return;
         const auto candidate = candidates(i);
+        if(candidate.key == ~U64{0})
+            return;
         UIPC_KERNEL_ASSERT((candidate.key >> 62) < 3, "Invalid SoS primitive key");
         if(insert_key(table, candidate.key))
         {

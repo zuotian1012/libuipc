@@ -2,6 +2,8 @@
 #include <finite_element/local_stencil_snk.h>
 #include <finite_element/local_stencil_csfd.h>
 #include <finite_element/sos_barrier_history.h>
+#include <finite_element/sos_contact.h>
+#include <contact_system/contact_models/codim_ipc_contact_function.h>
 #include <finite_element/local_stencil_inversion.h>
 #include <cuda_tool/cuda_tool.h>
 #include <app/app.h>
@@ -538,6 +540,18 @@ TEST_CASE("CSFD stress product matches the independent analytic element Hessian"
 
 TEST_CASE("SoS customized barrier and conservative primitive history", "[cuda][fem][stencil]")
 {
+    for(Float thickness : {Float{0}, Float{.003}})
+    {
+        const Float h = .005, k = 1e8, c = .5 * h;
+        Float       native_derivative;
+        sym::codim_ipc_contact::dKappaBarrierdD(
+            native_derivative, k, (c + thickness) * (c + thickness), h, thickness);
+        native_derivative *= 2 * (c + thickness);
+        const Float converted =
+            fem::sos_barrier(c, {h, fem::sos_distance_stiffness(k, h, thickness)})
+                .first;
+        CHECK(std::abs(converted / native_derivative - 1) < 1e-12);
+    }
     const auto parameters = fem::SoSBarrierParameters::from_reference(.01, .001, 10);
     CHECK(parameters.kappa == 1);
     CHECK(fem::sos_barrier(.01, parameters).energy == 0);
@@ -582,5 +596,74 @@ TEST_CASE("SoS customized barrier and conservative primitive history", "[cuda][f
     CHECK(fem::sos_pair_key(0, 3, 7) != fem::sos_pair_key(1, 3, 7));
     history.reset();
     CHECK(history.records().size() == 0);
+    records.assign(3, fem::SoSBarrierRecord{});
+    input.copy_from(records);
+    history.append(input.cview());
+    CHECK(history.records().size() == 0);
+}
+
+__global__ void sos_derivative_consistency_kernel(ct::BufferView<Vector3> errors)
+{
+    const int kind = threadIdx.x;
+    if(kind >= 5)
+        return;
+    StencilBarrierTerm term;
+    term.customized   = true;
+    term.type         = kind == 0 ? 0 : kind == 3 ? 4 : 1;
+    term.d_hat        = .3;
+    term.kappa_dt2    = 7;
+    term.thickness    = .01;
+    term.plane_normal = Vector3(0, 0, 1);
+    Vector3 p[4] = {Vector3(.2, .3, .1), Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 1, 0)};
+    if(kind == 1 || kind == 2 || kind == 4)
+    {
+        p[0] = Vector3(-.5, 0, 0);
+        p[1] = Vector3(.5, 0, 0);
+        p[2] = kind == 1 ? Vector3(0, -.5, .15) : Vector3(.7, 0, .1);
+        p[3] = kind == 1 ? Vector3(0, .5, .15) : Vector3(1.4, 0, .1);
+    }
+    if(kind == 4)
+    {
+        p[2]               = Vector3(.7, .002, .1);
+        p[3]               = Vector3(1.4, .009, .1);
+        term.mollifier_eps = 1e-3;
+    }
+    Vector12 direction;
+    for(int i = 0; i < 12; ++i)
+        direction(i) = .013 * (i - 5);
+    Vector12    g, gp, gm;
+    Matrix12x12 H, unused;
+    fem::sos_contact_derivatives(term, p, g, H);
+    constexpr Float step = 1e-6;
+    Vector3         plus[4], minus[4];
+    for(int a = 0; a < 4; ++a)
+    {
+        plus[a]  = p[a] + step * direction.segment<3>(3 * a);
+        minus[a] = p[a] - step * direction.segment<3>(3 * a);
+    }
+    fem::sos_contact_derivatives(term, plus, gp, unused);
+    fem::sos_contact_derivatives(term, minus, gm, unused);
+    const Float ep =
+        fem::sos_contact_energy(term, plus, fem::sos_distance_squared(term, plus));
+    const Float em =
+        fem::sos_contact_energy(term, minus, fem::sos_distance_squared(term, minus));
+    errors(kind) = Vector3(std::abs((ep - em) / (2 * step) - g.dot(direction)),
+                           ((gp - gm) / (2 * step) - H * direction).norm(),
+                           (H - H.transpose()).norm());
+}
+TEST_CASE("SoS full-primitive barrier uses the complete distance derivative chain", "[cuda][fem][stencil]")
+{
+    ct::DeviceBuffer<Vector3> errors(5);
+    sos_derivative_consistency_kernel<<<1, 5>>>(errors.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    Vector3 host[5];
+    errors.view().copy_to(host);
+    for(int i = 0; i < 5; ++i)
+    {
+        INFO("primitive branch " << i);
+        CHECK(host[i](0) < 1e-8);
+        CHECK(host[i](1) < 1e-7);
+        CHECK(host[i](2) < 1e-10);
+    }
 }
 }  // namespace local_stencil_test

@@ -25,7 +25,8 @@ struct SoSBarrierRecord
     U64                  key      = ~U64{0};
     Vector4i             vertices = Vector4i::Constant(-1);
     SoSBarrierParameters parameters;
-    Float                thickness = 0;
+    Float                thickness     = 0;
+    Float                mollifier_eps = 0;
     Vector3 plane_position = Vector3::Zero(), plane_normal = Vector3::Zero();
 };
 
