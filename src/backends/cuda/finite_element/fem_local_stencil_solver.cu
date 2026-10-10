@@ -696,9 +696,10 @@ void FEMLocalStencilSolver::init()
         config.find<IndexT>("newton/local_stencil/warm_start")->view()[0] != 0;
     const auto warm_inversion =
         config.find<std::string>("newton/local_stencil/warm_start_inversion")->view()[0];
-    if(warm_inversion != "iterative" && warm_inversion != "after")
-        throw SimEngineException("warm_start_inversion must be iterative or after.");
-    m_warm_post_inversion = warm_inversion == "after";
+    if(warm_inversion != "iterative" && warm_inversion != "after" && warm_inversion != "after_local")
+        throw SimEngineException("warm_start_inversion must be iterative, after or after_local.");
+    m_warm_post_inversion   = warm_inversion != "iterative";
+    m_warm_local_projection = warm_inversion == "after_local";
     m_warm_relaxation =
         config.find<Float>("newton/local_stencil/warm_start_relaxation")->view()[0];
     if(!std::isfinite(m_warm_relaxation) || m_warm_relaxation <= 0 || m_warm_relaxation > 1)
@@ -832,8 +833,20 @@ void FEMLocalStencilSolver::solve()
     if(m_warm_finishing)
     {
         m_warm_finishing = false;
-        m_warm_active    = false;
-        logger::info("SoS post-warm feasible path accepted; enabling elasticity");
+        if(m_history_changed)
+        {
+            // Global CCD can discover new pairs along the rebased path. The
+            // engine then rejects that proposal at the physical frame origin.
+            // Its old warm residual does not certify the expanded objective.
+            // Keep the new history and solve Eq.14 again before handing off.
+            m_warm_needs_rebase = false;
+            logger::info("SoS post-warm objective expanded; continuing inertia-barrier solve");
+        }
+        else
+        {
+            m_warm_active = false;
+            logger::info("SoS post-warm geometric filtering finished; enabling elasticity");
+        }
     }
     if(m_warm_enabled && begin_warm_start())
         return;
@@ -863,6 +876,8 @@ void FEMLocalStencilSolver::solve()
             m_fem->m_impl.xs.view().copy_from(m_step_origin.cview());
             m_warm_finishing = true;
             m_residual = m_gradient_norm = std::numeric_limits<Float>::infinity();
+            if(m_warm_local_projection)
+                project_warm_guess_locally();
             cap_combined_elastic_step();
             logger::info("SoS warm start converged in {} passes; submitting post-warm feasible path",
                          m_warm_iterations);

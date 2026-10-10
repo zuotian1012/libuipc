@@ -1,12 +1,14 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Current SoS checkpoint (2026-10-10): packed GPU local CG plus deferred warm
-inversion checking pass 202 assertions and 120 strict cloth drape frames with
-121 independent geometry checks. The initial always-rebase, expanded-activation
-variant completed 20 mesh-U bunny frames (max 3519 iterations), overcoming the
-frame-16 warm stall. Final conditional rebasing still needs complex coverage;
-reference activation and dense 120-frame bunny/cloth remain unverified. This is
-not full reproduction or a paper-speedup result. See [25](25-sos-paper-completion.md).
+Current SoS checkpoint (2026-10-10): packed GPU local CG and deferred warm
+inversion passed 120 strict cloth frames and a prototype passed 20 mesh-U
+bunny frames. Dense frame 9 exposed coupled warm self contact and an invalidated
+projection incorrectly handing off to elasticity. The new local projection
+control and history-aware warm restart compile and pass 202 assertions. The
+strict checkpoint-8 continuation passed expanded warm start at iteration 1425;
+full elasticity is still running. Damping (0.5) and expanded activation are
+explicit extensions. New dense 120-frame validation and matched performance
+remain open; this is not full reproduction. See [25](25-sos-paper-completion.md).
 
 The [complete SoS implementation](25-sos-paper-completion.md) is active.
 Custom-objective history, warm start and packed CSFD pass 202 assertions.

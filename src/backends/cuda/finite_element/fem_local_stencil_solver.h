@@ -58,6 +58,7 @@ class FEMLocalStencilSolver final : public SimSystem
     void                         refresh_frozen_contacts();
     bool                         accept_inner_step();
     void                         cap_combined_elastic_step();
+    void                         project_warm_guess_locally();
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void prepare_gs_coloring();
@@ -97,7 +98,8 @@ class FEMLocalStencilSolver final : public SimSystem
     SizeT                             m_history_frame          = ~SizeT{0};
     bool m_warm_enabled = false, m_warm_active = false;
     bool m_warm_post_inversion = false, m_warm_finishing = false;
-    bool m_warm_needs_rebase = false;
+    bool m_warm_needs_rebase     = false;
+    bool m_warm_local_projection = false;
     cuda_tool::DeviceBuffer<Vector3>  m_warm_global_origin;
     SizeT                             m_warm_frame  = ~SizeT{0};
     Float                             m_previous_dt = 0, m_recovered_dt = 0;

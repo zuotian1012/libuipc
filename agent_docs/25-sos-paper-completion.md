@@ -352,3 +352,55 @@ not the required 0.01 m/s. Thus the selected norm explains some additional
 iterations but does not explain all growth. No criterion was changed. The
 paper explicitly uses the L2 criterion in its Fig.9 study; applying it to
 Fig.13 without an author setting would still require a labeled assumption.
+
+### Dense warm coupling and projection handoff (2026-10-10, active)
+
+The conditional-rebase build failed at dense frame 9: 4096 warm iterations,
+velocity residual 70.78747 m/s. Only frames 1--8 are certified. The dense mesh
+has 12169 bunny vertices / 58848 tets and 2401 cloth vertices / 4608 faces.
+The bounded checkpoint-8 diagnostic retained 374 contacts (192 planes and
+182 four-vertex terms), with 279 nonzero Hessian terms on 238 vertices. Four
+coupled components have 19/25/19/21 vertices; the last contains two negative
+Hessian eigenvalues (minimum -1.3719e-4). This warm problem includes coupled,
+nonconvex self contact; native narrow-phase counts of zero do not describe
+the custom early-activation history. Evidence: `dense-postwarm`,
+`dense-warm-oracle`, and `dense-warm-audit/diagnosis.json` under
+`output/sos-paper-20261010`.
+
+The bunny/cloth CLI now exposes the existing `warm_start_relaxation` setting
+as `--warm-relaxation`, records it in the manifest and checks it on resume.
+The explicit 0.5 control completed the same strict 0.01 m/s warm solve in
+73 passes. The `after` projection then scaled the entire guess by 0.4661092;
+full elasticity still converges slowly. Damping is not a paper parameter,
+and passing warm start is not a physical-frame certificate.
+
+New opt-in `warm_start_inversion=after_local` implements a local projection
+interpretation of the post-warm searches: compute each elastic/contact term's
+bound for the actual origin-to-guess path, scale a vertex by its incident
+minimum, and recompute bounds on the resulting mixed path. Unequal vertex
+fractions do not inherit the original scalar certificate. Up to 32 rounds
+are allowed before the mandatory global inversion/regular-CCD certification.
+The default and the global `after` comparison are preserved. The paper does
+not specify this exact projection procedure; it is explicitly experimental.
+
+This integration exposed a handoff defect. In `dense-warm-local`, warm start
+converged in 98 passes and local projection took two rounds, but regular CCD
+discovered new pairs (bound 0.8295832). The engine correctly rejected the stale
+proposal at alpha=0. The solver nevertheless switched to full elasticity and
+misleadingly logged acceptance, starting at the physical origin with the
+0.882 m/s uncorrected inertial residual. That run was deliberately stopped;
+its diagnostic status records the absence of a frame-9 certificate.
+
+The handoff now retains the expanded contact history and continues Eq.14
+instead of treating the old warm residual as valid. In
+`dense-warm-local-restart`, the first handoff was invalidated after 106 warm
+passes; the expanded warm solve reached the unchanged threshold at pass
+1425. A further local projection took one round (initial bound 0.4530908),
+then handed off without another objective expansion. Full elasticity is
+still running; this is not a completed dense frame or a speedup result.
+Runtime SHA256:
+`cdca34f8a25f0525ae3380d94740a98f5fc1e053b3e776c607bb5d269fea411e`.
+Release build27 and all 202 existing assertions in 13 cases pass; Python
+examples compile. Logs: `../tmp/sos-paper-20261010-{build27,tests11}.log`.
+The requested new dense 120-frame validation remains open. These runs share
+the GPU for part of their execution and are not matched timing experiments.

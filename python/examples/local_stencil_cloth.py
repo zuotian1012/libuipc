@@ -55,7 +55,7 @@ def main():
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
-    parser.add_argument("--warm-inversion", choices=["iterative", "after"], default="iterative")
+    parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="iterative")
     parser.add_argument("--warm-start", action="store_true", help="SoS inertia-barrier warm start; requires --barrier-model sos")
     parser.add_argument("--resolution", type=int, default=6)
     parser.add_argument("--frames", type=int, default=120)

@@ -461,6 +461,54 @@ namespace
         caps(e) = objective.contact_cap(e, ids, d);
     }
 
+    // Clip the actual combined warm path, not isolated coordinate directions.
+    // Re-evaluate after per-vertex scaling: unequal caps at an element's vertices
+    // do not inherit the element's original scalar certificate.
+    __global__ void stencil_warm_path_caps_kernel(LocalObjective objective,
+                                                  ct::CBufferView<Vector3> dx,
+                                                  ct::BufferView<Float>    caps)
+    {
+        const int e = blockIdx.x * blockDim.x + threadIdx.x;
+        if(e >= caps.size())
+            return;
+        if(e < objective.elements.size())
+        {
+            const auto ids = objective.elements(e);
+            Vector3    p[4], q[4];
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                {
+                    p[a] = objective.xs(ids(a));
+                    q[a] = p[a] + dx(ids(a));
+                }
+            caps(e) = fem::stencil_elastic_cap(objective.terms(e), p, q);
+        }
+        else
+        {
+            const int  c   = e - objective.elements.size();
+            const auto ids = objective.contacts(c);
+            Vector12   d   = Vector12::Zero();
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                    d.segment<3>(3 * a) = dx(ids(a));
+            caps(e) = objective.contact_cap(c, ids, d);
+        }
+    }
+    __global__ void stencil_warm_local_cap_kernel(LocalObjective objective,
+                                                  ct::CBufferView<Float>  caps,
+                                                  ct::BufferView<Vector3> dx)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= dx.size())
+            return;
+        Float cap = 1;
+        for(int k = objective.vertex_offsets(v); k < objective.vertex_offsets(v + 1); ++k)
+            cap = min(cap, caps(objective.vertex_elements(k)));
+        for(int k = objective.barrier_offsets(v); k < objective.barrier_offsets(v + 1); ++k)
+            cap = min(cap, caps(objective.elements.size() + objective.barrier_entries(k)));
+        dx(v) *= cap;
+    }
+
     __global__ void stencil_inner_energy_kernel(LocalObjective objective,
                                                 ct::CBufferView<Vector3> dx,
                                                 Float                    alpha,
@@ -619,6 +667,50 @@ namespace
         atomicAdd(&statistics(accepted ? 3 : 4), 1);
     }
 }  // namespace
+
+void FEMLocalStencilSolver::project_warm_guess_locally()
+{
+    LocalObjective objective;
+    objective.elements        = m_elastic_stencils.cview();
+    objective.contacts        = m_contact_stencils.cview();
+    objective.terms           = m_elastic_terms.cview();
+    objective.barriers        = m_barrier_terms.cview();
+    objective.xs              = m_fem->xs();
+    objective.vertex_offsets  = m_vertex_offsets.cview();
+    objective.vertex_elements = m_vertex_elements.cview();
+    objective.barrier_offsets = m_barrier_offsets.cview();
+    objective.barrier_entries = m_barrier_entries.cview();
+    const int count    = objective.elements.size() + objective.contacts.size();
+    const int vertices = objective.xs.size();
+    m_inner_values.resize_discard(count);
+    Float first_cap = 1;
+    for(int pass = 0; pass < 32; ++pass)
+    {
+        stencil_warm_path_caps_kernel<<<(count + 127) / 128, 128>>>(
+            objective, m_fem->m_impl.dxs.cview(), m_inner_values.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        ct::DeviceReduce().Min(m_inner_values.data(), m_scalar.data(), count);
+        Float cap;
+        m_scalar.view().copy_to(&cap);
+        if(!std::isfinite(cap) || cap < 0 || cap > 1)
+            throw SimEngineException("Invalid local warm projection bound.");
+        if(pass == 0)
+            first_cap = cap;
+        if(cap == 1)
+        {
+            logger::info("SoS local warm projection: {} passes, initial minimum cap={}",
+                         pass,
+                         first_cap);
+            return;
+        }
+        stencil_warm_local_cap_kernel<<<(vertices + 127) / 128, 128>>>(
+            objective, m_inner_values.cview(), m_fem->m_impl.dxs.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+    }
+    // The caller always certifies the resulting full path with combined
+    // inversion and regular CCD, including pairs outside the retained history.
+    logger::info("SoS local warm projection reached 32 passes; final global certification follows");
+}
 
 void FEMLocalStencilSolver::refresh_frozen_contacts()
 {
