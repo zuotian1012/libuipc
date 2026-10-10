@@ -258,3 +258,38 @@ Investigate frame-origin activation distances shrinking on persistent contact
 and calibrated coefficient behavior before treating this as only HVP overhead.
 The paper's wording on per-step activation and its coefficient compensation must
 be distinguished from any additional lower-bound stabilization experiment.
+
+
+### Persistent-contact and packed execution work (2026-10-10, active)
+
+The direct-distance-kappa control also failed (frame 12, 2048 full iterations);
+it is not a fix. `barrier_activation=reference` preserves the literal current
+implementation. `expanded` is a labeled extension using max(frame-origin
+clearance, global activation), with matching kappa compensation. It leaves
+predicted distant contact early activation intact and avoids shrinking an
+already close persistent contact's activation threshold. The original text
+states frame-origin distance; it does not explicitly state this lower bound.
+The expanded control failed at frame 16 after 4096 iterations, with warm residual
+25.2708 m/s. Its final passes have four inversion caps, three rejected directions
+and combined slope -3.36e-24. The reference control instead remains CCD-limited
+at frame 20; these are distinct failure mechanisms, not evidence that the
+activation floor fixes convergence. Artifacts are in `output/sos-paper-20261010`.
+
+The new `hessian_product=packed` path implements a vertex-by-maximum-degree
+direction layout with explicit stencil identities. Energy/stencil incidence
+pairs split HVP work across GPU threads; scalar CG operations remain local to
+each stencil. Parallel atomics assemble products without imposing deterministic
+summation. Twelve iterations, early negative-curvature termination, fixed-DOF
+masking, all-incident restriction and final residual calculation match the
+direct operator. Shell/contact products remain analytic. CUB scratch and device
+buffers persist. Both build systems include the standalone packed operator in
+the CUDA numerical checks. Release build20 and 191 assertions in 13 cases pass, including assembled local
+CG oracles for full elasticity/contact and inertia/contact warm solves. The
+packed path completed 120 sequential/local drape frames at unchanged 0.01 m/s:
+mean 290.6945 ms/frame, max 71 outer iterations; min area 0.9671416, min det(F)
+0.9078034, min ground gap 0.00106379 m, fixed error zero. All 120 certificates
+and independent surface checks of all 121 states pass. Runtime SHA256:
+`8608537f448feedae987a2b985730e6163099bbc905b30155d24b591f09f13c8`.
+Artifacts: `output/sos-paper-20261010/cloth-packed`. This is integration
+validation; earlier timings were collected under different diagnostic load,
+so no matched packed speedup has been established.

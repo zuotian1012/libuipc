@@ -4,6 +4,7 @@ target("backend_cuda")
     add_deps("cuda")
     add_files("**.cu", "**.cpp")
     add_files(path.join(os.projectdir(), "src/backends/cuda/finite_element/sos_barrier_history.cu"))
+    add_files(path.join(os.projectdir(), "src/backends/cuda/finite_element/local_stencil_packed.cu"))
     if has_config("dev") then
         add_rules("clangd")
     end

@@ -124,6 +124,12 @@ static SceneConfigContract make_scene_config_contract()
         "SoS kappa interpretation. IPC calibrates the native squared-distance coefficient to the distance barrier by matching normal force at half the global activation clearance for the native log-squared barrier; distance interprets the coefficient directly in Eq.11 units. Effective only with barrier_model=sos.",
         {"src/backends/cuda/finite_element/fem_local_stencil_history.cu"},
         Json{{"enum", Json::array({"ipc", "distance"})}});
+    add("newton/local_stencil/barrier_activation",
+        std::string{"reference"},
+        "string",
+        "SoS activation distance: reference uses physical-step-origin clearance literally; expanded additionally floors it at the global activation distance to avoid shrinking persistent contacts. Expanded is an explicit stabilization extension, not specified in Eq.11.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_history.cu"},
+        Json{{"enum", Json::array({"reference", "expanded"})}});
     add("newton/local_stencil/barrier_model",
         std::string{"ipc"},
         "string",
@@ -133,9 +139,9 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/local_stencil/hessian_product",
         std::string{"assembled"},
         "string",
-        "Local CG operator: assembled control or direct restricted CSFD for SNK1 stress derivatives with analytic shell/contact operators. CSFD does not yet use the section-7.1 packed layout.",
+        "Local CG operator: assembled control, direct CSFD, or packed vertex directions and parallel energy/stencil products. CSFD applies to SNK1 stress; shells/contacts use analytic operators. Packed requires local globalization.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
-        Json{{"enum", Json::array({"assembled", "csfd"})}});
+        Json{{"enum", Json::array({"assembled", "csfd", "packed"})}});
     add("newton/local_stencil/hybrid_submission",
         std::string{"frozen"},
         "string",

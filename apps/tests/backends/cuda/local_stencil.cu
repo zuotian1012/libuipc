@@ -1,6 +1,7 @@
 #include <finite_element/local_stencil.h>
 #include <finite_element/local_stencil_snk.h>
 #include <finite_element/local_stencil_csfd.h>
+#include <finite_element/local_stencil_packed.h>
 #include <finite_element/sos_barrier_history.h>
 #include <finite_element/sos_contact.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
@@ -665,5 +666,118 @@ TEST_CASE("SoS full-primitive barrier uses the complete distance derivative chai
         CHECK(host[i](1) < 1e-7);
         CHECK(host[i](2) < 1e-10);
     }
+}
+TEST_CASE("Packed stencil CG preserves independent neighbor directions", "[cuda][fem][stencil]")
+{
+    const auto                           patch = make_patch();
+    std::vector<Vector4i>                elements{patch.tets[0], patch.tets[1]};
+    std::vector<Vector4i>                contacts{Vector4i(0, 2, 3, 4)};
+    std::vector<fem::StencilElasticTerm> terms(2);
+    std::vector<Matrix12x12>             eh(2), ch(1);
+    std::vector<Vector12>                eg(2);
+    Vector12                             cg;
+    for(int a = 0; a < 12; ++a)
+        cg(a) = .002 * (a - 4);
+    ch[0] = .3 * Matrix12x12::Identity() + cg * cg.transpose();
+    for(int e = 0; e < 2; ++e)
+    {
+        terms[e].type    = 10;
+        terms[e].inverse = patch.inverse[e];
+        terms[e].weight  = patch.volume[e];
+        terms[e].mu      = patch.mu;
+        terms[e].lambda  = patch.lambda;
+        fem::snk_stencil_element(deformation(patch, e, patch.x),
+                                 patch.inverse[e],
+                                 patch.mu,
+                                 patch.lambda,
+                                 patch.dt * patch.dt * patch.volume[e],
+                                 eg[e],
+                                 eh[e]);
+    }
+    ct::DeviceBuffer<Vector4i>                de, dc, ds;
+    ct::DeviceBuffer<fem::StencilElasticTerm> dt;
+    ct::DeviceBuffer<Vector3>                 dx, dg, dgc;
+    ct::DeviceBuffer<Float>                   dm, slopes;
+    ct::DeviceBuffer<IndexT>                  df;
+    ct::DeviceBuffer<Matrix12x12>             dh, dch;
+    ct::DeviceBuffer<Vector12>                directions;
+    ct::DeviceBuffer<Vector4>                 diagnostics;
+    de.copy_from(elements);
+    dc.copy_from(contacts);
+    dt.copy_from(terms);
+    dh.copy_from(eh);
+    dch.copy_from(ch);
+    dx.copy_from(std::vector<Vector3>(patch.x, patch.x + 5));
+    dm.copy_from(std::vector<Float>(patch.mass, patch.mass + 5));
+    df.copy_from(std::vector<IndexT>(patch.fixed, patch.fixed + 5));
+    fem::LocalStencilPackedSolver solver;
+    for(bool warm : {false, true})
+    {
+        std::vector<Vector4i> supports = elements;
+        if(warm)
+        {
+            supports.clear();
+            for(int v = 0; v < 5; ++v)
+                supports.emplace_back(v, -1, -1, -1);
+        }
+        supports.push_back(contacts[0]);
+        supports.push_back(Vector4i::Constant(-1));
+        ds.copy_from(supports);
+        std::vector<Vector3> gradient(5), contact_gradient(5, Vector3::Zero());
+        for(int v = 0; v < 5; ++v)
+            gradient[v] = patch.mass[v] * (patch.x[v] - patch.predicted[v]);
+        if(!warm)
+            for(int e = 0; e < 2; ++e)
+                for(int a = 0; a < 4; ++a)
+                    gradient[elements[e](a)] += eg[e].segment<3>(3 * a);
+        for(int a = 0; a < 4; ++a)
+            contact_gradient[contacts[0](a)] += cg.segment<3>(3 * a);
+        dg.copy_from(gradient);
+        dgc.copy_from(contact_gradient);
+        directions.resize_discard(supports.size());
+        slopes.resize_discard(supports.size());
+        diagnostics.resize_discard(supports.size());
+        fem::PackedStencilContext context;
+        context.elements          = de.cview();
+        context.contacts          = dc.cview();
+        context.stencils          = ds.cview();
+        context.terms             = dt.cview();
+        context.xs                = dx.cview();
+        context.elastic_gradients = dg.cview();
+        context.contact_gradients = dgc.cview();
+        context.masses            = dm.cview();
+        context.fixed             = df.cview();
+        context.elastic_hessians  = dh.cview();
+        context.contact_hessians  = dch.cview();
+        context.dt                = warm ? 0 : patch.dt;
+        solver.solve(context, directions.view(), slopes.view(), diagnostics.view());
+        std::vector<Vector12> result(supports.size());
+        directions.cview().copy_to(result.data());
+        Float error = 0;
+        for(SizeT k = 0; k < supports.size(); ++k)
+        {
+            const auto              ids = supports[k];
+            fem::LocalStencilSystem system;
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) >= 0)
+                    system.add_inertia(a,
+                                       patch.mass[ids(a)],
+                                       patch.x[ids(a)] - patch.predicted[ids(a)]);
+            if(!warm)
+                for(int e = 0; e < 2; ++e)
+                    system.add_element(ids, elements[e], eg[e], eh[e]);
+            system.add_element(ids, contacts[0], cg, ch[0]);
+            for(int a = 0; a < 4; ++a)
+                if(ids(a) < 0 || patch.fixed[ids(a)])
+                    system.fix_vertex(a);
+            const auto expected = fem::local_stencil_direction(system);
+            error = std::max(error, (result[k] - expected.displacement).norm());
+        }
+        INFO("warm=" << warm << ", packed direction error=" << error);
+        CHECK(error < 1e-8);
+    }
+    const auto expanded = fem::SoSBarrierParameters::from_reference(.0001, .001, 10, true);
+    CHECK(expanded.activation_distance == .001);
+    CHECK(expanded.kappa == 10);
 }
 }  // namespace local_stencil_test

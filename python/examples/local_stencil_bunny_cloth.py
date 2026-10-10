@@ -128,7 +128,7 @@ def run(args, output):
     config["newton"]["local_stencil"]["color_limit"] = args.color_limit
     config["newton"]["local_stencil"]["color_coverage"] = args.color_coverage
     config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
-    for key in ["hessian_product", "barrier_model", "barrier_stiffness", "merge_acceptance", "hybrid_submission"]:
+    for key in ["hessian_product", "barrier_model", "barrier_activation", "barrier_stiffness", "merge_acceptance", "hybrid_submission"]:
         config["newton"]["local_stencil"][key] = getattr(args, key)
     config["newton"]["local_stencil"]["warm_start"] = int(args.warm_start)
     config["newton"]["local_stencil"]["restart_schedule_on_recover"] = int(source is not None)
@@ -203,7 +203,7 @@ def run(args, output):
         # actual settings, not today's demo defaults, before checking equality.
         for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
                                color_limit=8, color_coverage="primary", inner_sweeps=1,
-                               hessian_product="assembled", barrier_model="ipc", barrier_stiffness="ipc",
+                               hessian_product="assembled", barrier_model="ipc", barrier_activation="reference", barrier_stiffness="ipc",
                                merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False).items():
             previous_parameters.setdefault(key, value)
         if previous["mesh_sha256"] != fingerprint or physics(previous_parameters) != physics(parameters):
@@ -452,8 +452,9 @@ def main():
     parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
     parser.add_argument("--inner-sweeps", type=int, default=15,
                         help="SoS local color passes per global CCD/energy acceptance; use 1 for the original outer loop")
-    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd", "packed"], default="assembled")
     parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-activation", choices=["reference", "expanded"], default="reference")
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")

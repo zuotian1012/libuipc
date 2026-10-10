@@ -49,8 +49,9 @@ def main():
     parser.add_argument("--inner-sweeps", type=int, default=1)
     parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
     parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")
-    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd", "packed"], default="assembled")
     parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-activation", choices=["reference", "expanded"], default="reference")
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
@@ -86,6 +87,7 @@ def main():
     config["newton"]["local_stencil"]["hybrid_submission"] = args.hybrid_submission
     config["newton"]["local_stencil"]["hessian_product"] = args.hessian_product
     config["newton"]["local_stencil"]["barrier_model"] = args.barrier_model
+    config["newton"]["local_stencil"]["barrier_activation"] = args.barrier_activation
     config["newton"]["local_stencil"]["barrier_stiffness"] = args.barrier_stiffness
     config["newton"]["local_stencil"]["merge_acceptance"] = args.merge_acceptance
     config["newton"]["local_stencil"]["warm_start"] = int(args.warm_start)
@@ -208,7 +210,7 @@ def main():
         writer.writeheader()
         writer.writerows(history)
     summary = dict(scene=args.scene, membrane=args.membrane, solver=args.solver, sweep=args.sweep,
-                   barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
+                   barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
                    tolerance=args.tolerance, inner_sweeps=args.inner_sweeps,
                    color_coverage=args.color_coverage,
                    hybrid_submission=args.hybrid_submission,

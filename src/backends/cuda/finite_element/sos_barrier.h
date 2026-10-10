@@ -29,10 +29,14 @@ struct SoSBarrierParameters
 
     UIPC_GENERIC static SoSBarrierParameters from_reference(Float reference_clearance,
                                                             Float global_distance,
-                                                            Float global_kappa)
+                                                            Float global_kappa,
+                                                            bool expand_only = false)
     {
         assert(reference_clearance > 0 && global_distance > 0 && global_kappa >= 0);
-        return {reference_clearance, global_kappa * global_distance / reference_clearance};
+        const Float activation = expand_only && reference_clearance < global_distance ?
+                                     global_distance :
+                                     reference_clearance;
+        return {activation, global_kappa * global_distance / activation};
     }
 };
 

@@ -198,7 +198,7 @@ void FEMLocalStencilSolver::prepare_contacts()
 
 fem::LocalStencilContactView FEMLocalStencilSolver::contact_view() const
 {
-    if(m_inner_sweeps > 1 || m_custom_barriers)
+    if(m_inner_sweeps > 1 || m_custom_barriers || m_packed_product)
         return {m_contact_gradients.cview(),
                 m_barrier_offsets.cview(),
                 m_barrier_entries.cview(),

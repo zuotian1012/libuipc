@@ -44,7 +44,8 @@ namespace
                                           IndexT plane_offset,
                                           Float  alpha,
                                           Float  dt,
-                                          bool   convert_stiffness)
+                                          bool   convert_stiffness,
+                                          bool   expand_only)
     {
         const int k = blockIdx.x * blockDim.x + threadIdx.x;
         if(k >= result.size())
@@ -153,8 +154,8 @@ namespace
                            "Infeasible SoS frame-origin clearance");
         if(convert_stiffness)
             stiffness = fem::sos_distance_stiffness(stiffness, dh, term.thickness);
-        record.parameters =
-            fem::SoSBarrierParameters::from_reference(clearance, dh, stiffness * dt * dt);
+        record.parameters = fem::SoSBarrierParameters::from_reference(
+            clearance, dh, stiffness * dt * dt, expand_only);
         record.thickness      = term.thickness;
         record.plane_position = term.plane_position;
         record.plane_normal   = term.plane_normal;
@@ -257,7 +258,8 @@ void FEMLocalStencilSolver::prepare_custom_contacts(Float alpha)
                 m_plane_reporter->vertex_offset(),
                 alpha,
                 world().scene().dt(),
-                m_convert_ipc_stiffness);
+                m_convert_ipc_stiffness,
+                m_expand_barriers_only);
             CUDA_TOOL_CHECK(cudaGetLastError());
             m_history.append(m_history_candidates.cview());
         }

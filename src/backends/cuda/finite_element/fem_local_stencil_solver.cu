@@ -682,6 +682,9 @@ void FEMLocalStencilSolver::init()
         throw SimEngineException("Local merge acceptance requires local globalization.");
     m_convert_ipc_stiffness =
         config.find<std::string>("newton/local_stencil/barrier_stiffness")->view()[0] == "ipc";
+    m_expand_barriers_only =
+        config.find<std::string>("newton/local_stencil/barrier_activation")->view()[0]
+        == "expanded";
     m_custom_barriers =
         config.find<std::string>("newton/local_stencil/barrier_model")->view()[0] == "sos";
     if(m_custom_barriers && !m_local_filter)
@@ -696,6 +699,10 @@ void FEMLocalStencilSolver::init()
         throw SimEngineException("Inertia-barrier warm start requires barrier_model=sos.");
     if(m_warm_enabled)
         m_inertial_guess = false;
+    m_packed_product =
+        config.find<std::string>("newton/local_stencil/hessian_product")->view()[0] == "packed";
+    if(m_packed_product && !m_local_filter)
+        throw SimEngineException("Packed stencil products require local globalization.");
     m_csfd_product =
         config.find<std::string>("newton/local_stencil/hessian_product")->view()[0] == "csfd";
     if(m_inner_sweeps < 1 || m_inner_sweeps > 256
@@ -939,7 +946,7 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         if(gs)
             prepare_gs_coloring();
     }
-    if(m_inner_sweeps > 1 || m_custom_barriers)
+    if(m_inner_sweeps > 1 || m_custom_barriers || m_packed_product)
         refresh_frozen_contacts();
     mark("derivatives/contact");
     const Vector2i pass =
@@ -989,28 +996,65 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_total_gradients.view(),
         m_vertex_hessians.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
-    stencil_local_solve_kernel<<<(stencil_count + 63) / 64, 64>>>(
-        m_elastic_stencils.cview(),
-        m_contact_stencils.cview(),
-        m_fem->is_fixed(),
-        m_vertex_offsets.cview(),
-        m_vertex_elements.cview(),
-        m_total_gradients.cview(),
-        m_vertex_hessians.cview(),
-        m_element_hessians.cview(),
-        contact_view(),
-        m_directions.view(),
-        m_direction_slopes.view(),
-        m_cg_diagnostics.view(),
-        gs ? m_gs_colors.cview() : ct::CBufferView<IndexT>{},
-        pass(1),
-        m_csfd_product || m_warm_active,
-        m_elastic_terms.cview(),
-        m_fem->xs(),
-        m_fem->masses(),
-        m_warm_active ? 0 : dt,
-        m_custom_barriers ? m_update_stencils.cview() : ct::CBufferView<Vector4i>{});
-    CUDA_TOOL_CHECK(cudaGetLastError());
+    if(m_packed_product)
+    {
+        fem::PackedStencilContext context;
+        context.elements = m_elastic_stencils.cview();
+        context.contacts = m_contact_stencils.cview();
+        if(m_custom_barriers)
+            context.stencils = m_update_stencils.cview();
+        else
+        {
+            m_packed_supports.resize_discard(stencil_count);
+            m_packed_supports.view().subview(0, count).copy_from(
+                m_elastic_stencils.cview());
+            if(m_contact_stencils.size())
+                m_packed_supports.view()
+                    .subview(count, m_contact_stencils.size())
+                    .copy_from(m_contact_stencils.cview());
+            context.stencils = m_packed_supports.cview();
+        }
+        context.terms             = m_elastic_terms.cview();
+        context.xs                = m_fem->xs();
+        context.elastic_gradients = m_total_gradients.cview();
+        context.contact_gradients = m_contact_gradients.cview();
+        context.masses            = m_fem->masses();
+        context.fixed             = m_fem->is_fixed();
+        context.colors = gs ? m_gs_colors.cview() : ct::CBufferView<IndexT>{};
+        context.color  = pass(1);
+        context.elastic_hessians = m_element_hessians.cview();
+        context.contact_hessians = m_frozen_contact_hessians.cview();
+        context.dt               = m_warm_active ? 0 : dt;
+        m_packed_solver.solve(context,
+                              m_directions.view(),
+                              m_direction_slopes.view(),
+                              m_cg_diagnostics.view());
+    }
+    else
+    {
+        stencil_local_solve_kernel<<<(stencil_count + 63) / 64, 64>>>(
+            m_elastic_stencils.cview(),
+            m_contact_stencils.cview(),
+            m_fem->is_fixed(),
+            m_vertex_offsets.cview(),
+            m_vertex_elements.cview(),
+            m_total_gradients.cview(),
+            m_vertex_hessians.cview(),
+            m_element_hessians.cview(),
+            contact_view(),
+            m_directions.view(),
+            m_direction_slopes.view(),
+            m_cg_diagnostics.view(),
+            gs ? m_gs_colors.cview() : ct::CBufferView<IndexT>{},
+            pass(1),
+            m_csfd_product || m_warm_active,
+            m_elastic_terms.cview(),
+            m_fem->xs(),
+            m_fem->masses(),
+            m_warm_active ? 0 : dt,
+            m_custom_barriers ? m_update_stencils.cview() : ct::CBufferView<Vector4i>{});
+        CUDA_TOOL_CHECK(cudaGetLastError());
+    }
     mark("directions");
     if(hybrid && m_sequential_hybrid)
     {

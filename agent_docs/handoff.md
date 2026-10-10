@@ -1,10 +1,11 @@
 # Handoff — Current State of the Repo
 
-Current SoS checkpoint (2026-10-10): sequential GS/Jacobi searches pass 120
-cloth drape frames with local merge, unrelaxed warm start and independent
-surface checks. Mesh-U bunny fails warm start at frame 20 after progressively
-shrinking gaps; full reproduction and dense validation remain incomplete.
-See [25](25-sos-paper-completion.md) for configurations and evidence.
+Current SoS checkpoint (2026-10-10): packed GPU local CG passes 191 assertions
+and all 120 drape frames with sequential/local submission, unchanged 0.01 m/s
+criterion and 121 independently checked states. Mesh-U bunny is still incomplete:
+reference activation stalls under CCD at frame 20; the expanded-activation
+control stalls under inversion caps at frame 16. Warm feasibility ordering and
+complex-contact convergence remain open. See [25](25-sos-paper-completion.md).
 
 > **Complete SoS implementation authorized (2026-10-08, active)**: the owner
 > requests the full paper pipeline before further comparisons. Follow

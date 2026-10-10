@@ -4,6 +4,7 @@
 #include <cuda_tool/cuda_tool.h>
 #include <finite_element/local_stencil_contact.h>
 #include <finite_element/local_stencil_barrier.h>
+#include <finite_element/local_stencil_packed.h>
 #include <finite_element/sos_barrier_history.h>
 #include <utils/dump_utils.h>
 
@@ -81,6 +82,7 @@ class FEMLocalStencilSolver final : public SimSystem
     bool                              m_primary_coverage       = false;
     bool                              m_restart_schedule       = false;
     bool                              m_convert_ipc_stiffness  = true;
+    bool                              m_expand_barriers_only   = false;
     GlobalSimplicialSurfaceManager*   m_surface                = nullptr;
     Float                             m_warm_relaxation        = 1;
     bool                              m_local_merge_acceptance = false;
@@ -98,6 +100,9 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<fem::SoSBarrierRecord> m_history_candidates;
     cuda_tool::DeviceBuffer<Vector3>               m_step_origin;
     cuda_tool::DeviceBuffer<Float>                 m_objective_values;
+    bool                                           m_packed_product = false;
+    fem::LocalStencilPackedSolver                  m_packed_solver;
+    cuda_tool::DeviceBuffer<Vector4i>              m_packed_supports;
     bool                                           m_csfd_product       = false;
     IndexT                                         m_inner_sweeps       = 1;
     IndexT                                         m_inner_index        = 0;

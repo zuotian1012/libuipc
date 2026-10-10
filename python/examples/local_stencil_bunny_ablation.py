@@ -101,6 +101,7 @@ def case(args):
                  color_coverage=args.color_coverage, hybrid_submission=args.hybrid_submission)
     local["hessian_product"] = args.hessian_product
     local["barrier_model"] = args.barrier_model
+    local["barrier_activation"] = args.barrier_activation
     local["barrier_stiffness"] = args.barrier_stiffness
     local["merge_acceptance"] = args.merge_acceptance
     local["warm_start"] = int(args.warm_start)
@@ -298,7 +299,7 @@ def suite(args):
                 max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
                 selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
                 color_coverage=args.color_coverage, hybrid_submission=args.hybrid_submission,
-                hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
+                hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
         previous = json.loads((root / "suite.json").read_text())
@@ -310,6 +311,7 @@ def suite(args):
         previous.setdefault("hybrid_submission", "frozen")
         previous.setdefault("hessian_product", "assembled")
         previous.setdefault("barrier_model", "ipc")
+        previous.setdefault("barrier_activation", "reference")
         previous.setdefault("barrier_stiffness", "distance" if previous.get("barrier_model") == "sos" else "ipc")
         previous.setdefault("merge_acceptance", "monotone")
         previous.setdefault("warm_start", False)
@@ -336,7 +338,7 @@ def suite(args):
                     command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
                 if args.timers:
                     command.append("--timers")
-                command += ["--color-coverage", args.color_coverage, "--hybrid-submission", args.hybrid_submission, "--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
+                command += ["--color-coverage", args.color_coverage, "--hybrid-submission", args.hybrid_submission, "--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-activation", args.barrier_activation, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
                 if args.warm_start:
                     command += ["--warm-start"]
                 write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
@@ -463,8 +465,9 @@ def main():
     parser.add_argument("--collider-subdivisions", type=int, default=8)
     parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
     parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")
-    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd", "packed"], default="assembled")
     parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-activation", choices=["reference", "expanded"], default="reference")
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
