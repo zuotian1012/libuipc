@@ -293,3 +293,62 @@ and independent surface checks of all 121 states pass. Runtime SHA256:
 Artifacts: `output/sos-paper-20261010/cloth-packed`. This is integration
 validation; earlier timings were collected under different diagnostic load,
 so no matched packed speedup has been established.
+
+### Warm feasibility ordering (2026-10-10)
+
+The expanded-activation control's frame-16 failure is an inversion-constrained
+scratch solve trying to satisfy an unconstrained inertia/barrier residual: four
+local inversion caps, three rejected directions and virtually zero merged work
+persist through 4096 passes. This differs from the reference frame-20 CCD stall.
+Section 6 describes solving Eq.14 and then checking local CCD/inversion. The
+new opt-in `warm_start_inversion=after` tests that ordering: CCD remains active,
+but inversion caps are measured without truncating the scratch optimization.
+If no proposal threatens inversion, the already certified path hands off directly.
+Otherwise, after the warm residual converges, restore both FEM and global
+positions to the physical frame origin and submit the full warm guess through
+combined inversion/CCD certification. Rebuild DCD after rebasing. The full
+elasticity solve and original final residual tolerance are still mandatory.
+A newly discovered barrier may invalidate this proposal, retaining the origin
+and letting full elasticity recompute for the expanded objective. No unconverged
+warm residual is labeled successful and no inverted physical frame is accepted.
+The legacy `iterative` mode remains the default and an explicit comparison.
+
+An initial version that always rebases passed 120 cloth drape frames and all
+121 independent surface checks (max 70 outer iterations, min det(F) 0.9078034).
+Runtime `d39da6babfd92cd80ba8f930f326d9d64c717c321e5c98f688abdf51bad2af98`,
+artifacts `output/sos-paper-20261010/cloth-postwarm`. Its mesh-U expanded control
+passed frame-16 warm start in 60 iterations; the final guess received an inversion
+cap of 0.4722962 before full elasticity. This is evidence for the feasibility-order
+failure mechanism, not a complete complex-contact result. This initial always-rebase variant completed all 20 requested mesh-U frames
+with 20 strict certificates and independent self/collider checks for all 21 states.
+Artifacts: `output/sos-paper-20261010/bunny-postwarm-expanded`, runtime d39da6...
+above. Min det(F) 0.7027512, min gap 6.52066e-5 m, max 3519 outer iterations.
+Advance totaled 895.4616 s, with concurrent compilation and part-time GPU sharing;
+this is not a matched performance measurement. It uses the explicitly expanded
+activation extension. It is neither the literal reference-activation control nor
+the requested dense 120-frame bunny/cloth validation. The final conditional-rebase
+optimization has separate cloth validation and still needs complex-contact coverage.
+
+The packed production path now skips unused explicit tetrahedral Hessians and
+vertex diagonal assembly. Shell/contact matrices remain available to analytic
+products; derivative audits still request explicit tetrahedral blocks. The
+existing assembled-oracle check poisons GPU tetrahedral blocks with NaNs to
+ensure the packed operator never reads them. No deterministic accumulation was
+introduced. Build23 passes the final conditional-rebase integration: 120 drape frames,
+120 strict certificates and 121 independent surface checks. Min area 0.96709885,
+min det(F) 0.90780340, min ground gap 0.00108217 m, fixed error zero, max 67
+outer iterations. Artifacts: `output/sos-paper-20261010/cloth-postwarm-final`;
+runtime SHA256 `bc6f599e25c32789e3ae287194758ac3359690745866bd04fdb647a9ea79227e`.
+This run shared the GPU with the bunny control; its timing is not a benchmark.
+Build25 and the poisoned-block oracle with explicit finiteness assertions pass
+all 202 assertions in 13 cases. Logs:
+`../tmp/sos-paper-20261010-{build25,tests9}.log`.
+
+Stopping-norm audit is distinct from fixing convergence. In the preserved
+reference bunny control, the first free-DOF L2-gradient crossing of 1e-4 occurs
+at 222 elastic passes in frame 12, then 432/757/908/1031/1103/1088/1996 in
+frames 13--19. The velocity residuals at those crossings are 0.41--2.29 m/s,
+not the required 0.01 m/s. Thus the selected norm explains some additional
+iterations but does not explain all growth. No criterion was changed. The
+paper explicitly uses the L2 criterion in its Fig.9 study; applying it to
+Fig.13 without an author setting would still require a labeled assumption.

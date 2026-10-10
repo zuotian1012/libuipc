@@ -106,6 +106,12 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
          "src/backends/cuda/engine/advance_ipc.cu"},
         Json{{"enum", Json::array({"monotone", "local"})}});
+    add("newton/local_stencil/warm_start_inversion",
+        std::string{"iterative"},
+        "string",
+        "Iterative checks inversion in each inertia-barrier pass. After solves inertia/barriers with CCD, then bounds the guess from the physical frame origin before enabling elasticity. Both retain strict final convergence.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"iterative", "after"})}});
     add("newton/local_stencil/warm_start_relaxation",
         Float{1},
         "number",

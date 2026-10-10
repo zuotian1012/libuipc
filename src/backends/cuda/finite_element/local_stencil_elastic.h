@@ -124,13 +124,14 @@ UIPC_GENERIC inline void stencil_elastic_derivatives(const StencilElasticTerm& t
                                                      const Vector3* p,
                                                      Float          dt,
                                                      Vector12&      g,
-                                                     Matrix12x12&   H)
+                                                     Matrix12x12&   H,
+                                                     bool assemble_tet_hessian = true)
 {
     const Float scale = t.weight * dt * dt;
     if(t.type == 10)
     {
         snk_stencil_element(
-            fem::F(p[0], p[1], p[2], p[3], t.inverse), t.inverse, t.mu, t.lambda, scale, g, H);
+            fem::F(p[0], p[1], p[2], p[3], t.inverse), t.inverse, t.mu, t.lambda, scale, g, H, assemble_tet_hessian);
         return;
     }
     stencil_shell_derivatives(t, p, dt, g, H);

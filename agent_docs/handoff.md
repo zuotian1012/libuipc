@@ -1,11 +1,12 @@
 # Handoff — Current State of the Repo
 
-Current SoS checkpoint (2026-10-10): packed GPU local CG passes 191 assertions
-and all 120 drape frames with sequential/local submission, unchanged 0.01 m/s
-criterion and 121 independently checked states. Mesh-U bunny is still incomplete:
-reference activation stalls under CCD at frame 20; the expanded-activation
-control stalls under inversion caps at frame 16. Warm feasibility ordering and
-complex-contact convergence remain open. See [25](25-sos-paper-completion.md).
+Current SoS checkpoint (2026-10-10): packed GPU local CG plus deferred warm
+inversion checking pass 202 assertions and 120 strict cloth drape frames with
+121 independent geometry checks. The initial always-rebase, expanded-activation
+variant completed 20 mesh-U bunny frames (max 3519 iterations), overcoming the
+frame-16 warm stall. Final conditional rebasing still needs complex coverage;
+reference activation and dense 120-frame bunny/cloth remain unverified. This is
+not full reproduction or a paper-speedup result. See [25](25-sos-paper-completion.md).
 
 > **Complete SoS implementation authorized (2026-10-08, active)**: the owner
 > requests the full paper pipeline before further comparisons. Follow

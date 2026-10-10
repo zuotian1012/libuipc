@@ -49,13 +49,17 @@ UIPC_GENERIC inline void snk_stencil_element(const Matrix3x3& F,
                                              Float            lambda,
                                              Float            volume_dt2,
                                              Vector12&        gradient,
-                                             Matrix12x12&     hessian)
+                                             Matrix12x12&     hessian,
+                                             bool assemble_hessian = true)
 {
     const auto shapes = tetrahedron_shape_gradients(Dm_inverse);
     Matrix3x3  stress;
     snk1::dEdF(stress, mu, lambda, F);
     for(int i = 0; i < 4; ++i)
         gradient.segment<3>(3 * i) = volume_dt2 * stress * shapes.col(i);
+
+    if(!assemble_hessian)
+        return;
 
     for(int j = 0; j < 12; ++j)
     {

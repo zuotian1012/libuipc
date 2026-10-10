@@ -48,6 +48,7 @@ namespace
         bool                      inertia_only = false;
         ct::CBufferView<Vector4i> update_stencils;
         Float                     direction_fraction = 1;
+        bool                      defer_inversion    = false;
 
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
         {
@@ -158,7 +159,9 @@ namespace
                 result.change +=
                     masses(v)
                     * ((xs(v) - predicted(v)).dot(move) + 0.5 * move.squaredNorm());
-                for(int k = vertex_offsets(v); k < vertex_offsets(v + 1); ++k)
+                for(int k = vertex_offsets(v);
+                    !defer_inversion && k < vertex_offsets(v + 1);
+                    ++k)
                 {
                     const int  e   = vertex_elements(k);
                     const auto ids = elements(e);
@@ -735,7 +738,8 @@ void FEMLocalStencilSolver::filter_local_steps(bool state_only)
                              m_warm_active,
                              m_custom_barriers ? m_update_stencils.cview() :
                                                  ct::CBufferView<Vector4i>{},
-                             m_warm_active ? m_warm_relaxation : 1};
+                             m_warm_active ? m_warm_relaxation : 1,
+                             m_warm_active && m_warm_post_inversion && !m_warm_finishing};
     stencil_filter_state_kernel<<<(elastic_count + contact_count + 127) / 128, 128>>>(
         objective,
         m_filter_deformation.view(),

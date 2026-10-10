@@ -705,7 +705,9 @@ TEST_CASE("Packed stencil CG preserves independent neighbor directions", "[cuda]
     de.copy_from(elements);
     dc.copy_from(contacts);
     dt.copy_from(terms);
-    dh.copy_from(eh);
+    // Packed SNK products must not read the unassembled tetrahedral blocks.
+    dh.copy_from(std::vector<Matrix12x12>(
+        2, Matrix12x12::Constant(std::numeric_limits<Float>::quiet_NaN())));
     dch.copy_from(ch);
     dx.copy_from(std::vector<Vector3>(patch.x, patch.x + 5));
     dm.copy_from(std::vector<Float>(patch.mass, patch.mass + 5));
@@ -771,6 +773,7 @@ TEST_CASE("Packed stencil CG preserves independent neighbor directions", "[cuda]
                 if(ids(a) < 0 || patch.fixed[ids(a)])
                     system.fix_vertex(a);
             const auto expected = fem::local_stencil_direction(system);
+            REQUIRE(result[k].allFinite());
             error = std::max(error, (result[k] - expected.displacement).norm());
         }
         INFO("warm=" << warm << ", packed direction error=" << error);

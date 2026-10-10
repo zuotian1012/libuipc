@@ -1,21 +1,20 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Current SoS checkpoint (2026-10-10): packed GPU local CG passes 191 assertions
-and all 120 drape frames with sequential/local submission, unchanged 0.01 m/s
-criterion and 121 independently checked states. Mesh-U bunny is still incomplete:
-reference activation stalls under CCD at frame 20; the expanded-activation
-control stalls under inversion caps at frame 16. Warm feasibility ordering and
-complex-contact convergence remain open. See [25](25-sos-paper-completion.md).
+Current SoS checkpoint (2026-10-10): packed GPU local CG plus deferred warm
+inversion checking pass 202 assertions and 120 strict cloth drape frames with
+121 independent geometry checks. The initial always-rebase, expanded-activation
+variant completed 20 mesh-U bunny frames (max 3519 iterations), overcoming the
+frame-16 warm stall. Final conditional rebasing still needs complex coverage;
+reference activation and dense 120-frame bunny/cloth remain unverified. This is
+not full reproduction or a paper-speedup result. See [25](25-sos-paper-completion.md).
 
 The [complete SoS implementation](25-sos-paper-completion.md) is active.
-The CSFD foundation completed a 120-frame cloth drape. Custom-objective/history
-and warm-start integration pass 187 assertions. Kappa calibration resolves the
-initial warm-start stall, but full elasticity still oscillates at frame 27 even
-without batching. EE mollification is complete; recomputation after objective
-expansion fixes a separate stale-direction failure. A monotone/primary-coverage
-control now passes 120 drape frames, but local merge still fails at frame 27.
-Paper-path trajectories and packed products remain open. This is
-not yet the complete paper method.
+Custom-objective history, warm start and packed CSFD pass 202 assertions.
+Sequential GS/Jacobi searches resolve the frozen-merge cloth failure, with
+120 strict frames and independent geometry checks. The experimental post-warm
+inversion ordering resolves the expanded-control frame-16 warm stall; complex
+bunny verification is continuing. It does not fix slow bulk-error contraction,
+and the dense 120-frame full-paper path is not yet verified.
 
 The native global Newton baseline (2026-10-08, [24](24-sos-contact-execution.md))
 completes the same mesh-U contact frames in 0.05986 s/frame and analytic U in

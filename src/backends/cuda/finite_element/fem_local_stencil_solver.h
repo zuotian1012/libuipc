@@ -38,6 +38,12 @@ class FEMLocalStencilSolver final : public SimSystem
     bool  accepts_local_merges() const { return m_local_merge_acceptance; }
     bool  prepare_global_objective(Float alpha);
     Float objective_energy();
+    // Nonempty only when submitting the post-warm feasible path from frame origin.
+    cuda_tool::CBufferView<Vector3> warm_rebase_positions() const
+    {
+        return m_warm_finishing ? m_warm_global_origin.cview() :
+                                  cuda_tool::CBufferView<Vector3>{};
+    }
 
   private:
     void                         do_build() override;
@@ -89,14 +95,17 @@ class FEMLocalStencilSolver final : public SimSystem
     bool                              m_custom_barriers        = false;
     bool                              m_history_changed        = false;
     SizeT                             m_history_frame          = ~SizeT{0};
-    bool   m_warm_enabled = false, m_warm_active = false;
-    SizeT  m_warm_frame  = ~SizeT{0};
-    Float  m_previous_dt = 0, m_recovered_dt = 0;
-    IndexT m_warm_iterations = 0;
-    cuda_tool::DeviceBuffer<Vector3>               m_previous_velocity;
-    BufferDump                                     m_velocity_dump;
-    cuda_tool::DeviceBuffer<Vector4i>              m_update_stencils;
-    fem::SoSBarrierHistory                         m_history;
+    bool m_warm_enabled = false, m_warm_active = false;
+    bool m_warm_post_inversion = false, m_warm_finishing = false;
+    bool m_warm_needs_rebase = false;
+    cuda_tool::DeviceBuffer<Vector3>  m_warm_global_origin;
+    SizeT                             m_warm_frame  = ~SizeT{0};
+    Float                             m_previous_dt = 0, m_recovered_dt = 0;
+    IndexT                            m_warm_iterations = 0;
+    cuda_tool::DeviceBuffer<Vector3>  m_previous_velocity;
+    BufferDump                        m_velocity_dump;
+    cuda_tool::DeviceBuffer<Vector4i> m_update_stencils;
+    fem::SoSBarrierHistory            m_history;
     cuda_tool::DeviceBuffer<fem::SoSBarrierRecord> m_history_candidates;
     cuda_tool::DeviceBuffer<Vector3>               m_step_origin;
     cuda_tool::DeviceBuffer<Float>                 m_objective_values;

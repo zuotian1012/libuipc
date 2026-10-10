@@ -69,7 +69,8 @@ namespace
                                                        ct::BufferView<Vector12> gradients,
                                                        ct::BufferView<Matrix12x12> hessians,
                                                        Float dt,
-                                                       bool  inertia_only)
+                                                       bool  inertia_only,
+                                                       bool assemble_tet_hessian)
     {
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= elements.size())
@@ -84,7 +85,7 @@ namespace
         for(int a = 0; a < 4; ++a)
             if(elements(t)(a) >= 0)
                 p[a] = xs(elements(t)(a));
-        fem::stencil_elastic_derivatives(terms(t), p, dt, gradients(t), hessians(t));
+        fem::stencil_elastic_derivatives(terms(t), p, dt, gradients(t), hessians(t), assemble_tet_hessian);
     }
 
     __global__ void stencil_primary_owners_kernel(ct::CBufferView<IndexT> offsets,
@@ -119,7 +120,8 @@ namespace
         ct::CBufferView<Vector12>    gradients,
         ct::CBufferView<Matrix12x12> hessians,
         ct::BufferView<Vector3>      vertex_gradients,
-        ct::BufferView<Matrix3x3>    diagonal)
+        ct::BufferView<Matrix3x3>    diagonal,
+        bool                         assemble_diagonal)
     {
         const int v = blockIdx.x * blockDim.x + threadIdx.x;
         if(v >= xs.size())
@@ -133,7 +135,8 @@ namespace
                 if(elements(e)(a) == v)
                 {
                     g += gradients(e).segment<3>(3 * a);
-                    H += hessians(e).block<3, 3>(3 * a, 3 * a);
+                    if(assemble_diagonal)
+                        H += hessians(e).block<3, 3>(3 * a, 3 * a);
                 }
         }
         vertex_gradients(v) = g;
@@ -691,6 +694,11 @@ void FEMLocalStencilSolver::init()
         throw SimEngineException("SoS customized barriers require local globalization.");
     m_warm_enabled =
         config.find<IndexT>("newton/local_stencil/warm_start")->view()[0] != 0;
+    const auto warm_inversion =
+        config.find<std::string>("newton/local_stencil/warm_start_inversion")->view()[0];
+    if(warm_inversion != "iterative" && warm_inversion != "after")
+        throw SimEngineException("warm_start_inversion must be iterative or after.");
+    m_warm_post_inversion = warm_inversion == "after";
     m_warm_relaxation =
         config.find<Float>("newton/local_stencil/warm_start_relaxation")->view()[0];
     if(!std::isfinite(m_warm_relaxation) || m_warm_relaxation <= 0 || m_warm_relaxation > 1)
@@ -788,9 +796,16 @@ bool FEMLocalStencilSolver::begin_warm_start()
 {
     if(m_warm_frame == engine().frame())
         return false;
-    m_warm_frame      = engine().frame();
-    m_warm_active     = true;
-    m_warm_iterations = 0;
+    m_warm_frame        = engine().frame();
+    m_warm_active       = true;
+    m_warm_iterations   = 0;
+    m_warm_finishing    = false;
+    m_warm_needs_rebase = false;
+    if(m_warm_post_inversion)
+    {
+        m_warm_global_origin.resize_discard(m_vertices->positions().size());
+        m_warm_global_origin.view().copy_from(m_vertices->positions());
+    }
     prepare_custom_contacts(0);  // Capture physical-step origin before prediction.
     const int vertices = static_cast<int>(m_fem->xs().size());
     m_previous_velocity.resize_preserve(vertices);
@@ -814,6 +829,12 @@ bool FEMLocalStencilSolver::begin_warm_start()
 void FEMLocalStencilSolver::solve()
 {
     m_inner_index = 0;
+    if(m_warm_finishing)
+    {
+        m_warm_finishing = false;
+        m_warm_active    = false;
+        logger::info("SoS post-warm feasible path accepted; enabling elasticity");
+    }
     if(m_warm_enabled && begin_warm_start())
         return;
     if(m_warm_active)
@@ -826,6 +847,27 @@ void FEMLocalStencilSolver::solve()
                      m_gradient_norm);
         if(!residual_converged())
             return;
+        if(m_warm_post_inversion && m_warm_needs_rebase)
+        {
+            const int vertices = static_cast<int>(m_fem->xs().size());
+            // Solve Eq.14 first, then bound the complete guess from the last
+            // physical state. Do not ask an inversion-constrained iterate to
+            // satisfy the unconstrained inertia/barrier stationarity condition.
+            stencil_batch_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
+                m_step_origin.cview(),
+                m_fem->xs(),
+                m_total_gradients.cview(),
+                m_fem->m_impl.dxs.view(),
+                m_global_slopes.view());
+            CUDA_TOOL_CHECK(cudaGetLastError());
+            m_fem->m_impl.xs.view().copy_from(m_step_origin.cview());
+            m_warm_finishing = true;
+            m_residual = m_gradient_norm = std::numeric_limits<Float>::infinity();
+            cap_combined_elastic_step();
+            logger::info("SoS warm start converged in {} passes; submitting post-warm feasible path",
+                         m_warm_iterations);
+            return;
+        }
         m_warm_active = false;
         logger::info("SoS warm start complete: {} Jacobi passes; enabling elasticity",
                      m_warm_iterations);
@@ -936,7 +978,8 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_element_gradients.view(),
         m_element_hessians.view(),
         dt,
-        m_warm_active);
+        m_warm_active,
+        !m_packed_product || (audit_directory && *audit_directory));
     CUDA_TOOL_CHECK(cudaGetLastError());
     if(first)
     {
@@ -994,7 +1037,8 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_element_gradients.cview(),
         m_element_hessians.cview(),
         m_total_gradients.view(),
-        m_vertex_hessians.view());
+        m_vertex_hessians.view(),
+        !m_packed_product);
     CUDA_TOOL_CHECK(cudaGetLastError());
     if(m_packed_product)
     {
@@ -1261,7 +1305,8 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
             m_element_gradients.view(),
             m_element_hessians.view(),
             world().scene().dt(),
-            false);
+            false,
+            !m_packed_product || std::getenv("UIPC_STENCIL_AUDIT"));
         refresh_frozen_contacts();
         stencil_vertex_derivatives_kernel<<<(n + 127) / 128, 128>>>(
             m_elastic_stencils.cview(),
@@ -1273,7 +1318,8 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
             m_element_gradients.cview(),
             m_element_hessians.cview(),
             m_total_gradients.view(),
-            m_vertex_hessians.view());
+            m_vertex_hessians.view(),
+            !m_packed_product);
         stencil_add_contact_gradient_kernel<<<(n + 127) / 128, 128>>>(
             m_total_gradients.view(), m_contact_gradients.cview(), m_fem->is_fixed());
         CUDA_TOOL_CHECK(cudaGetLastError());
@@ -1350,6 +1396,7 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
 
 void FEMLocalStencilSolver::cap_combined_elastic_step()
 {
+
     const int count    = static_cast<int>(m_elastic_stencils.size());
     const int vertices = static_cast<int>(m_fem->xs().size());
     // Independent local certificates do not certify a priority/Jacobi
@@ -1366,6 +1413,14 @@ void FEMLocalStencilSolver::cap_combined_elastic_step()
     m_scalar.view().copy_to(&cap);
     if(!std::isfinite(cap) || cap < 0 || cap > 1)
         throw SimEngineException("Invalid combined local-stencil inversion bound.");
+    if(m_warm_active && m_warm_post_inversion && !m_warm_finishing)
+    {
+        // An already feasible warm path needs no second projection from origin.
+        // Still measure the full path (including interior tets), without capping
+        // the Eq.14 scratch solve. If any proposal is unsafe, project at handoff.
+        m_warm_needs_rebase |= cap < 1;
+        return;
+    }
     if(cap < 1)
     {
         stencil_scale_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
@@ -1440,11 +1495,14 @@ void FEMLocalStencilSolver::do_apply_recover(RecoverInfo&)
         m_velocity_dump.apply_to(m_previous_velocity);
     m_warm_frame = m_history_frame = ~SizeT{0};
     m_warm_active                  = false;
+    m_warm_finishing               = false;
     m_history.reset();
 }
 
 bool FEMLocalStencilSolver::valid_configuration()
 {
+    if(m_warm_active && m_warm_post_inversion && !m_warm_finishing)
+        return true;  // Scratch Eq.14 iterate; never a completed physical frame.
     const int count = static_cast<int>(m_elastic_stencils.cview().size());
     stencil_determinants_kernel<<<(count + 127) / 128, 128>>>(m_elastic_stencils.cview(),
                                                               m_fem->xs(),

@@ -105,6 +105,7 @@ def case(args):
     local["barrier_stiffness"] = args.barrier_stiffness
     local["merge_acceptance"] = args.merge_acceptance
     local["warm_start"] = int(args.warm_start)
+    local["warm_start_inversion"] = args.warm_inversion
     local["warm_start_relaxation"] = args.warm_relaxation
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
@@ -299,7 +300,7 @@ def suite(args):
                 max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
                 selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
                 color_coverage=args.color_coverage, hybrid_submission=args.hybrid_submission,
-                hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
+                hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_inversion=args.warm_inversion, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
         previous = json.loads((root / "suite.json").read_text())
@@ -315,6 +316,7 @@ def suite(args):
         previous.setdefault("barrier_stiffness", "distance" if previous.get("barrier_model") == "sos" else "ipc")
         previous.setdefault("merge_acceptance", "monotone")
         previous.setdefault("warm_start", False)
+        previous.setdefault("warm_inversion", "iterative")
         previous.setdefault("warm_relaxation", 1.)
         if json.loads(json.dumps(spec)) != previous:
             raise ValueError("Suite resume requires identical controls")
@@ -340,7 +342,7 @@ def suite(args):
                     command.append("--timers")
                 command += ["--color-coverage", args.color_coverage, "--hybrid-submission", args.hybrid_submission, "--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-activation", args.barrier_activation, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
                 if args.warm_start:
-                    command += ["--warm-start"]
+                    command += ["--warm-start", "--warm-inversion", args.warm_inversion]
                 write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
                 with (folder / "simulation.log").open("w") as stdout, (folder / "stderr.log").open("w") as stderr:
                     process = subprocess.run(command, stdout=stdout, stderr=stderr)
@@ -471,6 +473,7 @@ def main():
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
+    parser.add_argument("--warm-inversion", choices=["iterative", "after"], default="iterative")
     parser.add_argument("--warm-start", action="store_true", help="SoS inertia-barrier warm start; requires --barrier-model sos")
     parser.add_argument("--mode", choices=[*MODES, "global"], default="hybrid",
                         help="Single-case solver; global uses native displacement stopping and is excluded from stencil-only suites")
@@ -489,7 +492,7 @@ def main():
     parser.add_argument("--resume-suite", action="store_true")
     parser.add_argument("--timers", action="store_true", help="Save native per-frame timer trees for profiling")
     args = parser.parse_args()
-    if args.case and args.mode == "global" and (args.barrier_model != "ipc" or args.warm_start
+    if args.case and args.mode == "global" and (args.barrier_model != "ipc" or args.warm_start or args.warm_inversion != "iterative"
             or args.hessian_product != "assembled" or args.merge_acceptance != "monotone"
             or args.hybrid_submission != "frozen"):
         parser.error("SoS controls require a local-stencil mode")

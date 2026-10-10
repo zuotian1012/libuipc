@@ -375,7 +375,15 @@ void SimEngine::advance()
                 {
                     Timer timer{"Solve Global Linear System"};
                     if(stencil_solver)
+                    {
                         stencil_solver->solve();
+                        if(const auto origin = stencil_solver->warm_rebase_positions();
+                           origin.size())
+                        {
+                            m_global_vertex_manager->overwrite_positions(origin);
+                            detect_dcd_candidates();
+                        }
+                    }
                     else
                     {
                         m_global_linear_system->solve();
