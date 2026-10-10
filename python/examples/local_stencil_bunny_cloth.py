@@ -28,6 +28,7 @@ import time
 from local_stencil_beam import ROOT, write_obj
 from local_stencil_cloth import sheet_mesh
 import numpy as np
+import uipc
 from uipc import Engine, World, Scene, Logger
 from uipc.geometry import SimplicialComplexIO, tetmesh, trimesh, label_surface, label_triangle_orient, ground
 from uipc.constitution import StableNeoHookean, ElasticModuli, ElasticModuli2D, StrainLimitingBaraffWitkinShell, DiscreteShellBending
@@ -127,6 +128,9 @@ def run(args, output):
     config["newton"]["local_stencil"]["color_limit"] = args.color_limit
     config["newton"]["local_stencil"]["color_coverage"] = args.color_coverage
     config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
+    for key in ["hessian_product", "barrier_model", "barrier_stiffness", "merge_acceptance", "hybrid_submission"]:
+        config["newton"]["local_stencil"][key] = getattr(args, key)
+    config["newton"]["local_stencil"]["warm_start"] = int(args.warm_start)
     config["newton"]["local_stencil"]["restart_schedule_on_recover"] = int(source is not None)
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
@@ -161,12 +165,12 @@ def run(args, output):
                     bunny_asset="assets/sim_data/tetmesh/bunny0.msh", **info,
                     refinement="Conforming edge-midpoint 1-to-8; original piecewise-linear shape preserved",
                     solver_scope="sos selects the implemented local_stencil subset, not the complete paper method",
-                    initialization_scope="Optional inertial prediction is separate from the paper's inertia-barrier warm start",
+                    initialization_scope="warm_start selects inertia-barrier initialization; initial_guess is the legacy inertial-proposal control",
                     stopping_scope="gradient_l2 uses the absolute free-DOF gradient of J=0.5*(x-x_tilde)^T*M*(x-x_tilde)+dt^2*V (kg*m); 1e-4 is a paper-style experiment, not certified matched accuracy with Fig.13",
                     iteration_scope="iterations counts global acceptance rounds; each contains up to inner_sweeps local color passes; a fresh outer residual certifies the accepted state",
                     units="meter, kilogram, second", friction=False,
-                    runtime=str(ROOT / "build/python/src/uipc/_native"))
-    binary = ROOT / "build/python/src/uipc/_native/uipc_backend_cuda.dll"
+                    runtime=str(Path(uipc.__file__).resolve().parent / "_native"))
+    binary = Path(manifest["runtime"]) / "uipc_backend_cuda.dll"
     if binary.exists():
         manifest["runtime_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
     if source:
@@ -198,7 +202,9 @@ def run(args, output):
         # Older manifests predate the explicit execution controls. Recover their
         # actual settings, not today's demo defaults, before checking equality.
         for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
-                               color_limit=8, color_coverage="primary", inner_sweeps=1).items():
+                               color_limit=8, color_coverage="primary", inner_sweeps=1,
+                               hessian_product="assembled", barrier_model="ipc", barrier_stiffness="ipc",
+                               merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False).items():
             previous_parameters.setdefault(key, value)
         if previous["mesh_sha256"] != fingerprint or physics(previous_parameters) != physics(parameters):
             raise ValueError("Resume requires identical mesh, physics, solver, initialization and tolerance")
@@ -446,6 +452,12 @@ def main():
     parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
     parser.add_argument("--inner-sweeps", type=int, default=15,
                         help="SoS local color passes per global CCD/energy acceptance; use 1 for the original outer loop")
+    parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
+    parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
+    parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
+    parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
+    parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")
+    parser.add_argument("--warm-start", action="store_true")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--cloth-resolution", "--resolution", dest="resolution", type=int, default=48,
                         help="Cloth cells per edge: (N+1)^2 vertices and 2*N^2 triangles (default: 48)")
@@ -472,6 +484,10 @@ def main():
     parser.add_argument("--checkpoint-frame", type=int, default=0)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.solver in {"global", "both"} and (args.barrier_model != "ipc" or args.warm_start
+            or args.hessian_product != "assembled" or args.merge_acceptance != "monotone"
+            or args.hybrid_submission != "frozen"):
+        parser.error("Custom SoS controls require --solver sos; compare separate runs with explicitly matched accuracy")
     if args.solver == "sos":
         args.solver = "local_stencil"
     if args.resume and (args.solver == "both" or args.replay):

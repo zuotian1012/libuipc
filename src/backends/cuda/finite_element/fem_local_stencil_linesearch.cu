@@ -707,7 +707,7 @@ bool FEMLocalStencilSolver::accept_inner_step()
     return false;
 }
 
-void FEMLocalStencilSolver::filter_local_steps()
+void FEMLocalStencilSolver::filter_local_steps(bool state_only)
 {
     Timer     timer{"Stencil Local Filtering"};
     const int elastic_count = static_cast<int>(m_elastic_stencils.size());
@@ -742,6 +742,8 @@ void FEMLocalStencilSolver::filter_local_steps()
         m_filter_elastic_energy.view(),
         m_filter_barrier_energy.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
+    if(state_only)
+        return;
     const int n = static_cast<int>(m_directions.size());
     stencil_local_linesearch_kernel<<<(n + 63) / 64, 64>>>(objective,
                                                            m_directions.view(),

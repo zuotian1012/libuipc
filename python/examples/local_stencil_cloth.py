@@ -48,6 +48,7 @@ def main():
     parser.add_argument("--sweep", choices=["hybrid", "additive"], default="hybrid")
     parser.add_argument("--inner-sweeps", type=int, default=1)
     parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
+    parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")
     parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
     parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
@@ -67,7 +68,8 @@ def main():
     args = parser.parse_args()
     if args.solver == "global" and (args.barrier_model != "ipc" or args.warm_start
                                    or args.hessian_product != "assembled"
-                                   or args.merge_acceptance != "monotone"):
+                                   or args.merge_acceptance != "monotone"
+                                   or args.hybrid_submission != "frozen"):
         parser.error("SoS objective, warm start, local merge and CSFD controls require --solver local_stencil")
     if min(args.frames, args.resolution, args.max_iterations) < 1 or args.dt <= 0 or args.tolerance <= 0 or args.bending_scale < 0:
         parser.error("counts, dt and tolerance must be positive; bending scale must be nonnegative")
@@ -81,6 +83,7 @@ def main():
     config["newton"]["local_stencil"]["sweep"] = args.sweep
     config["newton"]["local_stencil"]["inner_sweeps"] = args.inner_sweeps
     config["newton"]["local_stencil"]["color_coverage"] = args.color_coverage
+    config["newton"]["local_stencil"]["hybrid_submission"] = args.hybrid_submission
     config["newton"]["local_stencil"]["hessian_product"] = args.hessian_product
     config["newton"]["local_stencil"]["barrier_model"] = args.barrier_model
     config["newton"]["local_stencil"]["barrier_stiffness"] = args.barrier_stiffness
@@ -208,6 +211,7 @@ def main():
                    barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
                    tolerance=args.tolerance, inner_sweeps=args.inner_sweeps,
                    color_coverage=args.color_coverage,
+                   hybrid_submission=args.hybrid_submission,
                    frames=args.frames, vertices=len(rest), cloth_triangles=len(cloth_faces),
                    tetrahedra=len(tets), bending_scale=args.bending_scale,
                    min_area_ratio=min(h["min_area_ratio"] for h in history),

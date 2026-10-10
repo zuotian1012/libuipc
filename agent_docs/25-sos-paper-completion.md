@@ -212,3 +212,49 @@ expansion; the guarded success is not a full-paper-method success. Evidence:
 `cloth-warm-restart-local`, `full-restart-local-audit/27`, and the matching log
 under `../tmp/`. Next investigate separate GS/Jacobi submission and actual
 submitted-displacement line-search consistency before packing/benchmarking.
+
+
+### Separate sweep searches (cloth verified; complex contact open)
+
+`hybrid_submission=sequential` is an explicit alternative to the frozen control.
+All raw Newton directions are still solved before coloring. The independent
+color is filtered and committed first. Jacobi submission then excludes committed
+vertices, recomputes slopes at the updated GS state and performs its own local
+CCD/inversion/Armijo checks. A component removed by priority is never checked as
+though it were still being submitted. Each combined substep and the final outer
+path keep geometric checks. The starting state and its residual are restored
+before engine acceptance; neither intermediate residual is reported as final.
+This implements the separate-search reading of section 5.1. It is a documented
+interpretation, not confirmation from an author reference implementation.
+
+The unrelaxed, local-merge, primary-coverage, single-sweep drape completed 120
+frames at the unchanged 0.01 m/s tolerance: max 65 iterations, mean 668.0183
+ms/frame (80.1622 s advance). Minimum area ratio 0.9671030, det(F) 0.9078034,
+cloth-ground clearance 0.00114721 m, fixed error zero. All 121 independent saved
+surface checks and 120 convergence certificates passed. Runtime SHA256:
+`fa15f7ace9e825a625ddd24c34deeac2fc6b76f2ba718e55824fbb7301bde277`.
+Artifacts: `cloth-warm-sequential`, including animation and independent audit.
+This removes the extra monotone guard from the successful cloth control; it
+is not a dense bunny/cloth result or a matched performance comparison.
+
+A follow-up restores derivative audit buffers to the original iterate after
+sequential submission (the live searches use the committed GS state). Build17
+passed and the 187 assertions remain green; runtime SHA256:
+`f76b2bdcdfd930b92ec1e4769ea8a338ad194718f73d34e449dd44b447a8b3be`.
+The three example CLIs expose the opt-in controls and record actual settings.
+The dense bunny/cloth manifest now hashes the loaded runtime, not a hardcoded
+checkout DLL. Legacy controls and checkpoint defaults remain explicit.
+
+### Mesh-U follow-up (2026-10-10)
+
+The 1869-vertex / 7356-tet bunny with the 425-vertex mesh U completed only
+19 of the requested 30 frames. At frame 20, warm start hit 4096 iterations with
+velocity residual 23.8601 m/s. Full elasticity needed 1490--3907 outer iterations
+on contact frames 12--19. The geometric gap fell from 1.39e-3 m at frame 12 to
+2.61e-8 m at frame 19. This result does not validate the complex demo; no speedup
+claim is warranted. Runtime and all settings are preserved in
+`bunny-mesh-u-sequential/scene.json`, history and log under `../tmp/`.
+Investigate frame-origin activation distances shrinking on persistent contact
+and calibrated coefficient behavior before treating this as only HVP overhead.
+The paper's wording on per-step activation and its coefficient compensation must
+be distinguished from any additional lower-bound stabilization experiment.

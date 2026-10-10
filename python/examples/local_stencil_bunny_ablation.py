@@ -98,7 +98,7 @@ def case(args):
     local = config["newton"]["local_stencil"]
     local.update(sweep=sweep, globalization=globalization, inner_sweeps=inner,
                  initial_guess="inertial", stopping="velocity", color_limit=15,
-                 color_coverage="independent")
+                 color_coverage=args.color_coverage, hybrid_submission=args.hybrid_submission)
     local["hessian_product"] = args.hessian_product
     local["barrier_model"] = args.barrier_model
     local["barrier_stiffness"] = args.barrier_stiffness
@@ -156,7 +156,7 @@ def case(args):
                     stopping=("Native global Newton displacement tolerance plus CCD; not equivalent to the stencil gradient criterion"
                               if args.mode == "global" else "max free-vertex ||gradient||/(mass*dt), identical in every stencil mode"),
                     gs_scope="Full elastic and dynamic contact vertex-conflict coloring; CPU greedy, not GPU Vivace",
-                    local_scope="Local CCD/Armijo with retained global certification; no append-only barrier history or paper warm start",
+                    local_scope="Local CCD/Armijo with retained global geometry certification; custom history, warm start and submission policy are explicitly recorded in config",
                     parameters={k: v for k, v in vars(args).items() if k not in {"output", "suite", "case", "wait_for", "repeats", "resume_suite"}})
     write_json(out / "scene.json", manifest)
     engine = Engine("cuda", str(out / "engine"))
@@ -297,6 +297,7 @@ def suite(args):
                 tolerance=args.tolerance, bunny_young=args.bunny_young, contact_distance=args.contact_distance,
                 max_iterations=args.max_iterations, modes=MODES, scenes=args.scenes,
                 selected_modes=selections, collider_subdivisions=args.collider_subdivisions, timers=args.timers,
+                color_coverage=args.color_coverage, hybrid_submission=args.hybrid_submission,
                 hessian_product=args.hessian_product, barrier_model=args.barrier_model, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance,
                 note="Serial runs; all regular-CCD update modes share the same local Newton-CG and strict gradient criterion. Local variants retain global certification. No paper speedup is presumed.")
     if args.resume_suite:
@@ -305,6 +306,8 @@ def suite(args):
         previous.setdefault("selected_modes", {"floor": ["jacobi", "gs", "hybrid"], "u": list(MODES)})
         previous.setdefault("collider_subdivisions", 8)
         previous.setdefault("timers", False)
+        previous.setdefault("color_coverage", "independent")
+        previous.setdefault("hybrid_submission", "frozen")
         previous.setdefault("hessian_product", "assembled")
         previous.setdefault("barrier_model", "ipc")
         previous.setdefault("barrier_stiffness", "distance" if previous.get("barrier_model") == "sos" else "ipc")
@@ -333,7 +336,7 @@ def suite(args):
                     command += ["--" + name.replace("_", "-"), str(getattr(args, name))]
                 if args.timers:
                     command.append("--timers")
-                command += ["--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
+                command += ["--color-coverage", args.color_coverage, "--hybrid-submission", args.hybrid_submission, "--hessian-product", args.hessian_product, "--barrier-model", args.barrier_model, "--barrier-stiffness", args.barrier_stiffness, "--merge-acceptance", args.merge_acceptance, "--warm-relaxation", str(args.warm_relaxation)]
                 if args.warm_start:
                     command += ["--warm-start"]
                 write_json(root / "suite-status.json", dict(state="running", scene=scene, mode=mode, repeat=repeat, completed_runs=len(results), total_runs=total_runs, updated_unix=time.time()))
@@ -458,6 +461,8 @@ def main():
     parser.add_argument("--scenes", nargs="+", choices=["floor", "u", "mesh-u"], default=["floor", "u"])
     parser.add_argument("--modes", nargs="+", choices=list(MODES))
     parser.add_argument("--collider-subdivisions", type=int, default=8)
+    parser.add_argument("--color-coverage", choices=["independent", "primary"], default="independent")
+    parser.add_argument("--hybrid-submission", choices=["frozen", "sequential"], default="frozen")
     parser.add_argument("--hessian-product", choices=["assembled", "csfd"], default="assembled")
     parser.add_argument("--barrier-model", choices=["ipc", "sos"], default="ipc")
     parser.add_argument("--barrier-stiffness", choices=["ipc", "distance"], default="ipc")
@@ -481,6 +486,10 @@ def main():
     parser.add_argument("--resume-suite", action="store_true")
     parser.add_argument("--timers", action="store_true", help="Save native per-frame timer trees for profiling")
     args = parser.parse_args()
+    if args.case and args.mode == "global" and (args.barrier_model != "ipc" or args.warm_start
+            or args.hessian_product != "assembled" or args.merge_acceptance != "monotone"
+            or args.hybrid_submission != "frozen"):
+        parser.error("SoS controls require a local-stencil mode")
     for key in ["frames", "repeats", "bunny_height", "drop_height", "bunny_young", "dt", "tolerance", "contact_distance", "max_iterations", "collider_subdivisions"]:
         if not np.isfinite(getattr(args, key)) or getattr(args, key) <= 0:
             parser.error(f"{key} must be finite and positive")

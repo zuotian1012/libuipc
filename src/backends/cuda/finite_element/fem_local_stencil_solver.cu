@@ -516,6 +516,97 @@ namespace
         previous_velocity(v) = velocity(v);
     }
 
+    __global__ void stencil_priority_proposal_kernel(ct::CBufferView<Vector4i> elements,
+                                                     ct::CBufferView<IndexT> owners,
+                                                     ct::CBufferView<IndexT> fixed,
+                                                     ct::CBufferView<Vector12> directions,
+                                                     ct::BufferView<Vector3> dx)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= dx.size())
+            return;
+        dx(v).setZero();
+        const int e = owners(v);
+        if(e < 0 || fixed(v))
+            return;
+        for(int a = 0; a < 4; ++a)
+            if(elements(e)(a) == v)
+                dx(v) = directions(e).segment<3>(3 * a);
+    }
+
+    __global__ void stencil_add_contact_gradient_kernel(ct::BufferView<Vector3> gradients,
+                                                        ct::CBufferView<Vector3> contacts,
+                                                        ct::CBufferView<IndexT> fixed)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v < gradients.size())
+        {
+            gradients(v) += contacts(v);
+            if(fixed(v))
+                gradients(v).setZero();
+        }
+    }
+
+    __global__ void stencil_jacobi_submission_kernel(ct::CBufferView<Vector4i> elements,
+                                                     ct::CBufferView<Vector4i> contacts,
+                                                     ct::CBufferView<Vector4i> update_stencils,
+                                                     ct::CBufferView<IndexT> owners,
+                                                     ct::CBufferView<Vector3> gradients,
+                                                     ct::CBufferView<Vector12> original,
+                                                     ct::BufferView<Vector12> directions,
+                                                     ct::BufferView<Float> slopes)
+    {
+        const int e = blockIdx.x * blockDim.x + threadIdx.x;
+        if(e >= directions.size())
+            return;
+        const auto ids   = update_stencils.size() ? update_stencils(e) :
+                           e < elements.size()    ? elements(e) :
+                                                    contacts(e - elements.size());
+        Vector12   d     = original(e);
+        Float      slope = 0;
+        for(int a = 0; a < 4; ++a)
+        {
+            const int v = ids(a);
+            if(v < 0 || owners(v) >= 0)
+                d.segment<3>(3 * a).setZero();
+            else
+                slope += gradients(v).dot(d.segment<3>(3 * a));
+        }
+        directions(e) = d;
+        slopes(e)     = slope;
+    }
+
+    __global__ void stencil_jacobi_gather_kernel(ct::CBufferView<Vector4i> elements,
+                                                 ct::CBufferView<Vector4i> contacts,
+                                                 ct::CBufferView<IndexT> offsets,
+                                                 ct::CBufferView<IndexT> incident,
+                                                 ct::CBufferView<IndexT> contact_offsets,
+                                                 ct::CBufferView<IndexT> contact_incident,
+                                                 ct::CBufferView<IndexT> owners,
+                                                 ct::CBufferView<IndexT> overlap,
+                                                 ct::CBufferView<IndexT> fixed,
+                                                 ct::CBufferView<Vector12> directions,
+                                                 ct::BufferView<Vector3> dx)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= dx.size())
+            return;
+        Vector3 sum = Vector3::Zero();
+        if(owners(v) < 0 && !fixed(v))
+        {
+            for(int k = offsets(v); k < offsets(v + 1); ++k)
+                for(int a = 0; a < 4; ++a)
+                    if(elements(incident(k))(a) == v)
+                        sum += directions(incident(k)).segment<3>(3 * a);
+            for(int k = contact_offsets(v); k < contact_offsets(v + 1); ++k)
+                for(int a = 0; a < 4; ++a)
+                    if(contacts(contact_incident(k))(a) == v)
+                        sum += directions(elements.size() + contact_incident(k)).segment<3>(3 * a);
+            sum /= overlap(v);
+        }
+        dx(v) = sum;
+    }
+
     __global__ void stencil_batch_proposal_kernel(ct::CBufferView<Vector3> start,
                                                   ct::CBufferView<Vector3> xs,
                                                   ct::CBufferView<Vector3> gradient,
@@ -567,6 +658,11 @@ void FEMLocalStencilSolver::init()
     m_local_filter =
         sweep != "additive"
         && config.find<std::string>("newton/local_stencil/globalization")->view()[0] == "local";
+    m_sequential_hybrid =
+        config.find<std::string>("newton/local_stencil/hybrid_submission")->view()[0]
+        == "sequential";
+    if(m_sequential_hybrid && (!m_hybrid || !m_local_filter))
+        throw SimEngineException("Sequential hybrid submission requires hybrid/local globalization.");
     m_inertial_guess =
         config.find<std::string>("newton/local_stencil/initial_guess")->view()[0] == "inertial";
     m_color_limit = config.find<IndexT>("newton/local_stencil/color_limit")->view()[0];
@@ -916,6 +1012,11 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
         m_custom_barriers ? m_update_stencils.cview() : ct::CBufferView<Vector4i>{});
     CUDA_TOOL_CHECK(cudaGetLastError());
     mark("directions");
+    if(hybrid && m_sequential_hybrid)
+    {
+        m_unfiltered_directions.resize_discard(m_directions.size());
+        m_unfiltered_directions.view().copy_from(m_directions.cview());
+    }
     if(m_local_filter)
         filter_local_steps();
     mark("filtering");
@@ -1048,6 +1149,8 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
                          slope);
         }
     }
+    if(hybrid && m_sequential_hybrid && !converged())
+        submit_sequential_hybrid();
     // The residual certifies the current iterate, not a subsequent proposal.
     // The engine checks convergence before stepping; keep that certified state.
     if(converged())
@@ -1095,6 +1198,110 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
             }
         }
     }
+}
+
+void FEMLocalStencilSolver::submit_sequential_hybrid()
+{
+    const int n     = static_cast<int>(m_fem->xs().size());
+    const int count = static_cast<int>(m_elastic_stencils.size());
+    m_hybrid_start.resize_discard(n);
+    m_hybrid_gradient.resize_discard(n);
+    m_hybrid_start.view().copy_from(m_fem->xs());
+    m_hybrid_gradient.view().copy_from(m_total_gradients.cview());
+    const auto refresh_derivatives = [&]
+    {
+        stencil_element_derivatives_kernel<<<(count + 63) / 64, 64>>>(
+            m_elastic_stencils.cview(),
+            m_fem->xs(),
+            m_elastic_terms.cview(),
+            m_element_gradients.view(),
+            m_element_hessians.view(),
+            world().scene().dt(),
+            false);
+        refresh_frozen_contacts();
+        stencil_vertex_derivatives_kernel<<<(n + 127) / 128, 128>>>(
+            m_elastic_stencils.cview(),
+            m_fem->xs(),
+            m_fem->x_tildes(),
+            m_fem->masses(),
+            m_vertex_offsets.cview(),
+            m_vertex_elements.cview(),
+            m_element_gradients.cview(),
+            m_element_hessians.cview(),
+            m_total_gradients.view(),
+            m_vertex_hessians.view());
+        stencil_add_contact_gradient_kernel<<<(n + 127) / 128, 128>>>(
+            m_total_gradients.view(), m_contact_gradients.cview(), m_fem->is_fixed());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+    };
+    try
+    {
+        // First submit only the independently colored stencils. All local
+        // Newton directions were computed at the original frozen state.
+        stencil_priority_proposal_kernel<<<(n + 127) / 128, 128>>>(
+            m_elastic_stencils.cview(),
+            m_primary_owner.cview(),
+            m_fem->is_fixed(),
+            m_directions.cview(),
+            m_fem->m_impl.dxs.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        cap_combined_elastic_step();
+        accept_inner_step();
+
+        // The Jacobi trial is the actual unowned part of each original
+        // direction, evaluated at the committed GS state. Its slope, energy
+        // and continuous bounds must all refer to that same trial.
+        refresh_derivatives();
+        const int stencils = static_cast<int>(m_directions.size());
+        stencil_jacobi_submission_kernel<<<(stencils + 127) / 128, 128>>>(
+            m_elastic_stencils.cview(),
+            m_contact_stencils.cview(),
+            m_custom_barriers ? m_update_stencils.cview() : ct::CBufferView<Vector4i>{},
+            m_primary_owner.cview(),
+            m_total_gradients.cview(),
+            m_unfiltered_directions.cview(),
+            m_directions.view(),
+            m_direction_slopes.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        filter_local_steps();
+        stencil_jacobi_gather_kernel<<<(n + 127) / 128, 128>>>(
+            m_elastic_stencils.cview(),
+            m_contact_stencils.cview(),
+            m_vertex_offsets.cview(),
+            m_vertex_elements.cview(),
+            m_barrier_offsets.cview(),
+            m_barrier_entries.cview(),
+            m_primary_owner.cview(),
+            m_overlap.cview(),
+            m_fem->is_fixed(),
+            m_directions.cview(),
+            m_fem->m_impl.dxs.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+        cap_combined_elastic_step();
+        accept_inner_step();
+        stencil_batch_proposal_kernel<<<(n + 127) / 128, 128>>>(
+            m_hybrid_start.cview(),
+            m_fem->xs(),
+            m_hybrid_gradient.cview(),
+            m_fem->m_impl.dxs.view(),
+            m_global_slopes.view());
+        CUDA_TOOL_CHECK(cudaGetLastError());
+    }
+    catch(...)
+    {
+        m_fem->m_impl.xs.view().copy_from(m_hybrid_start.cview());
+        m_total_gradients.view().copy_from(m_hybrid_gradient.cview());
+        throw;
+    }
+    // External acceptance must still certify the complete path and discover
+    // new pairs. Inner batches also need their energy cache at this origin.
+    m_fem->m_impl.xs.view().copy_from(m_hybrid_start.cview());
+    m_total_gradients.view().copy_from(m_hybrid_gradient.cview());
+    filter_local_steps(true);
+    // Optional audit blocks must describe the restored origin, not the
+    // intermediate GS state used for the second search.
+    if(const char* audit = std::getenv("UIPC_STENCIL_AUDIT"); audit && *audit)
+        refresh_derivatives();
 }
 
 void FEMLocalStencilSolver::cap_combined_elastic_step()

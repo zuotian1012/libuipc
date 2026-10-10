@@ -22,10 +22,10 @@ class HalfPlaneVertexReporter;
 // Frictionless stencil Newton-CG. One call produces a single pass or a batch of
 // complementary-color proposals. Inner updates use a frozen contact objective;
 // the outer start is restored before engine acceptance of the accumulated step.
-// Local solves and CCD/Armijo filtering are color-blind;
-// priority selection and Jacobi averaging only compose the filtered directions.
-// Their local certificates do not certify the combined proposal. The engine's
-// global CCD/energy acceptance remains required. No global linear solve is performed.
+// Local solves are color-blind. Frozen submission composes independently
+// filtered directions; sequential submission searches the unowned Jacobi part
+// at the committed GS state. The engine certifies the combined geometry and
+// applies the selected energy policy. No global linear solve is performed.
 class FEMLocalStencilSolver final : public SimSystem
 {
   public:
@@ -54,35 +54,39 @@ class FEMLocalStencilSolver final : public SimSystem
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void prepare_gs_coloring();
-    void filter_local_steps();
+    void filter_local_steps(bool state_only = false);
+    void submit_sequential_hybrid();
     void prepare_barriers();
     bool do_dump(DumpInfo& info) override;
     bool do_try_recover(RecoverInfo& info) override;
     void do_apply_recover(RecoverInfo& info) override;
 
-    FiniteElementMethod*            m_fem                    = nullptr;
-    FEMDyTopoEffectReceiver*        m_contact_receiver       = nullptr;
-    FiniteElementVertexReporter*    m_vertex_reporter        = nullptr;
-    GlobalTrajectoryFilter*         m_trajectory_filter      = nullptr;
-    GlobalContactManager*           m_contact_manager        = nullptr;
-    GlobalVertexManager*            m_vertices               = nullptr;
-    HalfPlane*                      m_planes                 = nullptr;
-    HalfPlaneVertexReporter*        m_plane_reporter         = nullptr;
-    bool                            m_hybrid                 = true;
-    bool                            m_jacobi                 = false;
-    bool                            m_gs                     = false;
-    bool                            m_local_filter           = true;
-    bool                            m_inertial_guess         = false;
-    bool                            m_gradient_stopping      = false;
-    bool                            m_primary_coverage       = false;
-    bool                            m_restart_schedule       = false;
-    bool                            m_convert_ipc_stiffness  = true;
-    GlobalSimplicialSurfaceManager* m_surface                = nullptr;
-    Float                           m_warm_relaxation        = 1;
-    bool                            m_local_merge_acceptance = false;
-    bool                            m_custom_barriers        = false;
-    bool                            m_history_changed        = false;
-    SizeT                           m_history_frame          = ~SizeT{0};
+    FiniteElementMethod*              m_fem               = nullptr;
+    FEMDyTopoEffectReceiver*          m_contact_receiver  = nullptr;
+    FiniteElementVertexReporter*      m_vertex_reporter   = nullptr;
+    GlobalTrajectoryFilter*           m_trajectory_filter = nullptr;
+    GlobalContactManager*             m_contact_manager   = nullptr;
+    GlobalVertexManager*              m_vertices          = nullptr;
+    HalfPlane*                        m_planes            = nullptr;
+    HalfPlaneVertexReporter*          m_plane_reporter    = nullptr;
+    bool                              m_hybrid            = true;
+    bool                              m_sequential_hybrid = false;
+    cuda_tool::DeviceBuffer<Vector12> m_unfiltered_directions;
+    cuda_tool::DeviceBuffer<Vector3>  m_hybrid_start, m_hybrid_gradient;
+    bool                              m_jacobi                 = false;
+    bool                              m_gs                     = false;
+    bool                              m_local_filter           = true;
+    bool                              m_inertial_guess         = false;
+    bool                              m_gradient_stopping      = false;
+    bool                              m_primary_coverage       = false;
+    bool                              m_restart_schedule       = false;
+    bool                              m_convert_ipc_stiffness  = true;
+    GlobalSimplicialSurfaceManager*   m_surface                = nullptr;
+    Float                             m_warm_relaxation        = 1;
+    bool                              m_local_merge_acceptance = false;
+    bool                              m_custom_barriers        = false;
+    bool                              m_history_changed        = false;
+    SizeT                             m_history_frame          = ~SizeT{0};
     bool   m_warm_enabled = false, m_warm_active = false;
     SizeT  m_warm_frame  = ~SizeT{0};
     Float  m_previous_dt = 0, m_recovered_dt = 0;

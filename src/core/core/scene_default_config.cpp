@@ -136,6 +136,12 @@ static SceneConfigContract make_scene_config_contract()
         "Local CG operator: assembled control or direct restricted CSFD for SNK1 stress derivatives with analytic shell/contact operators. CSFD does not yet use the section-7.1 packed layout.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"assembled", "csfd"})}});
+    add("newton/local_stencil/hybrid_submission",
+        std::string{"frozen"},
+        "string",
+        "Frozen simultaneous control or sequential GS then Jacobi searches at the committed GS state. Sequential requires hybrid sweep and local globalization; directions are computed before coloring in both modes.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"enum", Json::array({"frozen", "sequential"})}});
     add("newton/local_stencil/color_limit",
         IndexT{8},
         "integer",
@@ -163,7 +169,7 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/local_stencil/color_coverage",
         std::string{"independent"},
         "string",
-        "Require each elastic stencil to appear in an independent color group, or use the legacy color-zero coverage experiment.",
+        "Require each elastic stencil in an independent group (Fig.5 caption) or in the primal color of some scheme (section 5.2 prose).",
         {"src/backends/cuda/finite_element/fem_local_stencil_coloring.cu"},
         Json{{"enum", Json::array({"independent", "primary"})}});
     add("newton/local_stencil/inner_sweeps",

@@ -1,5 +1,11 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Current SoS checkpoint (2026-10-10): sequential GS/Jacobi searches pass 120
+cloth drape frames with local merge, unrelaxed warm start and independent
+surface checks. Mesh-U bunny fails warm start at frame 20 after progressively
+shrinking gaps; full reproduction and dense validation remain incomplete.
+See [25](25-sos-paper-completion.md) for configurations and evidence.
+
 The [complete SoS implementation](25-sos-paper-completion.md) is active.
 The CSFD foundation completed a 120-frame cloth drape. Custom-objective/history
 and warm-start integration pass 187 assertions. Kappa calibration resolves the
