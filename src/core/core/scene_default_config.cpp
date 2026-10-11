@@ -112,6 +112,12 @@ static SceneConfigContract make_scene_config_contract()
         "Iterative checks inversion in each inertia-barrier pass. After solves inertia/barriers with CCD, then bounds the guess from the physical frame origin before enabling elasticity. After_local first clips only vertices incident to unsafe elastic/contact terms, with a final global certificate. All retain strict final convergence.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"iterative", "after", "after_local"})}});
+    add("newton/local_stencil/warm_start_max_iter",
+        IndexT{0},
+        "integer",
+        "Optional inertia-barrier initialization budget per physical frame. Zero waits for the selected warm residual; positive values hand a geometrically certified approximate guess to full elasticity after at most this many warm passes. Budget exhaustion is not convergence and never weakens final physical-frame stopping.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"minimum", 0}});
     add("newton/local_stencil/warm_start_relaxation",
         Float{1},
         "number",

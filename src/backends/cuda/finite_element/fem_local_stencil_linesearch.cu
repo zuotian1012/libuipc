@@ -49,6 +49,8 @@ namespace
         ct::CBufferView<Vector4i> update_stencils;
         Float                     direction_fraction = 1;
         bool                      defer_inversion    = false;
+        ct::CBufferView<IndexT>   submission_overlap;
+        ct::CBufferView<Vector3>  search_gradient, search_contact_gradient;
 
         __device__ Float barrier_energy(int e, const Vector4i& s, const Vector12& d, Float alpha) const
         {
@@ -621,27 +623,42 @@ namespace
         const int t = blockIdx.x * blockDim.x + threadIdx.x;
         if(t >= directions.size())
             return;
-        Vector12 d = directions(t);
+        const Vector12 original = directions(t);
+        Vector12       d        = original;
         if(d.squaredNorm() == 0)
             return;
-        // The slope belongs to this complete, unmasked Newton-CG direction at
-        // the frozen iterate. Never mask owned vertices here: that would require
-        // a different slope/CCD/energy trial and would make filtering color-dependent.
-        const Float slope = slopes(t);
+        const Vector4i s     = objective.update_stencils.size() ?
+                                   objective.update_stencils(t) :
+                               t < objective.elements.size() ?
+                                   objective.elements(t) :
+                                   objective.contacts(t - objective.elements.size());
+        Float          slope = slopes(t);
+        if(objective.submission_overlap.size())
+        {
+            // Jacobi submits each component divided by that vertex's overlap.
+            // Unequal degrees can turn a raw descent direction uphill. Check
+            // the actual contribution, including CCD and Armijo, before summing.
+            // Keep directions in raw units; the gather performs this division.
+            slope = 0;
+            for(int a = 0; a < 4; ++a)
+                if(const int v = s(a); v >= 0)
+                {
+                    d.segment<3>(3 * a) /= max(objective.submission_overlap(v), 1);
+                    Vector3 g = objective.search_gradient(v);
+                    if(objective.search_contact_gradient.size())
+                        g += objective.search_contact_gradient(v);
+                    slope += g.dot(d.segment<3>(3 * a));
+                }
+        }
         if(!fem::stencil_finite(slope) || slope >= 0)
         {
             directions(t).setZero();
             atomicAdd(&statistics(4), 1);
             return;
         }
-        const Vector4i s          = objective.update_stencils.size() ?
-                                        objective.update_stencils(t) :
-                                    t < objective.elements.size() ?
-                                        objective.elements(t) :
-                                        objective.contacts(t - objective.elements.size());
-        auto           evaluation = objective.evaluate(s, d, 1, true);
-        const int      ccd = evaluation.ccd, inversion = evaluation.inversion;
-        Float alpha = min(evaluation.alpha, objective.direction_fraction);
+        auto      evaluation = objective.evaluate(s, d, 1, true);
+        const int ccd = evaluation.ccd, inversion = evaluation.inversion;
+        Float     alpha = min(evaluation.alpha, objective.direction_fraction);
         if(alpha > 0 && alpha < 1)
             evaluation = objective.evaluate(s, d, alpha, false);
         int  backtracks = 0;
@@ -658,7 +675,7 @@ namespace
             if(backtracks + 1 < 32)
                 evaluation = objective.evaluate(s, d, alpha, false);
         }
-        directions(t) = accepted ? (alpha * d).eval() : Vector12::Zero().eval();
+        directions(t) = accepted ? (alpha * original).eval() : Vector12::Zero().eval();
         if(ccd)
             atomicAdd(&statistics(0), 1);
         if(inversion)
@@ -802,7 +819,7 @@ bool FEMLocalStencilSolver::accept_inner_step()
     return false;
 }
 
-void FEMLocalStencilSolver::filter_local_steps(bool state_only)
+void FEMLocalStencilSolver::filter_local_steps(bool state_only, bool jacobi_submission)
 {
     Timer     timer{"Stencil Local Filtering"};
     const int elastic_count = static_cast<int>(m_elastic_stencils.size());
@@ -832,6 +849,15 @@ void FEMLocalStencilSolver::filter_local_steps(bool state_only)
                                                  ct::CBufferView<Vector4i>{},
                              m_warm_active ? m_warm_relaxation : 1,
                              m_warm_active && m_warm_post_inversion && !m_warm_finishing};
+    if(m_warm_active || m_jacobi || jacobi_submission)
+    {
+        objective.submission_overlap = m_overlap.cview();
+        objective.search_gradient    = m_total_gradients.cview();
+        // The sequential second sweep has already assembled the full gradient
+        // at the committed GS state. Other paths keep contact forces separate.
+        if(!jacobi_submission)
+            objective.search_contact_gradient = m_contact_gradients.cview();
+    }
     stencil_filter_state_kernel<<<(elastic_count + contact_count + 127) / 128, 128>>>(
         objective,
         m_filter_deformation.view(),

@@ -404,3 +404,88 @@ Release build27 and all 202 existing assertions in 13 cases pass; Python
 examples compile. Logs: `../tmp/sos-paper-20261010-{build27,tests11}.log`.
 The requested new dense 120-frame validation remains open. These runs share
 the GPU for part of their execution and are not matched timing experiments.
+
+### Completed continuation and fresh-run failure (2026-10-11)
+
+Build27's `dense-warm-local-restart` completed frame 9: 1951 engine rounds,
+1425 warm passes and 7861 full-elastic residual evaluations. Final velocity
+residual 0.00998663 m/s passes 0.01; min det(F) is 0.92436785 and bunny ground
+gap is 0.000968324 m. The saved initial/checkpoint states plus frame 9 pass
+all ten independent cloth/bunny/self surface checks. New advance time is
+1681.3634 s, partly sharing the GPU. The last 2000 full-elastic passes contract
+L2 gradient by a fitted factor 0.99931073 per pass: slow relaxation remains.
+See `independent-audit.json` and `convergence-analysis.json` in that run.
+
+The same build completed `cloth-localwarm-restart`: 120 strict drape frames,
+121 independent saved-surface checks, max 73 rounds, min area 0.96883894,
+min det(F) 0.90780340, ground clearance 0.00123125 m, fixed error zero. It uses
+unrelaxed warm start and reference activation, unlike the dense control.
+Shared-GPU timing is not a benchmark. Runtime hash is recorded beside the
+independent audit.
+
+A fresh 120-frame dense run under `output/sos-paper-20261011/dense-full-localwarm`
+failed at frame 9, after eight certified frames. Warm residuals cycle between
+0.106418 and 0.432492 m/s through the 4096-round cap. Its half-damped free-flight
+prefix differs from the older unrelaxed checkpoint; successful continuation
+does not establish fresh-run stability. No frame-9/full-120 success is claimed.
+
+The existing monotone-merge diagnostic also stalls, rejecting the same uphill
+merged direction at residual 1.1184 m/s. An independent reconstruction from
+`warm-merge-audit/9/127-inner-0-*` finds 222 active contacts, max vertex overlap
+12, and zero uphill raw local directions. Their slopes sum to -6.10627e-9.
+After per-vertex Jacobi division, one contribution becomes uphill; the sum is
++2.31588e-10, matching the engine's merged slope. A scalar backtrack cannot
+repair this. The evidence is in `warm-merge-audit/diagnosis.json`; these are
+bounded diagnostic forks, not successful physical frames.
+
+### Submitted Jacobi searches and an explicit warm budget (2026-10-11)
+
+Local filtering now checks the actual Jacobi contribution: divide each vertex
+component by its frozen overlap before computing the slope, CCD, inversion and
+Armijo energy change. Directions remain stored in raw units; gathering divides
+exactly once. This applies to warm/pure-Jacobi sweeps and the sequential hybrid's
+second sweep. The independent GS search and the color-blind local Newton-CG
+equations are unchanged. In the second sweep the full gradient is already
+assembled at the committed GS state, so contact forces must not be added twice.
+The old frozen-hybrid control is unchanged outside warm initialization.
+
+The diagnostic now exports overlap and active update-support identities. An
+independent reconstruction at `submission-audit-final/9/127-inner-0-*` finds
+zero uphill contributions among 14840 supports. Their summed slope
+-1.14305270218455e-11 matches the GPU merge; maximum reconstructed displacement
+difference is 1.69e-21 m. This fixes the demonstrated raw-versus-submitted
+line-search inconsistency. It does not prove simultaneous nonlinear energy
+decrease: the unlimited warm control still fails at 4096 rounds. The existing
+monotone control improves its final residual to 0.0206551 m/s but also fails the
+unchanged 0.01 threshold. Neither is reported as a completed physical frame.
+
+`warm_start_max_iter` / `--warm-max-iterations` separates auxiliary initialization
+work from final physical-frame certification. Default zero preserves residual-
+based warm termination. A positive budget hands off the geometrically checked
+current guess after at most that many warm solves, explicitly logging an
+unconverged auxiliary residual when appropriate. A budgeted projected guess is
+evaluated against newly discovered barriers and full CCD/inversion checks; it
+is not a stale Newton direction and carries no convergence certificate. Full
+elasticity must still meet the original selected residual threshold. The paper
+describes few warm iterations but does not prescribe this fixed cap, so it is
+a labeled numerical control, not a claim of an author-exact stopping rule.
+
+Build29 and all 202 stencil assertions pass. Runtime SHA256:
+`62653b21d54687a644f3084e80fa79a682b173c4e29561130474d09200b6d59f`.
+The fresh run `output/sos-paper-20261011/dense-bounded-warm` requests 120 strict
+frames with no checkpoint prefix, a 10-pass warm budget, unrelaxed warm updates,
+expanded activation and local projection. Frame 9 has handed off to elasticity;
+the full trajectory is still in progress. Its separate validator waits on the
+specific simulation process, then requires all 120 residual certificates and
+121 independent saved-state geometry checks before rendering/reporting complete.
+Read `completion-status.json` and `validation.json`, not this dated progress
+snapshot. Runtime directories and previous failed controls remain immutable.
+
+The build29 `cloth-submission-budget` integration completed all 120 requested
+drape frames with a 10-pass unrelaxed warm budget, reference activation, primary
+coverage and sequential/local submission. All 120 engine certificates and 121
+independent saved-surface checks passed. Minimum area ratio 0.96792805,
+minimum det(F) 0.90780340, ground clearance 0.00168744 m, fixed error zero,
+max 104 engine rounds. Its runtime hash, summary and independent audit are in
+`output/sos-paper-20261011/cloth-submission-budget`. This is integration evidence,
+not a matched speedup or validation of the dense trajectory still running.

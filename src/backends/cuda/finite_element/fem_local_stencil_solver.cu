@@ -694,6 +694,10 @@ void FEMLocalStencilSolver::init()
         throw SimEngineException("SoS customized barriers require local globalization.");
     m_warm_enabled =
         config.find<IndexT>("newton/local_stencil/warm_start")->view()[0] != 0;
+    m_warm_max_iterations =
+        config.find<IndexT>("newton/local_stencil/warm_start_max_iter")->view()[0];
+    if(m_warm_max_iterations < 0)
+        throw SimEngineException("warm_start_max_iter must be nonnegative.");
     const auto warm_inversion =
         config.find<std::string>("newton/local_stencil/warm_start_inversion")->view()[0];
     if(warm_inversion != "iterative" && warm_inversion != "after" && warm_inversion != "after_local")
@@ -827,13 +831,18 @@ bool FEMLocalStencilSolver::begin_warm_start()
     return true;
 }
 
+bool FEMLocalStencilSolver::warm_budget_exhausted() const
+{
+    return m_warm_max_iterations > 0 && m_warm_iterations >= m_warm_max_iterations;
+}
+
 void FEMLocalStencilSolver::solve()
 {
     m_inner_index = 0;
     if(m_warm_finishing)
     {
         m_warm_finishing = false;
-        if(m_history_changed)
+        if(m_history_changed && !warm_budget_exhausted())
         {
             // Global CCD can discover new pairs along the rebased path. The
             // engine then rejects that proposal at the physical frame origin.
@@ -845,7 +854,7 @@ void FEMLocalStencilSolver::solve()
         else
         {
             m_warm_active = false;
-            logger::info("SoS post-warm geometric filtering finished; enabling elasticity");
+            logger::info("SoS post-warm handoff finished; enabling full elasticity and strict residual certification");
         }
     }
     if(m_warm_enabled && begin_warm_start())
@@ -858,8 +867,12 @@ void FEMLocalStencilSolver::solve()
                      m_warm_iterations,
                      m_residual,
                      m_gradient_norm);
-        if(!residual_converged())
+        const bool warm_converged = residual_converged();
+        if(!warm_converged && !warm_budget_exhausted())
             return;
+        if(!warm_converged)
+            logger::info("SoS warm budget exhausted after {} passes (auxiliary residual NOT converged); preparing feasible initial guess",
+                         m_warm_iterations);
         if(m_warm_post_inversion && m_warm_needs_rebase)
         {
             const int vertices = static_cast<int>(m_fem->xs().size());
@@ -879,13 +892,15 @@ void FEMLocalStencilSolver::solve()
             if(m_warm_local_projection)
                 project_warm_guess_locally();
             cap_combined_elastic_step();
-            logger::info("SoS warm start converged in {} passes; submitting post-warm feasible path",
-                         m_warm_iterations);
+            logger::info("SoS warm start handoff after {} passes (residual_converged={}); submitting post-warm feasible path",
+                         m_warm_iterations,
+                         warm_converged);
             return;
         }
         m_warm_active = false;
-        logger::info("SoS warm start complete: {} Jacobi passes; enabling elasticity",
-                     m_warm_iterations);
+        logger::info("SoS warm start handoff: {} Jacobi passes (residual_converged={}); enabling elasticity",
+                     m_warm_iterations,
+                     warm_converged);
     }
     if(m_inner_sweeps == 1)
     {
@@ -1293,6 +1308,8 @@ void FEMLocalStencilSolver::solve_sweep(bool first)
             dump("-cg.bin", m_cg_diagnostics.cview());
             dump("-owners.bin", m_primary_owner.cview());
             dump("-contacts.bin", m_contact_stencils.cview());
+            dump("-overlap.bin", m_overlap.cview());
+            dump("-update-stencils.bin", m_update_stencils.cview());
             dump("-contact-hessians.bin", m_frozen_contact_hessians.cview());
             dump("-hessians.bin", m_element_hessians.cview());
             if(iteration == 0)
@@ -1368,7 +1385,7 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
             m_directions.view(),
             m_direction_slopes.view());
         CUDA_TOOL_CHECK(cudaGetLastError());
-        filter_local_steps();
+        filter_local_steps(false, true);
         stencil_jacobi_gather_kernel<<<(n + 127) / 128, 128>>>(
             m_elastic_stencils.cview(),
             m_contact_stencils.cview(),

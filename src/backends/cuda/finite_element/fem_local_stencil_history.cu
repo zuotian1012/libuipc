@@ -304,7 +304,14 @@ bool FEMLocalStencilSolver::prepare_global_objective(Float alpha)
     // Newton directions, however, must be recomputed when new barriers have
     // nonzero force at the current iterate (their activation distance is the
     // frame-origin clearance, not the narrow-phase discovery distance).
-    return previous != m_history.records().size()
-           && !(m_warm_active && m_warm_iterations == 0);
+    // A budgeted projected initializer, like the acceleration predictor, is
+    // not a Newton direction certified against the old objective. Evaluate it
+    // against the expanded energy and full geometric checks, then rebuild all
+    // derivatives for the mandatory elasticity solve. No warm residual is
+    // promoted to a physical-frame convergence certificate.
+    const bool initial_guess =
+        m_warm_active
+        && (m_warm_iterations == 0 || (m_warm_finishing && warm_budget_exhausted()));
+    return previous != m_history.records().size() && !initial_guess;
 }
 }  // namespace uipc::backend::cuda

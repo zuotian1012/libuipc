@@ -1,14 +1,17 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Current SoS checkpoint (2026-10-10): packed GPU local CG and deferred warm
-inversion passed 120 strict cloth frames and a prototype passed 20 mesh-U
-bunny frames. Dense frame 9 exposed coupled warm self contact and an invalidated
-projection incorrectly handing off to elasticity. The new local projection
-control and history-aware warm restart compile and pass 202 assertions. The
-strict checkpoint-8 continuation passed expanded warm start at iteration 1425;
-full elasticity is still running. Damping (0.5) and expanded activation are
-explicit extensions. New dense 120-frame validation and matched performance
-remain open; this is not full reproduction. See [25](25-sos-paper-completion.md).
+Current SoS checkpoint (2026-10-11): the previous runtime completed a strict
+frame-9 checkpoint continuation and 120 cloth frames, but its fresh dense run
+failed in warm Jacobi cycling. A demonstrated per-vertex averaging defect is
+fixed: searches now evaluate the submitted Jacobi contribution. The optional
+warm-pass budget separates approximate initialization from final convergence;
+zero retains the old rule. Build29 passes 202 assertions and 120 strict cloth
+frames with 121 independent surface checks. A new fresh dense
+120-frame run uses 10 unrelaxed warm passes, expanded barriers and local warm
+projection; full elasticity must still reach 0.01 m/s. It is running with an
+independent validator under `output/sos-paper-20261011/dense-bounded-warm`.
+Read its status artifacts; full reproduction and speedup are not established.
+See [25](25-sos-paper-completion.md).
 
 The [complete SoS implementation](25-sos-paper-completion.md) is active.
 Custom-objective history, warm start and packed CSFD pass 202 assertions.

@@ -53,6 +53,7 @@ class FEMLocalStencilSolver final : public SimSystem
     void                         prepare_custom_contacts(Float alpha);
     void                         build_custom_barriers();
     bool                         begin_warm_start();
+    bool                         warm_budget_exhausted() const;
     bool                         residual_converged() const;
     void                         solve_sweep(bool first);
     void                         refresh_frozen_contacts();
@@ -62,7 +63,7 @@ class FEMLocalStencilSolver final : public SimSystem
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void prepare_gs_coloring();
-    void filter_local_steps(bool state_only = false);
+    void filter_local_steps(bool state_only = false, bool jacobi_submission = false);
     void submit_sequential_hybrid();
     void prepare_barriers();
     bool do_dump(DumpInfo& info) override;
@@ -103,7 +104,8 @@ class FEMLocalStencilSolver final : public SimSystem
     cuda_tool::DeviceBuffer<Vector3>  m_warm_global_origin;
     SizeT                             m_warm_frame  = ~SizeT{0};
     Float                             m_previous_dt = 0, m_recovered_dt = 0;
-    IndexT                            m_warm_iterations = 0;
+    IndexT                            m_warm_iterations     = 0;
+    IndexT                            m_warm_max_iterations = 0;
     cuda_tool::DeviceBuffer<Vector3>  m_previous_velocity;
     BufferDump                        m_velocity_dump;
     cuda_tool::DeviceBuffer<Vector4i> m_update_stencils;

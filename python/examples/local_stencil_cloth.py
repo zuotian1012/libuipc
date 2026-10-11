@@ -56,6 +56,7 @@ def main():
     parser.add_argument("--merge-acceptance", choices=["monotone", "local"], default="monotone")
     parser.add_argument("--warm-relaxation", type=float, default=1., help="Explicit Jacobi under-relaxation control; paper-style default 1")
     parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="iterative")
+    parser.add_argument("--warm-max-iterations", type=int, default=0, help="Auxiliary warm-pass budget; 0 requires warm residual convergence; final tolerance is unchanged")
     parser.add_argument("--warm-start", action="store_true", help="SoS inertia-barrier warm start; requires --barrier-model sos")
     parser.add_argument("--resolution", type=int, default=6)
     parser.add_argument("--frames", type=int, default=120)
@@ -68,7 +69,9 @@ def main():
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
-    if args.solver == "global" and (args.barrier_model != "ipc" or args.warm_start or args.warm_inversion != "iterative"
+    if args.warm_max_iterations < 0:
+        parser.error("warm-max-iterations must be nonnegative")
+    if args.solver == "global" and (args.barrier_model != "ipc" or args.warm_start or args.warm_max_iterations != 0 or args.warm_inversion != "iterative"
                                    or args.hessian_product != "assembled"
                                    or args.merge_acceptance != "monotone"
                                    or args.hybrid_submission != "frozen"):
@@ -94,6 +97,7 @@ def main():
     config["newton"]["local_stencil"]["warm_start"] = int(args.warm_start)
     config["newton"]["local_stencil"]["warm_start_inversion"] = args.warm_inversion
     config["newton"]["local_stencil"]["warm_start_relaxation"] = args.warm_relaxation
+    config["newton"]["local_stencil"]["warm_start_max_iter"] = args.warm_max_iterations
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
@@ -212,7 +216,7 @@ def main():
         writer.writeheader()
         writer.writerows(history)
     summary = dict(scene=args.scene, membrane=args.membrane, solver=args.solver, sweep=args.sweep,
-                   barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_inversion=args.warm_inversion, warm_relaxation=args.warm_relaxation, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
+                   barrier_model=args.barrier_model, barrier_activation=args.barrier_activation, barrier_stiffness=args.barrier_stiffness, warm_start=args.warm_start, warm_inversion=args.warm_inversion, warm_relaxation=args.warm_relaxation, warm_max_iterations=args.warm_max_iterations, merge_acceptance=args.merge_acceptance, hessian_product=args.hessian_product,
                    tolerance=args.tolerance, inner_sweeps=args.inner_sweeps,
                    color_coverage=args.color_coverage,
                    hybrid_submission=args.hybrid_submission,
