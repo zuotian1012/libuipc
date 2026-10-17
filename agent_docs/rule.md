@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS collaboration (2026-10-17): the owner requested a `sos` branch in the
+  existing GitHub repository for sharing the implementation with collaborators.
+  Publish the committed SoS history and onboarding documentation there; preserve
+  `main` and unrelated uncommitted experiments.
+
 - Complete SoS reproduction (2026-10-08): the owner now requests the complete
   paper algorithm before another performance comparison. This supersedes the
   earlier staged exclusions of custom barriers, conservative history, warm start

@@ -1,5 +1,10 @@
 # libuipc
 
+> **SoS research branch:** Start with [SoS collaboration and setup](README_SOS.md)
+> for the implementation map, source build, examples and known convergence limits.
+> This is an experimental reproduction, not the authors' reference code or a
+> verified reproduction of their speedup.
+
 [![PyPI version](https://img.shields.io/pypi/v/pyuipc?color=blue)](https://pypi.org/project/pyuipc/)
 [![Downloads](https://static.pepy.tech/badge/pyuipc/month)](https://pepy.tech/projects/pyuipc)
 [![Documentation](https://img.shields.io/badge/docs-spirimirror.github.io%2Flibuipc--doc-green)](https://spirimirror.github.io/libuipc-doc/)

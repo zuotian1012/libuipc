@@ -6,6 +6,10 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 ## Document Index
 
+For human collaborators on the SoS branch, start with
+[SoS setup and collaboration](../README_SOS.md): build, run, code navigation,
+known convergence limits and the experiment protocol.
+
 | File | Content |
 |---|---|
 | **`rule.md`** | **Owner-mandated working agreements — read first, they override habit** (branch/commit policy, minimal diffs, doc sync, English-only artifacts, CMake+XMake parity, raw kernels, no muda/ccache/geigen) |
