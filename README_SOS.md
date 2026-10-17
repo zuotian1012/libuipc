@@ -1,33 +1,20 @@
-# SoS reproduction on libuipc
+# SoS 组内上手指南 / Collaboration guide
 
-Collaborative research implementation of
-[Lan et al., DOI 10.1145/3592104](https://dl.acm.org/doi/10.1145/3592104)
-on libuipc's CUDA backend. This is not the authors' reference implementation.
+这份文档帮助合作同学完成三件事：**找到代码、运行场景、带着可复现的证据继续修改算法。** 中文解释流程，代码名称和常用术语保留英文，方便和论文、源码对应。
 
-Repository: [zuotian1012/libuipc, sos branch](https://github.com/zuotian1012/libuipc/tree/sos).
-See [README.md](README.md) for the original library overview.
+[项目首页](README.md) · [sos 分支](https://github.com/zuotian1012/libuipc/tree/sos) · [原版 libuipc 介绍](README_LIBUIPC.md)
 
-## Status
+## 1. 先了解当前边界 / Status
 
-Implemented components include local Newton-CG, complementary coloring,
-GS/Jacobi hybrid submission, local CCD and line searches, cloth membrane and
-bending, custom distance barriers, conservative contact history, inertia/barrier
-warm start, and packed GPU Hessian-vector products. Their presence does not
-certify complete paper alignment or a speedup.
+我们复现的是 [Lan et al., DOI 10.1145/3592104](https://dl.acm.org/doi/10.1145/3592104) 的 SoS 思路，不是作者官方代码。
 
-The recorded checkpoint `69340034` passed 202 stencil assertions and a 120-frame
-cloth trajectory. Its subsequent fresh dense bunny/cloth build29 run completed
-38 frames, then hit the 4096-outer-round cap in frame 39. It did not complete
-the requested 120-frame dense validation. Earlier trajectories used different
-configurations and do not validate this configuration.
+目前已实现 local Newton-CG、互补着色、GS/Jacobi hybrid submission、local CCD、局部线搜索、实体与布料、自定义距离屏障、保守接触历史、inertia/barrier warm start，以及 packed GPU Hessian-vector products。
 
-Open work includes slow propagation of global deformation error, merged-update
-oscillation, contact-history restarts, warm-start handoff, and comparable
-stopping accuracy. The local solver is frictionless and FEM-focused; it does
-not inherit all native libuipc rigid-body and friction features. No
-paper-equivalent speedup is established.
+**尚未证明完整论文复现或效率提升。** 已记录的 `69340034` 实现检查点通过了 202 项 stencil 断言和 120 帧布料轨迹；随后密集 bunny/cloth build29 实验完成 38 帧，在第 39 帧达到 4096 轮外层上限。旧版本或其他配置的轨迹不能替代这组配置的验证。
 
-## Clone and build
+现在重点检查：全局变形误差传播慢、合并更新振荡、接触历史变化导致的重启、warm start 交接，以及停止标准是否可比。当前局部求解器面向 **frictionless FEM**，不支持原库所有刚体和摩擦功能。
+
+## 2. 克隆代码 / Clone
 
 ```shell
 git clone --branch sos --recurse-submodules https://github.com/zuotian1012/libuipc.git
@@ -35,18 +22,23 @@ cd libuipc
 git rev-parse HEAD
 ```
 
-Keep the full repository: the stencil sources depend on the engine, materials,
-configuration and contact infrastructure. Preserve the original license and
-attribution files; assets and dependencies retain their own provenance.
+最后一条命令输出当前 commit，实验记录里应保存它。需要完整仓库：单独复制 stencil 文件会缺少引擎、材料、接触与配置依赖。保留原有许可证和第三方归属信息。
 
-**Build this branch from source. Installing PyPI `pyuipc` alone does not install
-these changes.** The local SoS experiments used Windows, CUDA 12.6 and an RTX
-3060 Ti. A clean installation on every platform has not been verified.
+## 3. 编译环境 / Build from source
 
-For Windows, install Visual Studio C++ Build Tools, CUDA Toolkit, a compatible
-NVIDIA driver, Python 3.11 and XMake >=3.0.5; use a developer shell. Source-build
-documentation specifies CUDA >=12.4. Ensure `python` and `python3` select the
-same Python 3.11 installation for configuration and execution.
+**必须编译本分支。`pip install pyuipc` 只安装发布版本，不包含我们的研究修改。**
+
+本地 SoS 实验使用 Windows、CUDA 12.6、RTX 3060 Ti。下面是供合作同学使用的构建路径，并不代表已在每一种新机器上验证。
+
+| 依赖 | 建议与说明 |
+|---|---|
+| GPU | NVIDIA GPU，配套兼容的驱动 |
+| C++ | Windows 安装 Visual Studio C++ Build Tools，使用开发者终端 |
+| CUDA Toolkit | 源码构建文档要求 >=12.4；本地实验为 12.6 |
+| Python | 以下命令使用 3.11，编译和运行应保持相同小版本 |
+| XMake | 本仓库要求 >=3.0.5 |
+
+先确认 `python` 和 `python3` 都指向同一个 Python 3.11 安装，再执行：
 
 ```shell
 python --version
@@ -58,107 +50,111 @@ xmake f -m release --backend_cuda=true --pybind=true --python_system=true --pyth
 xmake build -j 4 pyuipc
 ```
 
-The Python target builds its backend dependencies and copies the package to
-`build/python/src/uipc`. See [XMake](docs/build_install/xmake.md),
-[Windows/CMake](docs/build_install/windows.md) and
-[Linux/CMake](docs/build_install/linux.md) for build details. Use the same Python
-minor version for the compiled extension and runtime.
+`pyuipc` 构建目标会构建所需后端，并将 Python 包复制到 `build/python/src/uipc`。其他构建方式与问题排查见 [XMake](docs/build_install/xmake.md)、[Windows/CMake](docs/build_install/windows.md)、[Linux/CMake](docs/build_install/linux.md)。
 
-The examples prefer the locally built package. Verify the import path from the
-repository root:
+### 确认实际加载的是哪个库
+
+在仓库根目录执行：
 
 ```shell
 python -c "import sys; sys.path.insert(0, 'python/examples'); import local_stencil_beam; import uipc; print(uipc.__file__)"
 python python/examples/local_stencil_bunny_cloth.py --help
 ```
 
-The printed path should be inside this checkout's `build/python/src/uipc`.
-`UIPC_LOCAL_PACKAGE` can select another built package root containing `uipc/`;
-avoid leaving it pointed at an old experimental runtime. After C++ changes,
-rebuild and refresh the packaged native libraries before measuring results.
+打印的包路径应位于当前仓库的 `build/python/src/uipc` 下。示例优先使用这里的本地构建。
 
-## First runs
+`UIPC_LOCAL_PACKAGE` 可指定另一个包含 `uipc/` 的构建包目录；平时不要让它残留指向旧实验运行库。修改 C++ 后，要重新构建并刷新 Python 包中的 native libraries，避免“代码改了，实际跑的还是旧 DLL”。
 
-Run from the repository root, using a new output directory for each experiment.
-These short commands are onboarding checks, not completed landing experiments.
+## 4. 先跑一个小例子 / First runs
+
+以下命令都在仓库根目录执行，每次实验用新的输出目录。这里只检查流程能否启动，不是完整落地实验，也不是效率结论。
+
+先跑无碰撞的小悬臂梁：
 
 ```shell
-# Small non-contact integration check.
 python python/examples/local_stencil_beam.py --solver local_stencil --nx 4 --frames 3 --output output/onboarding-beam
+```
 
-# Inspect mesh sizes without running a simulation.
+查看低分辨率 bunny + cloth 的网格规模，不进行仿真：
+
+```shell
 python python/examples/local_stencil_bunny_cloth.py --cloth-resolution 8 --bunny-refinement 0 --mesh-info
+```
 
-# Native and stencil controls on the same small physical scene.
+分别启动原生求解器与局部 stencil 求解器：
+
+```shell
 python python/examples/local_stencil_bunny_cloth.py --solver global --cloth-resolution 8 --bunny-refinement 0 --dt .001 --frames 3 --output output/onboarding-global
 python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolution 8 --bunny-refinement 0 --dt .001 --frames 3 --output output/onboarding-sos
 ```
 
-`--solver sos` selects the local solver; it does not enable all paper-related
-options. Control defaults include assembled products, IPC barriers and no warm
-start. An explicit experimental configuration is:
+**`--solver sos` 只是切换求解器，不会自动启用所有论文相关选项。** 默认仍保留 assembled products、IPC barriers、关闭 warm start 等对照配置。
+
+要检查更多已实现机制，可以明确指定下面这组实验参数：
 
 ```shell
 python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolution 8 --bunny-refinement 0 --dt .001 --frames 3 --hybrid-submission sequential --hessian-product packed --barrier-model sos --barrier-activation expanded --barrier-stiffness ipc --merge-acceptance local --warm-start --warm-inversion after_local --warm-max-iterations 10 --output output/onboarding-sos-custom
 ```
 
-Expanded activation, IPC-based stiffness calibration and a bounded warm
-initializer are implementation choices, not an author-exact preset. Native
-and custom-barrier runs also use different contact objectives; timing alone
-is not a fair algorithm comparison.
+其中 expanded activation、基于 IPC 的刚度标定和有轮数上限的 warm initializer 都是当前实现选择，不能叫“原论文精确预设”。自定义屏障和原生求解器的接触目标函数也不同，不能仅用耗时直接比较算法优劣。
 
-Replay a completed trajectory:
+### 看动画与结果 / Replay & outputs
+
+完成一次运行后，可以回放：
 
 ```shell
 python python/examples/local_stencil_bunny_cloth.py --solver sos --replay --gui --output output/onboarding-sos
 ```
 
-Bunny/cloth outputs live under `global/` or `local_stencil/` inside the output
-root. Depending on the example, outputs include `history.csv`, `summary.json`,
-`positions.npz`, scene configuration, checkpoints and OBJ frames. An
-iteration-limit exit or a partial trajectory is not successful completion.
+bunny/cloth 结果位于输出目录内的 `global/` 或 `local_stencil/` 子目录。不同示例会保存以下部分或全部内容：
 
-## Code map and reading order
-
-Core files below are in `src/backends/cuda/finite_element/` unless stated otherwise.
-
-| Responsibility | Files |
+| 文件 | 用途 |
 |---|---|
-| Sweep loop, hybrid submission, warm lifecycle, stopping | `fem_local_stencil_solver.h/.cu` |
-| Local Newton-CG and constraints | `local_stencil.h` |
-| Packed GPU products and CG | `local_stencil_packed.h/.cu` |
-| Direct operator and CSFD derivatives | `local_stencil_operator.h`, `local_stencil_csfd.h` |
-| Complementary coloring and GS groups | `fem_local_stencil_coloring.cu` |
-| Local CCD, line search, merged acceptance, energy | `fem_local_stencil_linesearch.cu` |
-| Solid/cloth data and derivatives | `fem_local_stencil_elastic.cu`, `local_stencil_elastic*.h`, `local_stencil_snk.h` |
-| Continuous inversion and degeneracy bounds | `local_stencil_inversion.h` |
-| Contact assembly and local restriction | `fem_local_stencil_contact.cu`, `local_stencil_contact.h` |
-| Barrier terms and objective | `fem_local_stencil_barriers.cu`, `local_stencil_barrier.h`, `sos_barrier.h`, `sos_contact.h` |
-| Contact history and time-step integration | `fem_local_stencil_history.cu`, `sos_barrier_history.h/.cu` |
-| Engine integration | `src/backends/cuda/engine/advance_ipc.cu` |
-| Configuration registration | `src/core/core/scene_default_config.cpp` |
+| `history.csv` | 逐帧耗时、迭代及几何指标 |
+| `summary.json` | 运行总结 |
+| `positions.npz` | 顶点轨迹，用于分析或回放 |
+| 场景配置、checkpoint | 记录参数、恢复或同状态对照 |
+| OBJ 帧 | 表面序列导出 |
 
-Read the scene script, then follow `solve()` -> `solve_sweep()` ->
-`submit_sequential_hybrid()`. Track positions, raw local directions, submitted
-directions and residuals separately. A local CG result is a proposal, not an
-accepted vertex update. Study GPU launch details after this control flow.
+达到迭代上限、缺少最终结果或只完成部分帧，不能记为“实验通过”。
 
-Entry points:
+## 5. 不熟悉 CUDA，从哪里读 / Code map
 
-- [Bunny and cloth](python/examples/local_stencil_bunny_cloth.py).
-- [Cloth](python/examples/local_stencil_cloth.py).
-- [Single-bunny ablations](python/examples/local_stencil_bunny_ablation.py).
-- [Trajectory validation](python/examples/validate_stencil_bunny_cloth.py).
-- [Configuration reference](docs/specification/scene_config.md).
-- [Paper-alignment record](agent_docs/25-sos-paper-completion.md).
+先读场景脚本，再沿着 `solve()` → `solve_sweep()` → `submit_sequential_hybrid()` 追踪执行顺序。分清楚 **当前位置、原始局部方向、实际提交位移、残差**：CG 求出来的方向只是候选，并不意味着已经更新了顶点。
 
-Documents 15-24 in `agent_docs/` describe historical stages, not one uniform
-current configuration. Output paths mentioned in research notes refer to local
-artifacts; they are not automatically available in a Git clone.
+核心文件默认位于 `src/backends/cuda/finite_element/`：
 
-## Collaboration and experiment protocol
+| 想理解什么 | 对应文件 |
+|---|---|
+| 主循环、hybrid 提交、warm 生命周期、停止条件 | `fem_local_stencil_solver.h/.cu` |
+| 局部二阶问题与 Newton-CG | `local_stencil.h` |
+| packed GPU 方向乘积与 CG | `local_stencil_packed.h/.cu` |
+| 直接算子与 CSFD 方向导数 | `local_stencil_operator.h`、`local_stencil_csfd.h` |
+| 互补着色和 GS 分组 | `fem_local_stencil_coloring.cu` |
+| local CCD、线搜索、合并接受与能量 | `fem_local_stencil_linesearch.cu` |
+| 实体/布料数据和导数 | `fem_local_stencil_elastic.cu`、`local_stencil_elastic*.h`、`local_stencil_snk.h` |
+| 连续翻转和退化限制 | `local_stencil_inversion.h` |
+| 接触装配与局部限制 | `fem_local_stencil_contact.cu`、`local_stencil_contact.h` |
+| 屏障项与目标函数 | `fem_local_stencil_barriers.cu`、`local_stencil_barrier.h`、`sos_barrier.h`、`sos_contact.h` |
+| 接触历史与时间步接入 | `fem_local_stencil_history.cu`、`sos_barrier_history.h/.cu` |
+| 引擎调用位置 | `src/backends/cuda/engine/advance_ipc.cu` |
+| 配置项注册 | `src/core/core/scene_default_config.cpp` |
 
-Create a focused topic branch from `sos`:
+算法主线可以先理解为：**局部建模 → 求候选方向 → GS 优先提交 → 剩余贡献做局部过滤并 Jacobi 合并 → 外层检查 → 残差判停**。CUDA 的线程和缓冲区细节可以放到第二遍阅读。
+
+其他入口：
+
+- [布料例子](python/examples/local_stencil_cloth.py)
+- [单 bunny 消融](python/examples/local_stencil_bunny_ablation.py)
+- [轨迹验证脚本](python/examples/validate_stencil_bunny_cloth.py)
+- [配置参考](docs/specification/scene_config.md)
+- [论文实现进展](agent_docs/25-sos-paper-completion.md)
+
+`agent_docs/15–24` 记录不同历史阶段，不是同一版本的统一结论。记录中的本地 `output/` 路径不会随 Git clone 下载。
+
+## 6. 如何分工和交结果 / Collaboration
+
+从 `sos` 开自己的功能分支，例如：
 
 ```shell
 git switch sos
@@ -166,26 +162,19 @@ git pull --ff-only origin sos
 git switch -c fix/local-linesearch
 ```
 
-Submit pull requests targeting `sos`, describing the problem, changed rule,
-exact command and validation result. Contributors with repository write access
-can push topic branches; others can work through their own fork. Coordinate
-edits to the shared integration points `fem_local_stencil_solver.cu` and
-`advance_ipc.cu`. Useful task boundaries are local operators, submission/line
-search, contact history/warm start, and experiments/documentation.
+PR 的目标选 **`sos`**，写清问题、改动规则、运行命令和验证结果。有仓库写权限的同学可以推送自己的分支；其他同学可通过 fork 提交。
 
-For comparisons, record the commit and any uncommitted diff, full command,
-GPU/driver/toolkit, loaded runtime, physical parameters, energy model, stopping
-metric and threshold, completed frames, iteration counts and timing. Separate
-local CG iterations, color passes and outer rounds. Native Newton displacement
-tolerance and SoS mass-scaled gradient tolerance are not equivalent accuracy
-criteria even when their numeric thresholds match.
+建议按局部算子、提交/线搜索、接触历史/warm start、实验/文档分工。`fem_local_stencil_solver.cu` 和 `advance_ipc.cu` 是共同入口，修改前先沟通，减少冲突。
 
-`build/` and `output/` are ignored. Share needed checkpoints and large result
-bundles separately with their configuration and commit identifier. Stage only
-intended source/documentation files, rather than using `git add .` on a working
-tree containing unrelated experiments.
+每次实验至少记录：
 
-Targeted tests live in `apps/tests/backends/cuda/local_stencil.cu` and
-`local_stencil_cloth.cu`. Validate the changed behavior and a relevant integration
-scene. Follow [repository agreements](agent_docs/rule.md): English repository
-artifacts, clang-format 18 for C++, and consistent CMake/XMake source ownership.
+- commit，以及有无未提交改动；完整运行命令。
+- GPU、驱动、CUDA、实际加载的运行库。
+- 网格、材料、时间步、接触目标函数及相关参数。
+- 停止指标与阈值、完成帧数、迭代次数和耗时。
+
+区分 **local CG iteration、color pass、outer round**。原生 Newton 的位移判停和 SoS 的质量缩放梯度判停，不会因为阈值数字相同就具有相同精度。
+
+`build/` 和 `output/` 已忽略。需要共享的轨迹、checkpoint 和大日志另行打包，附上配置与 commit。工作区可能含其他实验，提交时明确选择文件，不要直接用 `git add .` 全部上传。
+
+已有局部测试位于 `apps/tests/backends/cuda/local_stencil.cu` 和 `local_stencil_cloth.cu`。根据改动验证对应行为和相关场景。C++ 仍使用 clang-format 18，CMake/XMake 的源文件归属保持同步。其余约定见 [rule.md](agent_docs/rule.md)；本分支的 SoS 首页与上手指南按组内需求使用中英结合说明。

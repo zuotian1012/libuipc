@@ -9,6 +9,8 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 For human collaborators on the SoS branch, start with
 [SoS setup and collaboration](../README_SOS.md): build, run, code navigation,
 known convergence limits and the experiment protocol.
+The branch's root [README](../README.md) is the bilingual SoS homepage;
+the original library overview is preserved in [README_LIBUIPC.md](../README_LIBUIPC.md).
 
 | File | Content |
 |---|---|

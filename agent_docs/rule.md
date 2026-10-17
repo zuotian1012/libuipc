@@ -33,6 +33,10 @@ record it here in the same commit.**
 
 4. **English only in repo artifacts**: documentation, code comments, commit
    messages. (The conversation language stays whatever the owner uses.)
+   Exception (2026-10-17): the owner requests mixed Chinese/English in the
+   `sos` branch's project homepage and SoS onboarding guide for internal
+   collaborators. This applies to `README.md` and `README_SOS.md`; other
+   artifacts retain the English convention.
 
 ## Documentation scope
 
