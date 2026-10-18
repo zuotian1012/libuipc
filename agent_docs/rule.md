@@ -140,6 +140,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS iteration budget (2026-10-18): add an opt-in mode accepting the last
+  checked full-elastic endpoint at the outer iteration limit, then run bounded
+  comparisons. Preserve default strict behavior and all geometry/line-search
+  failure handling; label truncated frames as unconverged and record residuals.
+
 - SoS collaboration (2026-10-17): the owner requested a `sos` branch in the
   existing GitHub repository for sharing the implementation with collaborators.
   Publish the committed SoS history and onboarding documentation there; preserve

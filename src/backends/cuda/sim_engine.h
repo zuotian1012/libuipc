@@ -123,6 +123,7 @@ class SimEngine final : public backend::SimEngine
     bool  m_frame_converged                = false;
     bool  m_frame_hit_newton_limit         = false;
     bool  m_frame_hit_line_search_limit    = false;
+    Json  m_frame_iteration_limit          = Json::object();
     Float m_frame_last_line_search_alpha   = 1.0;
     Float m_frame_last_ccd_toi             = 1.0;
     Float m_frame_last_cfl_alpha           = 1.0;

@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+2026-10-18: opt-in SoS `iteration_limit_policy=accept_last_valid` passed bounded
+integration checks. It accepts a checked full-elastic endpoint at the outer-round
+budget and preserves `converged=false`. Both 2/8-round small runs completed 12
+frames; a 32-round dense continuation completed frames 39-40 with large residuals.
+See `27-sos-iteration-budget.md`; this is not a convergence fix or full dense
+validation. Approximate checkpoint resume was verified separately.
+
 Current SoS checkpoint (2026-10-11): the previous runtime completed a strict
 frame-9 checkpoint continuation and 120 cloth frames, but its fresh dense run
 failed in warm Jacobi cycling. A demonstrated per-vertex averaging defect is

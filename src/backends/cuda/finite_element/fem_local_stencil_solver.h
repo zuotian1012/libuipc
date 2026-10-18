@@ -38,6 +38,8 @@ class FEMLocalStencilSolver final : public SimSystem
     bool  accepts_local_merges() const { return m_local_merge_acceptance; }
     bool  prepare_global_objective(Float alpha);
     Float objective_energy();
+    // Refresh endpoint diagnostics without solving or submitting another step.
+    Json certify_iteration_limit();
     // Nonempty only when submitting the post-warm feasible path from frame origin.
     cuda_tool::CBufferView<Vector3> warm_rebase_positions() const
     {

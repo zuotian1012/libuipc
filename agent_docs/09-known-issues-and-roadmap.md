@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+2026-10-18: optional SoS budget acceptance now advances checked, unconverged
+full-elastic endpoints without disabling geometric or line-search failures.
+Small 2/8-round runs completed 12 frames; dense 32-round continuation crossed
+frames 39-40. Residuals remain high and native global remains faster in the
+small comparison. This is an approximation control, not a convergence fix.
+See [27](27-sos-iteration-budget.md) for results and scope.
+
 Current SoS checkpoint (2026-10-11): the previous runtime completed a strict
 frame-9 checkpoint continuation and 120 cloth frames, but its fresh dense run
 failed in warm Jacobi cycling. A demonstrated per-vertex averaging defect is

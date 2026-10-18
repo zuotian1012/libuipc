@@ -334,6 +334,24 @@ namespace
                            v);
     }
 
+    __global__ void stencil_endpoint_residual_kernel(ct::CBufferView<Vector3> gradients,
+                                                     ct::CBufferView<Float> masses,
+                                                     ct::CBufferView<IndexT> fixed,
+                                                     ct::BufferView<Float> residuals,
+                                                     ct::BufferView<Float> squared_norms,
+                                                     Float dt)
+    {
+        const int v = blockIdx.x * blockDim.x + threadIdx.x;
+        if(v >= gradients.size())
+            return;
+        const Float norm2 = fixed(v) ? 0 : gradients(v).squaredNorm();
+        squared_norms(v)  = norm2;
+        residuals(v)      = fixed(v) ? 0 : std::sqrt(norm2) / (masses(v) * dt);
+        UIPC_KERNEL_ASSERT(fem::stencil_finite(residuals(v)),
+                           "Nonfinite endpoint residual at vertex %d",
+                           v);
+    }
+
     __global__ void stencil_hybrid_average_kernel(ct::BufferView<Vector3> dx,
                                                   ct::CBufferView<Vector3> gradients,
                                                   ct::CBufferView<IndexT> owners,
@@ -1460,6 +1478,66 @@ void FEMLocalStencilSolver::cap_combined_elastic_step()
         CUDA_TOOL_CHECK(cudaGetLastError());
         logger::info("Local stencil combined inversion cap: {}", cap);
     }
+}
+
+Json FEMLocalStencilSolver::certify_iteration_limit()
+{
+    if(m_warm_active || m_warm_finishing || !valid_configuration())
+        throw SimEngineException("Iteration budget cannot accept a warm or invalid stencil state.");
+
+    // Evaluate the actual accepted endpoint, including full elasticity and all
+    // currently discovered contacts. Do not reuse the previous origin residual.
+    prepare_contacts();
+    prepare_barriers();
+    refresh_frozen_contacts();
+    const int   n     = static_cast<int>(m_fem->xs().size());
+    const int   count = static_cast<int>(m_elastic_stencils.size());
+    const Float dt    = world().scene().dt();
+    stencil_element_derivatives_kernel<<<(count + 63) / 64, 64>>>(
+        m_elastic_stencils.cview(),
+        m_fem->xs(),
+        m_elastic_terms.cview(),
+        m_element_gradients.view(),
+        m_element_hessians.view(),
+        dt,
+        false,
+        false);
+    stencil_vertex_derivatives_kernel<<<(n + 127) / 128, 128>>>(
+        m_elastic_stencils.cview(),
+        m_fem->xs(),
+        m_fem->x_tildes(),
+        m_fem->masses(),
+        m_vertex_offsets.cview(),
+        m_vertex_elements.cview(),
+        m_element_gradients.cview(),
+        m_element_hessians.cview(),
+        m_total_gradients.view(),
+        m_vertex_hessians.view(),
+        false);
+    stencil_add_contact_gradient_kernel<<<(n + 127) / 128, 128>>>(
+        m_total_gradients.view(), m_contact_gradients.cview(), m_fem->is_fixed());
+    stencil_endpoint_residual_kernel<<<(n + 127) / 128, 128>>>(m_total_gradients.cview(),
+                                                               m_fem->masses(),
+                                                               m_fem->is_fixed(),
+                                                               m_residuals.view(),
+                                                               m_gradient_norms.view(),
+                                                               dt);
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    cuda_tool::DeviceReduce().Max(m_residuals.data(), m_scalar.data(), n);
+    m_scalar.view().copy_to(&m_residual);
+    cuda_tool::DeviceReduce().Sum(m_gradient_norms.data(), m_scalar.data(), n);
+    Float norm2;
+    m_scalar.view().copy_to(&norm2);
+    m_gradient_norm    = std::sqrt(norm2);
+    const Float energy = objective_energy();
+    if(!std::isfinite(m_residual) || !std::isfinite(m_gradient_norm) || !std::isfinite(energy))
+        throw SimEngineException("Iteration budget cannot accept a nonfinite stencil endpoint.");
+    return Json{{"accepted", true},
+                {"policy", "accept_last_valid"},
+                {"velocity_residual", m_residual},
+                {"gradient_l2", m_gradient_norm},
+                {"energy", energy},
+                {"endpoint_residual_converged", residual_converged()}};
 }
 
 bool FEMLocalStencilSolver::converged() const

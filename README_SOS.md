@@ -154,6 +154,18 @@ bunny/cloth 结果位于输出目录内的 `global/` 或 `local_stencil/` 子目
 
 ## 6. 如何分工和交结果 / Collaboration
 
+### 迭代预算实验 / Iteration budget
+
+可在 SoS 命令中增加 `--iteration-limit-policy accept_last_valid --max-iterations 32`。
+达到 32 轮外层预算后，如果已完成 warm start 并通过正常的运动检查，将使用最后一个有效位置继续下一帧；不额外叠加一次位移。
+默认 `error` 保持原来的严格行为。线搜索失败、无效几何、未完成 warm 交接等仍然报错。
+
+截断帧保持 `converged=false`，CSV 标记 `accepted_at_iteration_limit`，并记录实际终点的两种残差；正常收敛帧这些额外终点残差列为 `NaN`，表示没有额外计算。
+`summary.json` 汇总 `truncated_frames`；每帧 JSON 的 `iteration_limit` 保存终点能量等详情。
+这属于近似求解实验，不是论文同精度加速结论。`--max-iterations` 限制外层轮数，每轮仍可能包含多次 `--inner-sweeps`。
+
+### 分支与结果记录
+
 从 `sos` 开自己的功能分支，例如：
 
 ```shell

@@ -202,6 +202,12 @@ static SceneConfigContract make_scene_config_contract()
         "Maximum nonlinear iterations per frame.",
         {"src/backends/cuda/engine"},
         Json{{"minimum", 1}});
+    add("newton/local_stencil/iteration_limit_policy",
+        std::string{"error"},
+        "string",
+        "Local-stencil outer-round budget: error preserves strict-mode handling; accept_last_valid permits an unconverged full-elastic state after normal motion acceptance and a fresh endpoint diagnostic. Warm scratch states and invalid states still fail.",
+        {"src/backends/cuda/engine/advance_ipc.cu"},
+        Json{{"enum", Json::array({"error", "accept_last_valid"})}});
     add("newton/local_stencil/restart_schedule_on_recover",
         IndexT{0},
         "integer",

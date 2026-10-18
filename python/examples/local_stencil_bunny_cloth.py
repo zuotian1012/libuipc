@@ -96,6 +96,18 @@ def mesh_info(meshes):
                 bunny_volume_m3=float(volumes.sum()), min_tet_volume_m3=float(volumes.min()))
 
 
+def history_row(raw):
+    boolean_keys = {"converged", "accepted_at_iteration_limit"}
+    integer_keys = {"frame", "iterations", "linear_iterations"}
+    row = {key: (value == "True" if key in boolean_keys else
+                 int(value) if key in integer_keys else float(value))
+           for key, value in raw.items()}
+    row.setdefault("accepted_at_iteration_limit", False)
+    row.setdefault("endpoint_velocity_residual", float("nan"))
+    row.setdefault("endpoint_gradient_l2", float("nan"))
+    return row
+
+
 def run(args, output):
     previous = None
     source = None
@@ -138,6 +150,7 @@ def run(args, output):
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
     config["newton"]["max_iter"] = args.max_iterations
+    config["newton"]["local_stencil"]["iteration_limit_policy"] = args.iteration_limit_policy
     config["line_search"]["max_iter"] = 32
     config["contact"]["friction"]["enable"] = False
     config["contact"]["d_hat"] = args.contact_distance
@@ -171,6 +184,7 @@ def run(args, output):
                     initialization_scope="warm_start selects inertia-barrier initialization; initial_guess is the legacy inertial-proposal control",
                     stopping_scope="gradient_l2 uses the absolute free-DOF gradient of J=0.5*(x-x_tilde)^T*M*(x-x_tilde)+dt^2*V (kg*m); 1e-4 is a paper-style experiment, not certified matched accuracy with Fig.13",
                     iteration_scope="iterations counts global acceptance rounds; each contains up to inner_sweeps local color passes; a fresh outer residual certifies the accepted state",
+                    iteration_limit_scope="accept_last_valid permits an explicitly unconverged full-elastic endpoint at max_iterations; fresh endpoint diagnostics are separate from ordinary convergence",
                     units="meter, kilogram, second", friction=False,
                     runtime=str(Path(uipc.__file__).resolve().parent / "_native"))
     binary = Path(manifest["runtime"]) / "uipc_backend_cuda.dll"
@@ -181,8 +195,8 @@ def run(args, output):
         if previous["mesh_sha256"] != fingerprint or any(previous["parameters"][k] != parameters[k] for k in physics_keys):
             raise ValueError("Checkpoint fork requires identical mesh, material, timestep and geometry")
         with (source / "history.csv").open(newline="", encoding="utf-8") as stream:
-            prefix = [r for r in csv.DictReader(stream) if int(r["frame"]) <= args.checkpoint_frame]
-        if len(prefix) != args.checkpoint_frame or any(r["converged"] != "True" for r in prefix):
+            prefix = [history_row(r) for r in csv.DictReader(stream) if int(r["frame"]) <= args.checkpoint_frame]
+        if len(prefix) != args.checkpoint_frame or any(not r["converged"] for r in prefix):
             raise ValueError("Source must contain all converged frames through checkpoint-frame")
         manifest["checkpoint_origin"] = dict(path=str(source), frame=args.checkpoint_frame,
                                              parameters=previous["parameters"], schedule_restarted=True)
@@ -207,7 +221,7 @@ def run(args, output):
         for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
                                color_limit=8, color_coverage="primary", inner_sweeps=1,
                                hessian_product="assembled", barrier_model="ipc", barrier_activation="reference", barrier_stiffness="ipc",
-                               merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False, warm_inversion="iterative", warm_relaxation=1., warm_max_iterations=0).items():
+                               merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False, warm_inversion="iterative", warm_relaxation=1., warm_max_iterations=0, iteration_limit_policy="error").items():
             previous_parameters.setdefault(key, value)
         if previous["mesh_sha256"] != fingerprint or physics(previous_parameters) != physics(parameters):
             raise ValueError("Resume requires identical mesh, physics, solver, initialization and tolerance")
@@ -230,11 +244,11 @@ def run(args, output):
     if args.resume or source:
         with (output / "history.csv").open(newline="", encoding="utf-8") as stream:
             for raw in csv.DictReader(stream):
-                row = {key: (value == "True" if key == "converged" else
-                             int(value) if key in {"frame", "iterations", "linear_iterations"} else float(value))
-                       for key, value in raw.items()}
-                if row["frame"] != len(history)+1 or not row["converged"]:
-                    raise ValueError("Resume history must contain contiguous converged frames")
+                row = history_row(raw)
+                accepted_budget = (args.iteration_limit_policy == "accept_last_valid"
+                                   and row["accepted_at_iteration_limit"])
+                if row["frame"] != len(history)+1 or not (row["converged"] or accepted_budget):
+                    raise ValueError("Resume history must contain contiguous converged or explicitly budget-accepted frames")
                 history.append(row)
                 positions.append(np.load(output / "frames" / f"{row['frame']:04d}.npy"))
         if not history or args.frames <= len(history):
@@ -246,6 +260,11 @@ def run(args, output):
                                     for slot in (bunny_slot, cloth_slot)])
         if not np.array_equal(recovered, positions[-1]):
             raise RuntimeError("Recovered positions do not match the saved full-precision frame")
+        # Upgrade older journals with explicit budget/endpoint fields before appending.
+        with (output / "history.csv").open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=history[0].keys())
+            writer.writeheader()
+            writer.writerows(history)
     else:
         write_obj(output / "frames/0000.obj", rest, faces)
         np.save(output / "frames/0000.npy", rest)
@@ -265,6 +284,10 @@ def run(args, output):
             x = np.concatenate([np.asarray(slot.geometry().positions().view()).reshape(-1, 3).copy()
                                 for slot in (bunny_slot, cloth_slot)])
             stats = engine.frame_stats()
+            limit = stats.get("iteration_limit", {})
+            accepted_budget = (args.iteration_limit_policy == "accept_last_valid"
+                               and stats["completed"] and stats["hit_newton_limit"]
+                               and limit.get("accepted", False))
             pts = x[tets]
             determinant = np.linalg.det((pts[:, 1:] - pts[:, :1]).transpose(0, 2, 1)) / reference_det
             tri = x[cloth_faces]
@@ -273,19 +296,22 @@ def run(args, output):
                        iterations=stats["newton_iterations"], linear_iterations=stats["linear_solver_iterations"],
                        converged=stats["converged"], min_det_F=float(determinant.min()),
                        min_area_ratio=float(area.min()), bunny_ground_gap=float(x[:len(bunny), 1].min()),
-                       cloth_ground_gap=float(x[len(bunny):, 1].min()-.001))
+                       cloth_ground_gap=float(x[len(bunny):, 1].min()-.001),
+                       accepted_at_iteration_limit=accepted_budget,
+                       endpoint_velocity_residual=limit.get("velocity_residual", float("nan")),
+                       endpoint_gradient_l2=limit.get("gradient_l2", float("nan")))
             # Preserve full precision even if a later strict-mode frame aborts.
             np.save(output / "frames" / f"{frame:04d}.npy", x)
             write_obj(output / "frames" / f"{frame:04d}.obj", x, faces)
             if not np.isfinite(x).all() or min(row[k] for k in ["min_det_F", "min_area_ratio", "bunny_ground_gap", "cloth_ground_gap"]) <= 0:
                 raise RuntimeError(f"Invalid geometry at frame {frame}: {row}")
-            if not stats["converged"]:
+            if not stats["converged"] and not accepted_budget:
                 raise RuntimeError(f"Frame {frame} did not converge: {row}")
             if not world.dump():
-                raise RuntimeError(f"Could not checkpoint converged frame {frame}")
+                raise RuntimeError(f"Could not checkpoint accepted frame {frame}")
             (output / "frame-stats" / f"{frame:04d}.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
             # History is the resume journal: only publish a frame after its
-            # geometry, convergence and checkpoint have all been validated.
+            # geometry, convergence/budget acceptance and checkpoint are validated.
             if writer is None:
                 writer = csv.DictWriter(stream, fieldnames=row)
                 writer.writeheader()
@@ -306,6 +332,9 @@ def run(args, output):
                    total_advance_s=sum(times)/1000, mean_advance_ms=float(np.mean(times)),
                    median_advance_ms=float(np.median(times)), max_iterations=max(r["iterations"] for r in history),
                    all_converged=all(r["converged"] for r in history),
+                   iteration_limit_policy=args.iteration_limit_policy,
+                   truncated_frames=sum(r["accepted_at_iteration_limit"] for r in history),
+                   new_truncated_frames=sum(r["accepted_at_iteration_limit"] for r in history if r["frame"] >= first_simulated_frame),
                    min_det_F=min(r["min_det_F"] for r in history), min_area_ratio=min(r["min_area_ratio"] for r in history),
                    min_bunny_ground_gap=min(r["bunny_ground_gap"] for r in history),
                    min_cloth_ground_gap=min(r["cloth_ground_gap"] for r in history))
@@ -474,6 +503,8 @@ def main():
     parser.add_argument("--dt", type=float, default=.01)
     parser.add_argument("--tolerance", type=float, default=1e-2)
     parser.add_argument("--max-iterations", type=int, default=2048)
+    parser.add_argument("--iteration-limit-policy", choices=["error", "accept_last_valid"], default="error",
+                        help="SoS only: accept_last_valid continues at the outer-round budget with a checked full-elastic endpoint, marked unconverged")
     parser.add_argument("--bunny-height", type=float, default=.45)
     parser.add_argument("--drop-height", type=float, default=.04)
     parser.add_argument("--cloth-size", type=float, default=.85)
@@ -491,6 +522,8 @@ def main():
     parser.add_argument("--checkpoint-frame", type=int, default=0)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.iteration_limit_policy != "error" and args.solver not in {"sos", "local_stencil"}:
+        parser.error("Iteration-limit acceptance requires --solver sos")
     if args.warm_max_iterations < 0:
         parser.error("warm-max-iterations must be nonnegative")
     if args.solver in {"global", "both"} and (args.barrier_model != "ipc" or args.warm_start or args.warm_max_iterations != 0 or args.warm_inversion != "iterative" or args.warm_relaxation != 1

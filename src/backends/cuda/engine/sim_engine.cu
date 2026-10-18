@@ -139,6 +139,7 @@ void SimEngine::reset_frame_stats()
     m_frame_converged                = false;
     m_frame_hit_newton_limit         = false;
     m_frame_hit_line_search_limit    = false;
+    m_frame_iteration_limit          = Json::object();
     m_frame_last_line_search_alpha   = 1.0;
     m_frame_last_ccd_toi             = 1.0;
     m_frame_last_cfl_alpha           = 1.0;
@@ -158,6 +159,7 @@ Json SimEngine::do_frame_stats() const
     stats["linear_solver_iterations"] = m_frame_linear_solver_iterations;
     stats["hit_newton_limit"]         = m_frame_hit_newton_limit;
     stats["hit_line_search_limit"]    = m_frame_hit_line_search_limit;
+    stats["iteration_limit"]          = m_frame_iteration_limit;
     stats["last_line_search_alpha"]   = m_frame_last_line_search_alpha;
     stats["last_ccd_toi"]             = m_frame_last_ccd_toi;
     stats["last_cfl_alpha"]           = m_frame_last_cfl_alpha;

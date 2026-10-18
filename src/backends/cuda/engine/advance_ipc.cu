@@ -17,11 +17,18 @@ namespace uipc::backend::cuda
 {
 void SimEngine::advance()
 {
-    auto* stencil_solver = find<FEMLocalStencilSolver>();
-    Float alpha          = 1.0;
-    Float beta           = 1.0;
-    Float ccd_alpha      = 1.0;
-    Float cfl_alpha      = 1.0;
+    auto*      stencil_solver = find<FEMLocalStencilSolver>();
+    const bool accept_iteration_limit =
+        stencil_solver
+        && world().scene()
+                   .config()
+                   .find<std::string>("newton/local_stencil/iteration_limit_policy")
+                   ->view()[0]
+               == "accept_last_valid";
+    Float alpha     = 1.0;
+    Float beta      = 1.0;
+    Float ccd_alpha = 1.0;
+    Float cfl_alpha = 1.0;
 
     /***************************************************************************************
     *                                  Function Shortcuts
@@ -258,7 +265,7 @@ void SimEngine::advance()
         }
     };
 
-    auto check_newton_iter = [this](IndexT newton_iter_after_loop)
+    auto check_newton_iter = [&](IndexT newton_iter_after_loop)
     {
         auto newton_max = m_newton_max_iter->view()[0];
         if(newton_iter_after_loop >= newton_max)
@@ -267,6 +274,21 @@ void SimEngine::advance()
             logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          newton_max,
                          m_current_frame);
+
+            if(accept_iteration_limit)
+            {
+                if(!animation_reach_target())
+                    throw SimEngineException("Iteration budget cannot accept an unfinished animation target.");
+                // All motion has already passed the ordinary outer checks.
+                // Refresh endpoint contacts, then diagnose without another solve.
+                detect_dcd_candidates();
+                compute_dytopo_effect();
+                m_frame_iteration_limit = stencil_solver->certify_iteration_limit();
+                logger::warn("SoS accepted iteration-limited frame {}: {}",
+                             m_current_frame,
+                             m_frame_iteration_limit.dump());
+                return;
+            }
 
             if(m_strict_mode->view()[0])
             {
@@ -506,6 +528,10 @@ void SimEngine::advance()
                 }
             }
 
+            // Certify budgeted full-elastic endpoints before updating velocity.
+            if(accept_iteration_limit && newton_iter >= newton_max_iter)
+                check_newton_iter(newton_iter);
+
             // 5. Update Velocity => v = (x - x_0) / dt
             m_state = SimEngineState::UpdateVelocity;
             {
@@ -515,7 +541,8 @@ void SimEngine::advance()
 
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
-            check_newton_iter(newton_iter);
+            if(!m_frame_iteration_limit.value("accepted", false))
+                check_newton_iter(newton_iter);
             m_frame_completed = true;
         }
 
