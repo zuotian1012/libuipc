@@ -2,6 +2,7 @@
 #include <finite_element/finite_element_method.h>
 #include <finite_element/local_stencil.h>
 #include <finite_element/local_stencil_elastic.h>
+#include <finite_element/local_stencil_geometry.h>
 #include <finite_element/local_stencil_operator.h>
 #include <sim_engine.h>
 #include <finite_element/fem_dytopo_effect_receiver.h>
@@ -381,7 +382,8 @@ namespace
         const auto term  = terms(t);
         Float      value = 1;
         if(term.type == 10)
-            value = fem::F(xs(s(0)), xs(s(1)), xs(s(2)), xs(s(3)), term.inverse).determinant();
+            value = fem::stencil_determinant_margin(
+                fem::F(xs(s(0)), xs(s(1)), xs(s(2)), xs(s(3)), term.inverse));
         else if(term.type != 17)
             value = fem::stencil_triangle_measure(xs(s(0)), xs(s(1)), xs(s(2))) / term.rest_area2
                     - 1e-12;
@@ -1483,7 +1485,7 @@ void FEMLocalStencilSolver::cap_combined_elastic_step()
 Json FEMLocalStencilSolver::certify_iteration_limit()
 {
     if(m_warm_active || m_warm_finishing || !valid_configuration())
-        throw SimEngineException("Iteration budget cannot accept a warm or invalid stencil state.");
+        throw SimEngineException("Iteration budget cannot accept a warm, invalid or numerically degenerate stencil state.");
 
     // Evaluate the actual accepted endpoint, including full elasticity and all
     // currently discovered contacts. Do not reuse the previous origin residual.

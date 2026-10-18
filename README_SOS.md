@@ -100,6 +100,8 @@ python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolut
 
 ### 看动画与结果 / Replay & outputs
 
+**Budget 模式的完整场景验证失败（2026-10-18）**：密集场景每帧 32 轮的从头运行在第 57 帧出现四面体数值退化，前面已持续累积较大残差。截断接受不能保证长时间稳定；不要从已经压塌的第 56 帧继续跑，也不要删除几何检查。后端已补上近零行列式的误差余量检查，但这不是收敛修复。详见 [实验记录](agent_docs/27-sos-iteration-budget.md)。
+
 完成一次运行后，可以回放：
 
 ```shell

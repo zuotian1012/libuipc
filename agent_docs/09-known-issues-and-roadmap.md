@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+2026-10-18 full-run evidence: fresh dense budget-32 failed at frame 57 with a
+numerically collapsed bunny tetrahedron. Large residuals begin at first impact
+(frame 9); the original positive-sign-only geometry guard accepted an ambiguous
+near-zero determinant. A scale-relative roundoff margin closes that guard gap.
+Long-run stability still needs error-controlled acceptance/retry or a better
+nonlinear solve; a fixed iteration cap alone is insufficient. Details in [27](27-sos-iteration-budget.md).
+
 2026-10-18: optional SoS budget acceptance now advances checked, unconverged
 full-elastic endpoints without disabling geometric or line-search failures.
 Small 2/8-round runs completed 12 frames; dense 32-round continuation crossed

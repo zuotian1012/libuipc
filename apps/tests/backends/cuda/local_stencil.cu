@@ -6,6 +6,7 @@
 #include <finite_element/sos_contact.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 #include <finite_element/local_stencil_inversion.h>
+#include <finite_element/local_stencil_geometry.h>
 #include <cuda_tool/cuda_tool.h>
 #include <app/app.h>
 #include <Eigen/Cholesky>
@@ -490,6 +491,72 @@ TEST_CASE("Local stencil two tetrahedron convergence experiment", "[cuda][fem][s
               << ", max vertex error=" << max_error << ", energy=" << initial_energy
               << " -> " << energy(local, local.x) << std::endl;
 }
+
+__global__ void stencil_geometry_margin_kernel(ct::CBufferView<Matrix3x3> matrices,
+                                               ct::BufferView<Float> margins)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < matrices.size())
+        margins(i) = fem::stencil_determinant_margin(matrices(i));
+}
+
+TEST_CASE("SoS geometry certificate rejects recorded collapsed budget endpoints",
+          "[cuda][fem][stencil][budget_geometry]")
+{
+    // Dense bunny budget-32 run, element 55700, frames 56 and 57. The saved
+    // doubles are nearly coplanar; determinant signs depend on evaluation order.
+    // Never require a particular rounded sign in this regression.
+    const Vector3 rest[4] = {
+        Vector3{0.04370379338511453, 0.11331910285641839, 0.07790146884294581},
+        Vector3{0.051940859689853194, 0.11891081772588113, 0.08452404458698012},
+        Vector3{0.06203060730326919, 0.118966780080935, 0.0785201724284856},
+        Vector3{0.05149253731343283, 0.12577859899776986, 0.08192779661087403}};
+    const Vector3 endpoints[2][4] = {
+        {Vector3{0.04329690039549844, 0.02247075852493404, 0.043125525305798426},
+         Vector3{0.04926252159101436, 0.025847258845919548, 0.0429589364786687},
+         Vector3{0.05467457917213012, 0.025615982073660733, 0.04089815356912179},
+         Vector3{0.045988011701871334, 0.026186996885935794, 0.044321610791604626}},
+        {Vector3{0.04329690039549843, 0.022470758524934045, 0.04312552530579843},
+         Vector3{0.04926252159101436, 0.025847258845919548, 0.0429589364786687},
+         Vector3{0.05467457917213011, 0.025615982073660736, 0.0408981535691218},
+         Vector3{0.045988011701871334, 0.026186996885935794, 0.044321610791604626}}};
+    Matrix3x3 Dm;
+    for(int j = 0; j < 3; ++j)
+        Dm.col(j) = rest[j + 1] - rest[0];
+    const Matrix3x3        inverse = Dm.inverse();
+    std::vector<Matrix3x3> matrices;
+    for(const auto& x : endpoints)
+    {
+        Matrix3x3 Ds;
+        for(int j = 0; j < 3; ++j)
+            Ds.col(j) = x[j + 1] - x[0];
+        matrices.push_back(Ds * inverse);
+    }
+    matrices.push_back(Matrix3x3::Identity());
+    matrices.push_back(1e-6 * Matrix3x3::Identity());
+    matrices.push_back(-Matrix3x3::Identity());
+    matrices.push_back(Matrix3x3::Zero());
+    Matrix3x3 nonfinite = Matrix3x3::Identity();
+    nonfinite(0, 0)     = std::numeric_limits<Float>::infinity();
+    matrices.push_back(nonfinite);
+    ct::DeviceBuffer<Matrix3x3> device_matrices;
+    device_matrices.copy_from(matrices);
+    ct::DeviceBuffer<Float> device_margins;
+    device_margins.resize_discard(matrices.size());
+    stencil_geometry_margin_kernel<<<1, 32>>>(device_matrices.cview(),
+                                              device_margins.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+    std::vector<Float> margins;
+    device_margins.copy_to(margins);
+    for(int i = 0; i < matrices.size(); ++i)
+    {
+        CAPTURE(i);
+        const bool expected_valid = i == 2 || i == 3;
+        CHECK((fem::stencil_determinant_margin(matrices[i]) > 0) == expected_valid);
+        CHECK((margins[i] > 0) == expected_valid);
+    }
+}
+
 TEST_CASE("Local inversion certification retains interior and tangential roots", "[cuda][fem][stencil]")
 {
     const Matrix3x3 F  = Matrix3x3::Identity();

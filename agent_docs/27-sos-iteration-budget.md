@@ -97,3 +97,57 @@ python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolut
 
 Use a freshly built package, or explicitly select the isolated runtime through
 `UIPC_LOCAL_PACKAGE` on this workstation.
+
+## Fresh dense trajectory failure (2026-10-18)
+
+The owner's fresh 120-frame run in `output/bunny-cloth-budget32-full/` failed
+the Python geometry check at frame 57. This supersedes any inference of long-run
+stability from the two-frame continuation above. Frames 1-8 converged in free
+flight. Frames 9-56 were all budget-accepted. Selected endpoint observations:
+
+| Frame | Minimum det(F), NumPy volume ratio | Velocity residual (m/s) |
+|---|---:|---:|
+| 9 | 0.890405 | 33.6903 |
+| 16 | 0.0274252 | 193.804 |
+| 17 | 0.00879801 | 5.14341e6 |
+| 40 | 1.68540e-5 | See original journal |
+| 56 | 3.55493e-17 | 14856.9 |
+| 57 (failed) | -4.44367e-18 | 18879.5 |
+
+The failure is a progressively collapsed bunny tetrahedron, not a cloth-area
+failure or negative ground gap. The residual is a mass/time-scaled gradient,
+not the actual vertex speed. It already exceeds tolerance at first impact.
+An iteration cap alone has no bound on accumulated trajectory error.
+
+The previous backend certificate tested only `det(F)>0`. An 80-digit evaluation
+of the stored coordinates of tetrahedron 55700 gives a tiny positive raw
+determinant at frame 57 (~6.383e-25 m^3), although NumPy reports a negative
+rounded value. Both frames 56 and 57 are numerically coplanar. This is an
+unreliable sign test, not evidence that dropping the Python check is safe.
+
+The backend physical endpoint check now requires a positive determinant after
+subtracting `64*epsilon` times the sum of the six absolute triple products.
+This scale-relative roundoff margin is used by both outer validity checking
+and budget certification. Warm scratch iterates keep their existing exception.
+It does not introduce a physical volume floor or change the convergence norm.
+A CUDA regression uses the saved frame-56/57 tetrahedron coordinates.
+This rejects ambiguous endpoints; it does not fix the earlier convergence or
+propagation problem and does not establish a successful full dense trajectory.
+
+Diagnostics are under `output/sos-budget-failure-20261018/`: the offline
+`analyze.py`, `geometry-diagnosis.json`, and `failure-trend.png`. A separate
+`failed-trajectory/local_stencil/positions.npz` recovers frames 0-57 for replay,
+including the rejected final state, explicitly labeled by `FAILED.txt`.
+The original frames/checkpoints are preserved. Do not resume the already
+collapsed frame-56 checkpoint as a remedy; an error-controlled retry/fallback
+or improved nonlinear solve is needed before another full-run recommendation.
+
+Validation of the numerical guard: release build passed; `[stencil]` passed
+207 assertions in 13 cases, including CPU/GPU rejection of both recorded
+collapsed endpoints and acceptance of a uniformly scaled valid element. The
+small budget-2 scene still completed 12 approximate frames (10.97 s process
+time). No new full dense success is claimed. The new isolated runtime is
+`output/sos-budget-failure-20261018/runtime`, with backend SHA256
+`088c9b84e37fcd4800c62ef8799cb0d6bd2bae79493032d6648f097ff01ccf24`.
+The older experiment runtime remains unchanged. This build still includes
+preserved pre-existing working-tree instrumentation, as described above.

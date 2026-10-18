@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+2026-10-18 follow-up: the owner's fresh dense budget-32 trajectory failed at
+frame 57 after 48 unconverged frames. Minimum det(F) was already ~3.55e-17 at
+frame 56. Physical endpoint certification now rejects determinant signs within
+a scale-relative roundoff margin. The recorded collapsed elements are covered
+by a CPU/CUDA regression. This fixes false geometric acceptance, not accumulated
+truncation error; do not recommend resuming the collapsed checkpoint. See [27](27-sos-iteration-budget.md).
+
 2026-10-18: opt-in SoS `iteration_limit_policy=accept_last_valid` passed bounded
 integration checks. It accepts a checked full-elastic endpoint at the outer-round
 budget and preserves `converged=false`. Both 2/8-round small runs completed 12
