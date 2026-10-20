@@ -9,6 +9,11 @@ record it here in the same commit.**
 
 ## Change discipline
 
+Task-scoped update (2026-10-20): the owner now explicitly requests small-scale
+tests to isolate the SoS runtime/convergence problems. Prioritize controlled
+diagnostics with independent references before more full dense runs; this
+supersedes the earlier implementation-first preference for this investigation.
+
 1. **Commit to the current working branch only.** Never open a PR to (or
    push to) the default branch (`main`) unless the owner explicitly says
    so. (Set 2026-08-23; current working branch at the time:

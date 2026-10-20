@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+2026-10-20: small controls narrow the current priorities to mesh-scale error
+propagation and full-elastic quality of warm proposals. Assembled/packed
+operators agree in tested beams; local/monotone merging agrees in tested
+impacts. Independent CPU residual checks pass; neither result proves all dense
+contact states correct. See [28](28-sos-small-diagnostics.md) for bounded
+reproduction commands and measured counts.
+
 2026-10-18 full-run evidence: fresh dense budget-32 failed at frame 57 with a
 numerically collapsed bunny tetrahedron. Large residuals begin at first impact
 (frame 9); the original positive-sign-only geometry guard accepted an ambiguous

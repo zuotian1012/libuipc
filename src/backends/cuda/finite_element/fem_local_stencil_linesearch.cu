@@ -1,4 +1,5 @@
 #include <finite_element/fem_local_stencil_solver.h>
+#include <sim_engine.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/local_stencil_elastic.h>
 #include <finite_element/local_stencil_inversion.h>
@@ -10,12 +11,22 @@
 #include <utils/codim_thickness.h>
 #include <cuda_tool/cub.h>
 #include <uipc/common/timer.h>
+#include <cstdlib>
 
 namespace uipc::backend::cuda
 {
 namespace
 {
     namespace ct = cuda_tool;
+    bool energy_audit_enabled()
+    {
+        static const bool enabled = []
+        {
+            const char* value = std::getenv("UIPC_STENCIL_ENERGY_AUDIT");
+            return value && value[0] == '1' && value[1] == '\0';
+        }();
+        return enabled;
+    }
     __device__ Vector3 local_motion(IndexT v, const Vector4i& stencil, const Vector12& direction)
     {
         for(int a = 0; a < 4; ++a)
@@ -752,7 +763,7 @@ void FEMLocalStencilSolver::refresh_frozen_contacts()
     CUDA_TOOL_CHECK(cudaGetLastError());
 }
 
-bool FEMLocalStencilSolver::accept_inner_step()
+bool FEMLocalStencilSolver::accept_inner_step(const char* stage)
 {
     Timer     timer{"Stencil Merged Inner Acceptance"};
     const int vertices = static_cast<int>(m_fem->xs().size());
@@ -765,7 +776,16 @@ bool FEMLocalStencilSolver::accept_inner_step()
     if(!std::isfinite(slope))
         throw SimEngineException("Nonfinite frozen-objective slope.");
     if(slope >= 0 && !m_local_merge_acceptance)
+    {
+        if(energy_audit_enabled())
+            logger::info("SoS energy audit rejected slope: frame={}, outer={}, inner={}, stage={}, slope={}",
+                         engine().frame(),
+                         engine().newton_iter(),
+                         m_inner_index,
+                         stage,
+                         slope);
         return false;
+    }
     LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),
                              m_fem->xs(),
@@ -806,8 +826,21 @@ bool FEMLocalStencilSolver::accept_inner_step()
         ct::DeviceReduce().Sum(m_inner_values.data(), m_scalar.data(), count);
         Float change;
         m_scalar.view().copy_to(&change);
-        if(std::isfinite(change)
-           && (m_local_merge_acceptance || change <= 1e-4 * alpha * slope))
+        const bool accepted =
+            std::isfinite(change)
+            && (m_local_merge_acceptance || change <= 1e-4 * alpha * slope);
+        if(energy_audit_enabled())
+            logger::info("SoS energy audit: frame={}, outer={}, inner={}, warm={}, stage={}, slope={}, alpha={}, change={}, accepted={}",
+                         engine().frame(),
+                         engine().newton_iter(),
+                         m_inner_index,
+                         m_warm_active,
+                         stage,
+                         slope,
+                         alpha,
+                         change,
+                         accepted);
+        if(accepted)
         {
             stencil_inner_commit_kernel<<<(vertices + 127) / 128, 128>>>(
                 m_fem->m_impl.xs.view(), m_fem->m_impl.dxs.cview(), alpha);
@@ -909,6 +942,12 @@ Float FEMLocalStencilSolver::objective_energy()
     ct::DeviceReduce().Sum(m_objective_values.data(), m_scalar.data(), count);
     Float energy;
     m_scalar.view().copy_to(&energy);
+    if(energy_audit_enabled())
+        logger::info("SoS objective audit: frame={}, outer={}, warm={}, energy={}",
+                     engine().frame(),
+                     engine().newton_iter(),
+                     m_warm_active,
+                     energy);
     return energy;
 }
 }  // namespace uipc::backend::cuda

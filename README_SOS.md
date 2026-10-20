@@ -98,6 +98,17 @@ python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolut
 
 其中 expanded activation、基于 IPC 的刚度标定和有轮数上限的 warm initializer 都是当前实现选择，不能叫“原论文精确预设”。自定义屏障和原生求解器的接触目标函数也不同，不能仅用耗时直接比较算法优劣。
 
+### 小规模定位 / Small diagnostics
+
+现在可以先用小块测试定位问题，不必每次跑完整 bunny/cloth：
+
+```shell
+python python/examples/diagnose_local_stencil.py --output output/small-smoke
+python python/examples/diagnose_local_stencil.py --resolution 2 --impact-speed .8 --output output/small-impact
+```
+
+使用当前编译的运行库（可通过 `UIPC_LOCAL_PACKAGE` 指定）。脚本逐个运行无接触、撞地、warm start 和不同合并策略，保存 `report.json` 与每组日志。原生与 SoS 的停止标准不同，耗时不能直接解释为同精度加速比。实测已发现无接触时迭代随网格加密显著增加，以及当前 warm start 在部分小场景中增加了全弹性求解工作量。独立 CPU 残差检查与下一步建议见 [小规模诊断记录](agent_docs/28-sos-small-diagnostics.md)。
+
 ### 看动画与结果 / Replay & outputs
 
 **Budget 模式的完整场景验证失败（2026-10-18）**：密集场景每帧 32 轮的从头运行在第 57 帧出现四面体数值退化，前面已持续累积较大残差。截断接受不能保证长时间稳定；不要从已经压塌的第 56 帧继续跑，也不要删除几何检查。后端已补上近零行列式的误差余量检查，但这不是收敛修复。详见 [实验记录](agent_docs/27-sos-iteration-budget.md)。

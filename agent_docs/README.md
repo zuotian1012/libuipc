@@ -13,6 +13,8 @@ The branch's root [README](../README.md) is the bilingual SoS homepage;
 the original library overview is preserved in [README_LIBUIPC.md](../README_LIBUIPC.md).
 The opt-in approximate mode and measured limitations are documented in
 [27 - SoS iteration budget](27-sos-iteration-budget.md).
+Small controlled tests and independent residual checks are documented in
+[28 - SoS small diagnostics](28-sos-small-diagnostics.md).
 
 | File | Content |
 |---|---|

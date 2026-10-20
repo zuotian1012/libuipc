@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+2026-10-20: small CUDA controls reproduce mesh-dependent slow propagation even
+without contact (7/30/147/671 inner passes on 8/27/125/729 vertices). Warm
+initialization worsens the tested impact solve (52 cold versus 108 warm outer
+rounds at 729 vertices). CPU SNK1 residual/dense reference agrees with the local
+stopping certificate; 207 existing stencil assertions pass. Reusable runner and
+opt-in phase-energy instrumentation are published; no solver rule is changed.
+See [28](28-sos-small-diagnostics.md) before attempting another dense trajectory.
+
 2026-10-18 follow-up: the owner's fresh dense budget-32 trajectory failed at
 frame 57 after 48 unconverged frames. Minimum det(F) was already ~3.55e-17 at
 frame 56. Physical endpoint certification now rejects determinant signs within

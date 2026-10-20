@@ -1388,7 +1388,7 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
             m_fem->m_impl.dxs.view());
         CUDA_TOOL_CHECK(cudaGetLastError());
         cap_combined_elastic_step();
-        accept_inner_step();
+        accept_inner_step("gs");
 
         // The Jacobi trial is the actual unowned part of each original
         // direction, evaluated at the committed GS state. Its slope, energy
@@ -1420,7 +1420,7 @@ void FEMLocalStencilSolver::submit_sequential_hybrid()
             m_fem->m_impl.dxs.view());
         CUDA_TOOL_CHECK(cudaGetLastError());
         cap_combined_elastic_step();
-        accept_inner_step();
+        accept_inner_step("jacobi");
         stencil_batch_proposal_kernel<<<(n + 127) / 128, 128>>>(
             m_hybrid_start.cview(),
             m_fem->xs(),

@@ -59,7 +59,7 @@ class FEMLocalStencilSolver final : public SimSystem
     bool                         residual_converged() const;
     void                         solve_sweep(bool first);
     void                         refresh_frozen_contacts();
-    bool                         accept_inner_step();
+    bool                         accept_inner_step(const char* stage = "batch");
     void                         cap_combined_elastic_step();
     void                         project_warm_guess_locally();
     fem::LocalStencilContactView contact_view() const;
