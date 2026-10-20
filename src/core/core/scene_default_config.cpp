@@ -112,6 +112,13 @@ static SceneConfigContract make_scene_config_contract()
         "Iterative checks inversion in each inertia-barrier pass. After solves inertia/barriers with CCD, then bounds the guess from the physical frame origin before enabling elasticity. After_local first clips only vertices incident to unsafe elastic/contact terms, with a final global certificate. All retain strict final convergence.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"iterative", "after", "after_local"})}});
+    add("newton/local_stencil/warm_start_handoff",
+        std::string{"legacy"},
+        "string",
+        "Legacy preserves the original initializer. Full_objective rebases the feasible warm candidate to frame origin and applies full elastic/contact energy backtracking even for local merges; a rejected initializer falls back to the checked origin without relaxing final convergence.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu",
+         "src/backends/cuda/engine/advance_ipc.cu"},
+        Json{{"enum", Json::array({"legacy", "full_objective"})}});
     add("newton/local_stencil/warm_start_max_iter",
         IndexT{0},
         "integer",

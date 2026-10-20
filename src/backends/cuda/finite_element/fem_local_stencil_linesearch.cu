@@ -916,6 +916,9 @@ void FEMLocalStencilSolver::filter_local_steps(bool state_only, bool jacobi_subm
 }
 Float FEMLocalStencilSolver::objective_energy()
 {
+    // Guarded handoff compares origin and candidate using the same full
+    // objective and current history, while warm convergence stays disabled.
+    const bool     warm_objective = m_warm_active && !guarded_warm_handoff();
     LocalObjective objective{m_elastic_stencils.cview(),
                              m_contact_stencils.cview(),
                              m_fem->xs(),
@@ -932,7 +935,7 @@ Float FEMLocalStencilSolver::objective_energy()
                              {},
                              {},
                              {},
-                             m_warm_active};
+                             warm_objective};
     const SizeT    count =
         m_fem->xs().size() + m_elastic_stencils.size() + m_contact_stencils.size();
     m_objective_values.resize_discard(count);
@@ -946,7 +949,7 @@ Float FEMLocalStencilSolver::objective_energy()
         logger::info("SoS objective audit: frame={}, outer={}, warm={}, energy={}",
                      engine().frame(),
                      engine().newton_iter(),
-                     m_warm_active,
+                     warm_objective,
                      energy);
     return energy;
 }

@@ -31,11 +31,18 @@ class FEMLocalStencilSolver final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    void  solve();
-    bool  converged() const;
-    bool  valid_configuration();
-    bool  customized_barriers() const { return m_custom_barriers; }
-    bool  accepts_local_merges() const { return m_local_merge_acceptance; }
+    void solve();
+    bool converged() const;
+    bool valid_configuration();
+    bool customized_barriers() const { return m_custom_barriers; }
+    bool guarded_warm_handoff() const
+    {
+        return m_full_objective_handoff && m_warm_finishing;
+    }
+    bool accepts_local_merges() const
+    {
+        return m_local_merge_acceptance && !guarded_warm_handoff();
+    }
     bool  prepare_global_objective(Float alpha);
     Float objective_energy();
     // Refresh endpoint diagnostics without solving or submitting another step.
@@ -101,8 +108,9 @@ class FEMLocalStencilSolver final : public SimSystem
     SizeT                             m_history_frame          = ~SizeT{0};
     bool m_warm_enabled = false, m_warm_active = false;
     bool m_warm_post_inversion = false, m_warm_finishing = false;
-    bool m_warm_needs_rebase     = false;
-    bool m_warm_local_projection = false;
+    bool m_warm_needs_rebase      = false;
+    bool m_warm_local_projection  = false;
+    bool m_full_objective_handoff = false;
     cuda_tool::DeviceBuffer<Vector3>  m_warm_global_origin;
     SizeT                             m_warm_frame  = ~SizeT{0};
     Float                             m_previous_dt = 0, m_recovered_dt = 0;

@@ -100,6 +100,15 @@ python python/examples/local_stencil_bunny_cloth.py --solver sos --cloth-resolut
 
 ### 小规模定位 / Small diagnostics
 
+新增可选交接策略 `--warm-handoff full_objective`（与 `--warm-start` 配合）：
+warm 候选交给完整弹性求解前，从物理帧起点重新做 CCD、反转检查和完整能量回溯。
+默认仍是 `legacy`，便于对照。它是实验性初始化策略，不代表论文精确算法。
+
+729 顶点撞地小测试：旧 warm 108 轮，新交接 48 轮，关闭 warm 52 轮，三者都收敛。
+但 6 帧 bunny/cloth 测试两组均有 4 帧达到预算上限，新交接残差更大；
+因此耗时下降不能解释为同精度加速，也不能说明完整场景已经解决。
+运行命令、结果和局限见 [warm 交接记录](agent_docs/29-sos-warm-handoff.md)。
+
 现在可以先用小块测试定位问题，不必每次跑完整 bunny/cloth：
 
 ```shell

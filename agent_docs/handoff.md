@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+2026-10-20 follow-up: opt-in `warm_start_handoff=full_objective` rebases warm
+candidates to the physical origin and requires full-energy backtracking under
+the same contact history, including local-merge mode. Converged impact controls:
+27 vertices, legacy/new/cold = 14/11/5 outer rounds; 729 vertices = 108/48/52.
+Free flight retains alpha 1. Existing stencil tests pass 207 assertions.
+Six bunny/cloth frames complete, but both arms truncate four frames and the new
+arm has larger residuals despite lower runtime (221.7 s to 106.2 s). This is
+not a convergence fix or matched-accuracy speedup. Legacy remains the default.
+Next investigate global error propagation/correction; see
+[29](29-sos-warm-handoff.md) for exact commands and artifact provenance.
+
 2026-10-20: small CUDA controls reproduce mesh-dependent slow propagation even
 without contact (7/30/147/671 inner passes on 8/27/125/729 vertices). Warm
 initialization worsens the tested impact solve (52 cold versus 108 warm outer

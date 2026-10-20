@@ -26,6 +26,8 @@ CASES = {
     "ground-sos-local": (True, "local_stencil", "packed", "sos", "local", False),
     "ground-warm-monotone": (True, "local_stencil", "packed", "sos", "monotone", True),
     "ground-warm-local": (True, "local_stencil", "packed", "sos", "local", True),
+    "freeflight-cold": (True, "local_stencil", "packed", "sos", "monotone", False),
+    "freeflight-warm": (True, "local_stencil", "packed", "sos", "monotone", True),
 }
 
 
@@ -120,7 +122,7 @@ def worker(args):
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = .01
     config["newton"]["max_iter"] = args.rounds
-    config["line_search"]["max_iter"] = 32
+    config["line_search"]["max_iter"] = args.line_search_trials
     config["contact"]["enable"] = contact
     config["contact"]["friction"]["enable"] = False
     config["contact"]["d_hat"] = .0005
@@ -131,14 +133,15 @@ def worker(args):
             barrier_activation="expanded", barrier_stiffness="ipc",
             merge_acceptance=merge, hybrid_submission="sequential",
             color_coverage="independent", initial_guess="inertial",
-            warm_start=int(warm), warm_start_inversion="after_local",
+            warm_start=int(warm), warm_start_inversion=args.warm_inversion,
+            warm_start_handoff=args.warm_handoff,
             warm_start_max_iter=10, iteration_limit_policy="accept_last_valid")
     scene = Scene(config)
     scene.contact_tabular().default_model(0., 1e8)
     element = scene.contact_tabular().default_element()
     rest, tets, faces = beam_mesh(args.resolution, args.resolution, args.resolution)
     rest *= [.2, .8, .8]
-    rest[:, 1] += .1007 if contact else .3
+    rest[:, 1] += .1007 if contact and not args.case.startswith("freeflight") else .3
     mesh = tetmesh(rest, tets)
     label_surface(mesh)
     label_triangle_orient(mesh)
@@ -192,8 +195,13 @@ def worker(args):
 
 
 def log_metrics(path):
-    stages, residuals = {}, []
+    stages, residuals, handoffs = {}, [], []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "SoS full-objective handoff: " in line:
+            fields = dict(item.split("=", 1) for item in line.split("SoS full-objective handoff: ")[1].split(", "))
+            record = {k: float(v) for k, v in fields.items() if k != "rejected"}
+            record["rejected"] = fields["rejected"] == "true"
+            handoffs.append(record)
         match = re.search(r"Local stencil batch: outer=(\d+), color_passes=(\d+), accepted_inner=(\d+), velocity_residual=([^,]+)", line)
         if match:
             residuals.append(dict(outer=int(match[1]), color_passes=int(match[2]),
@@ -211,6 +219,7 @@ def log_metrics(path):
         row["uphill"] += int(change > 1e-16)
         row["max_change"] = max(row["max_change"], change)
     return dict(stage_energy=stages, full_elastic_outer_trace=residuals,
+                warm_handoffs=handoffs,
                 color_passes=sum(row["color_passes"] for row in residuals))
 
 
@@ -223,9 +232,13 @@ def main():
     parser.add_argument("--cases", nargs="+", choices=CASES, default=list(CASES))
     parser.add_argument("--resolution", type=int, default=1)
     parser.add_argument("--impact-speed", type=float, default=0.)
+    parser.add_argument("--line-search-trials", type=int, default=32,
+                        help="Global backtracking budget; use 1 to exercise guarded initializer rejection")
+    parser.add_argument("--warm-handoff", choices=["legacy", "full_objective"], default="legacy")
+    parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="after_local")
     args = parser.parse_args()
-    if args.rounds <= 0 or args.timeout <= 0 or args.resolution <= 0 or args.impact_speed < 0:
-        parser.error("rounds, timeout and resolution must be positive; impact-speed must be nonnegative")
+    if args.rounds <= 0 or args.timeout <= 0 or args.resolution <= 0 or args.line_search_trials <= 0 or args.impact_speed < 0:
+        parser.error("rounds, timeout, resolution and line-search-trials must be positive; impact-speed must be nonnegative")
     if args.case:
         worker(args)
         return
@@ -245,6 +258,8 @@ def main():
         command = [sys.executable, "-u", str(Path(__file__).resolve()), "--case", name,
                    "--rounds", str(args.rounds), "--resolution", str(args.resolution),
                    "--impact-speed", str(args.impact_speed),
+                   "--warm-handoff", args.warm_handoff, "--warm-inversion", args.warm_inversion,
+                   "--line-search-trials", str(args.line_search_trials),
                    "--output", str((args.output/name).resolve())]
         log = args.output / (name + ".log")
         start = time.perf_counter()

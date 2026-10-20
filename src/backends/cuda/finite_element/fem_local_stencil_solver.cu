@@ -718,6 +718,11 @@ void FEMLocalStencilSolver::init()
         config.find<IndexT>("newton/local_stencil/warm_start_max_iter")->view()[0];
     if(m_warm_max_iterations < 0)
         throw SimEngineException("warm_start_max_iter must be nonnegative.");
+    const auto handoff =
+        config.find<std::string>("newton/local_stencil/warm_start_handoff")->view()[0];
+    if(handoff != "legacy" && handoff != "full_objective")
+        throw SimEngineException("warm_start_handoff must be legacy or full_objective.");
+    m_full_objective_handoff = handoff == "full_objective";
     const auto warm_inversion =
         config.find<std::string>("newton/local_stencil/warm_start_inversion")->view()[0];
     if(warm_inversion != "iterative" && warm_inversion != "after" && warm_inversion != "after_local")
@@ -826,7 +831,7 @@ bool FEMLocalStencilSolver::begin_warm_start()
     m_warm_iterations   = 0;
     m_warm_finishing    = false;
     m_warm_needs_rebase = false;
-    if(m_warm_post_inversion)
+    if(m_warm_post_inversion || m_full_objective_handoff)
     {
         m_warm_global_origin.resize_discard(m_vertices->positions().size());
         m_warm_global_origin.view().copy_from(m_vertices->positions());
@@ -862,7 +867,7 @@ void FEMLocalStencilSolver::solve()
     if(m_warm_finishing)
     {
         m_warm_finishing = false;
-        if(m_history_changed && !warm_budget_exhausted())
+        if(m_history_changed && !warm_budget_exhausted() && !m_full_objective_handoff)
         {
             // Global CCD can discover new pairs along the rebased path. The
             // engine then rejects that proposal at the physical frame origin.
@@ -893,11 +898,13 @@ void FEMLocalStencilSolver::solve()
         if(!warm_converged)
             logger::info("SoS warm budget exhausted after {} passes (auxiliary residual NOT converged); preparing feasible initial guess",
                          m_warm_iterations);
-        if(m_warm_post_inversion && m_warm_needs_rebase)
+        if((m_warm_post_inversion && m_warm_needs_rebase) || m_full_objective_handoff)
         {
             const int vertices = static_cast<int>(m_fem->xs().size());
             // Solve Eq.14 first, then bound the complete guess from the last
-            // physical state. Do not ask an inversion-constrained iterate to
+            // physical state. The guarded policy also rebases already feasible
+            // guesses, so full energy is compared with the same frame origin.
+            // Do not ask an inversion-constrained iterate to
             // satisfy the unconstrained inertia/barrier stationarity condition.
             stencil_batch_proposal_kernel<<<(vertices + 127) / 128, 128>>>(
                 m_step_origin.cview(),

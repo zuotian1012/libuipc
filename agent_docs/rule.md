@@ -145,6 +145,10 @@ supersedes the earlier implementation-first preference for this investigation.
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS investigation order (2026-10-20): modify and validate warm-start handoff
+  first, then investigate global error correction. Preserve controlled small
+  comparisons and distinguish initializer quality from final convergence.
+
 - SoS iteration budget (2026-10-18): add an opt-in mode accepting the last
   checked full-elastic endpoint at the outer iteration limit, then run bounded
   comparisons. Preserve default strict behavior and all geometry/line-search

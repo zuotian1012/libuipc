@@ -309,9 +309,12 @@ bool FEMLocalStencilSolver::prepare_global_objective(Float alpha)
     // against the expanded energy and full geometric checks, then rebuild all
     // derivatives for the mandatory elasticity solve. No warm residual is
     // promoted to a physical-frame convergence certificate.
+    // Guarded handoff likewise evaluates the proposal on the expanded full
+    // objective; it is not an old-objective Newton direction to invalidate.
     const bool initial_guess =
         m_warm_active
-        && (m_warm_iterations == 0 || (m_warm_finishing && warm_budget_exhausted()));
+        && (m_warm_iterations == 0
+            || (m_warm_finishing && (warm_budget_exhausted() || m_full_objective_handoff)));
     return previous != m_history.records().size() && !initial_guess;
 }
 }  // namespace uipc::backend::cuda

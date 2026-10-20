@@ -146,6 +146,7 @@ def run(args, output):
     config["newton"]["local_stencil"]["warm_start_inversion"] = args.warm_inversion
     config["newton"]["local_stencil"]["warm_start_relaxation"] = args.warm_relaxation
     config["newton"]["local_stencil"]["warm_start_max_iter"] = args.warm_max_iterations
+    config["newton"]["local_stencil"]["warm_start_handoff"] = args.warm_handoff
     config["newton"]["local_stencil"]["restart_schedule_on_recover"] = int(source is not None)
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
@@ -221,7 +222,7 @@ def run(args, output):
         for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
                                color_limit=8, color_coverage="primary", inner_sweeps=1,
                                hessian_product="assembled", barrier_model="ipc", barrier_activation="reference", barrier_stiffness="ipc",
-                               merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False, warm_inversion="iterative", warm_relaxation=1., warm_max_iterations=0, iteration_limit_policy="error").items():
+                               merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False, warm_inversion="iterative", warm_relaxation=1., warm_max_iterations=0, warm_handoff="legacy", iteration_limit_policy="error").items():
             previous_parameters.setdefault(key, value)
         if previous["mesh_sha256"] != fingerprint or physics(previous_parameters) != physics(parameters):
             raise ValueError("Resume requires identical mesh, physics, solver, initialization and tolerance")
@@ -494,6 +495,8 @@ def main():
     parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="iterative")
     parser.add_argument("--warm-max-iterations", type=int, default=0, help="Auxiliary warm-pass budget; 0 requires warm residual convergence; final tolerance is unchanged")
     parser.add_argument("--warm-start", action="store_true")
+    parser.add_argument("--warm-handoff", choices=["legacy", "full_objective"], default="legacy",
+                        help="Experimental initializer selection: compare the feasible warm path with frame origin using full elastic/contact energy")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--cloth-resolution", "--resolution", dest="resolution", type=int, default=48,
                         help="Cloth cells per edge: (N+1)^2 vertices and 2*N^2 triangles (default: 48)")
@@ -526,7 +529,7 @@ def main():
         parser.error("Iteration-limit acceptance requires --solver sos")
     if args.warm_max_iterations < 0:
         parser.error("warm-max-iterations must be nonnegative")
-    if args.solver in {"global", "both"} and (args.barrier_model != "ipc" or args.warm_start or args.warm_max_iterations != 0 or args.warm_inversion != "iterative" or args.warm_relaxation != 1
+    if args.solver in {"global", "both"} and (args.barrier_model != "ipc" or args.warm_start or args.warm_max_iterations != 0 or args.warm_inversion != "iterative" or args.warm_relaxation != 1 or args.warm_handoff != "legacy"
             or args.hessian_product != "assembled" or args.merge_acceptance != "monotone"
             or args.hybrid_submission != "frozen"):
         parser.error("Custom SoS controls require --solver sos; compare separate runs with explicitly matched accuracy")

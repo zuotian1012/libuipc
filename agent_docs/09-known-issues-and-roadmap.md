@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+2026-10-20 warm handoff: optional full-objective backtracking improves converged
+cube impact controls (108 to 48 rounds on 729 vertices, cold 52), but does not
+resolve dense propagation. Six-frame bunny/cloth arms both truncate frames 3-6;
+new-policy residuals are higher, so lower runtime is not an accuracy-matched
+gain. Keep legacy as default. A deliberately exhausted initializer search
+recovers through alpha zero and converges. Next isolate full-elastic contraction and global correction
+at identical states/history. See [29](29-sos-warm-handoff.md).
+
 2026-10-20: small controls narrow the current priorities to mesh-scale error
 propagation and full-elastic quality of warm proposals. Assembled/packed
 operators agree in tested beams; local/monotone merging agrees in tested

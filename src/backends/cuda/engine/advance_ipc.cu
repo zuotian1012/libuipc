@@ -509,13 +509,34 @@ void SimEngine::advance()
                     }
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
+                    bool rejected_warm_candidate = false;
                     if(stencil_solver && line_search_iter >= m_line_searcher->max_iter())
                     {
                         m_line_searcher->step_forward(0);
                         m_global_vertex_manager->step_forward(0);
-                        throw SimEngineException("local_stencil line search failed; restored the last accepted state.");
+                        if(!stencil_solver->guarded_warm_handoff())
+                            throw SimEngineException("local_stencil line search failed; restored the last accepted state.");
+                        // Only an optional initializer may fall back to the
+                        // checked physical origin. Ordinary solve failures retain
+                        // their strict behavior. Next round rebuilds derivatives.
+                        alpha  = 0;
+                        last_E = compute_energy(alpha);
+                        if(!std::isfinite(last_E) || last_E > E0
+                           || !stencil_solver->valid_configuration())
+                            throw SimEngineException("Invalid origin after rejected warm candidate.");
+                        m_frame_last_line_search_alpha = 0;
+                        rejected_warm_candidate        = true;
                     }
-                    check_line_search_iter(line_search_iter, E0, last_E);
+                    if(!rejected_warm_candidate)
+                        check_line_search_iter(line_search_iter, E0, last_E);
+                    if(stencil_solver && stencil_solver->guarded_warm_handoff())
+                        logger::info("SoS full-objective handoff: frame={}, outer={}, alpha={}, energy_before={}, energy_after={}, rejected={}",
+                                     m_current_frame,
+                                     newton_iter,
+                                     alpha,
+                                     E0,
+                                     last_E,
+                                     alpha == 0);
 
                     // newton/min_iter is a pure hard floor (default 0 = off);
                     // the semi-implicit Kmin lives in newton/semi_implicit/K_min
