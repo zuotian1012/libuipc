@@ -399,6 +399,8 @@ void SimEngine::advance()
                     if(stencil_solver)
                     {
                         stencil_solver->solve();
+                        m_frame_linear_solver_iterations +=
+                            stencil_solver->global_linear_iterations();
                         if(const auto origin = stencil_solver->warm_rebase_positions();
                            origin.size())
                         {
@@ -537,6 +539,13 @@ void SimEngine::advance()
                                      E0,
                                      last_E,
                                      alpha == 0);
+                    if(stencil_solver && stencil_solver->global_correction_active())
+                        logger::info("SoS global correction accepted: frame={}, outer={}, alpha={}, energy_before={}, energy_after={}",
+                                     m_current_frame,
+                                     newton_iter,
+                                     alpha,
+                                     E0,
+                                     last_E);
 
                     // newton/min_iter is a pure hard floor (default 0 = off);
                     // the semi-implicit Kmin lives in newton/semi_implicit/K_min

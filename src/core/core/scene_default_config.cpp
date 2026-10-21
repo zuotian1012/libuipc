@@ -112,6 +112,24 @@ static SceneConfigContract make_scene_config_contract()
         "Iterative checks inversion in each inertia-barrier pass. After solves inertia/barriers with CCD, then bounds the guess from the physical frame origin before enabling elasticity. After_local first clips only vertices incident to unsafe elastic/contact terms, with a final global certificate. All retain strict final convergence.",
         {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
         Json{{"enum", Json::array({"iterative", "after", "after_local"})}});
+    add("newton/local_stencil/global_correction_interval",
+        IndexT{0},
+        "integer",
+        "Experimental same-objective global truncated-PCG correction every N full-elastic outer rounds per frame; 0 disables it. Warm rounds do not count. Corrections require full-energy acceptance even with local merges.",
+        {"src/backends/cuda/finite_element/fem_local_stencil_solver.cu"},
+        Json{{"minimum", 0}});
+    add("newton/local_stencil/global_correction_max_iter",
+        IndexT{256},
+        "integer",
+        "Maximum PCG iterations per experimental global correction. A truncated descent direction still requires geometric and full-energy acceptance; this is not a physical convergence threshold.",
+        {"src/backends/cuda/finite_element/local_stencil_global.cu"},
+        Json{{"minimum", 1}});
+    add("newton/local_stencil/global_correction_tolerance",
+        Float{1e-4},
+        "number",
+        "Relative unpreconditioned linear residual target for the experimental global correction. The physical nonlinear stopping criterion is unchanged.",
+        {"src/backends/cuda/finite_element/local_stencil_global.cu"},
+        Json{{"exclusiveMinimum", 0.0}, {"exclusiveMaximum", 1.0}});
     add("newton/local_stencil/warm_start_handoff",
         std::string{"legacy"},
         "string",

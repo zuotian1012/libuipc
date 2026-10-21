@@ -697,6 +697,16 @@ void FEMLocalStencilSolver::init()
         config.find<std::string>("newton/local_stencil/color_coverage")->view()[0] == "primary";
     m_inner_sweeps =
         config.find<IndexT>("newton/local_stencil/inner_sweeps")->view()[0];
+    m_global_correction_interval =
+        config.find<IndexT>("newton/local_stencil/global_correction_interval")->view()[0];
+    m_global_correction_max_iter =
+        config.find<IndexT>("newton/local_stencil/global_correction_max_iter")->view()[0];
+    m_global_correction_tolerance =
+        config.find<Float>("newton/local_stencil/global_correction_tolerance")->view()[0];
+    if(m_global_correction_interval < 0 || m_global_correction_max_iter < 1
+       || !std::isfinite(m_global_correction_tolerance)
+       || m_global_correction_tolerance <= 0 || m_global_correction_tolerance >= 1)
+        throw SimEngineException("Invalid global stencil correction controls.");
     m_restart_schedule =
         config.find<IndexT>("newton/local_stencil/restart_schedule_on_recover")->view()[0] != 0;
     m_local_merge_acceptance =
@@ -864,6 +874,14 @@ bool FEMLocalStencilSolver::warm_budget_exhausted() const
 void FEMLocalStencilSolver::solve()
 {
     m_inner_index = 0;
+    const bool retry_correction = m_global_correction_active && m_history_changed;
+    m_global_correction_active = false;
+    m_global_linear_iterations = 0;
+    if(m_correction_frame != engine().frame())
+    {
+        m_correction_frame = engine().frame();
+        m_full_solve_round = 0;
+    }
     if(m_warm_finishing)
     {
         m_warm_finishing = false;
@@ -928,6 +946,14 @@ void FEMLocalStencilSolver::solve()
         logger::info("SoS warm start handoff: {} Jacobi passes (residual_converged={}); enabling elasticity",
                      m_warm_iterations,
                      warm_converged);
+    }
+    ++m_full_solve_round;
+    if(m_global_correction_interval > 0
+       && (retry_correction || m_full_solve_round % m_global_correction_interval == 0))
+    {
+        m_global_correction_active = true;
+        solve_global_correction();
+        return;
     }
     if(m_inner_sweeps == 1)
     {
@@ -1496,6 +1522,20 @@ Json FEMLocalStencilSolver::certify_iteration_limit()
 
     // Evaluate the actual accepted endpoint, including full elasticity and all
     // currently discovered contacts. Do not reuse the previous origin residual.
+    refresh_full_derivatives(false);
+    const Float energy = objective_energy();
+    if(!std::isfinite(energy))
+        throw SimEngineException("Iteration budget cannot accept a nonfinite stencil endpoint.");
+    return Json{{"accepted", true},
+                {"policy", "accept_last_valid"},
+                {"velocity_residual", m_residual},
+                {"gradient_l2", m_gradient_norm},
+                {"energy", energy},
+                {"endpoint_residual_converged", residual_converged()}};
+}
+
+void FEMLocalStencilSolver::refresh_full_derivatives(bool assemble_hessian)
+{
     prepare_contacts();
     prepare_barriers();
     refresh_frozen_contacts();
@@ -1510,7 +1550,7 @@ Json FEMLocalStencilSolver::certify_iteration_limit()
         m_element_hessians.view(),
         dt,
         false,
-        false);
+        assemble_hessian);
     stencil_vertex_derivatives_kernel<<<(n + 127) / 128, 128>>>(
         m_elastic_stencils.cview(),
         m_fem->xs(),
@@ -1537,16 +1577,70 @@ Json FEMLocalStencilSolver::certify_iteration_limit()
     cuda_tool::DeviceReduce().Sum(m_gradient_norms.data(), m_scalar.data(), n);
     Float norm2;
     m_scalar.view().copy_to(&norm2);
-    m_gradient_norm    = std::sqrt(norm2);
-    const Float energy = objective_energy();
-    if(!std::isfinite(m_residual) || !std::isfinite(m_gradient_norm) || !std::isfinite(energy))
-        throw SimEngineException("Iteration budget cannot accept a nonfinite stencil endpoint.");
-    return Json{{"accepted", true},
-                {"policy", "accept_last_valid"},
-                {"velocity_residual", m_residual},
-                {"gradient_l2", m_gradient_norm},
-                {"energy", energy},
-                {"endpoint_residual_converged", residual_converged()}};
+    m_gradient_norm = std::sqrt(norm2);
+    if(!std::isfinite(m_residual) || !std::isfinite(m_gradient_norm))
+        throw SimEngineException("Nonfinite full stencil residual.");
+}
+
+void FEMLocalStencilSolver::solve_global_correction()
+{
+    Timer timer{"Stencil Global Correction"};
+    refresh_full_derivatives(true);
+    const int n = static_cast<int>(m_fem->xs().size());
+    if(converged())
+    {
+        CUDA_TOOL_CHECK(cudaMemset(m_fem->m_impl.dxs.data(), 0, n * sizeof(Vector3)));
+        return;
+    }
+    fem::GlobalStencilContext context{m_elastic_stencils.cview(),
+                                      m_contact_stencils.cview(),
+                                      m_element_hessians.cview(),
+                                      m_frozen_contact_hessians.cview(),
+                                      m_fem->masses(),
+                                      m_fem->is_fixed()};
+    const auto                result = m_global_solver.solve(context,
+                                              m_total_gradients.cview(),
+                                              m_fem->m_impl.dxs.view(),
+                                              m_global_correction_max_iter,
+                                              m_global_correction_tolerance);
+    m_global_linear_iterations       = result.iterations;
+    logger::info("SoS global correction: frame={}, outer={}, cg_iterations={}, linear_residual={}, slope={}, negative_curvature={}, fallback={}, velocity_residual={}",
+                 engine().frame(),
+                 engine().newton_iter(),
+                 result.iterations,
+                 result.relative_residual,
+                 result.slope,
+                 result.negative_curvature,
+                 result.fallback,
+                 m_residual);
+    if(const char* directory = std::getenv("UIPC_STENCIL_GLOBAL_AUDIT"); directory && *directory)
+    {
+        const auto folder = std::filesystem::path(directory);
+        std::filesystem::create_directories(folder);
+        const auto prefix =
+            folder / fmt::format("{}-{}", engine().frame(), engine().newton_iter());
+        auto dump = [&](const char* name, auto view)
+        {
+            using T =
+                std::remove_const_t<std::remove_reference_t<decltype(*view.data())>>;
+            vector<T> host(view.size());
+            view.copy_to(host.data());
+            std::ofstream out(prefix.string() + name, std::ios::binary);
+            out.exceptions(std::ios::failbit | std::ios::badbit);
+            out.write(reinterpret_cast<const char*>(host.data()), host.size() * sizeof(T));
+        };
+        dump("-elements.bin", context.elements);
+        dump("-contacts.bin", context.contacts);
+        dump("-hessians.bin", context.elastic_hessians);
+        dump("-contact-hessians.bin", context.contact_hessians);
+        dump("-mass.bin", context.masses);
+        dump("-fixed.bin", context.fixed);
+        dump("-gradient.bin", m_total_gradients.cview());
+        dump("-dx.bin", m_fem->m_impl.dxs.cview());
+    }
+    // The global direction uses no local merge certificate. Its full-energy
+    // backtracking, CCD and history invalidation remain in the engine.
+    cap_combined_elastic_step();
 }
 
 bool FEMLocalStencilSolver::converged() const

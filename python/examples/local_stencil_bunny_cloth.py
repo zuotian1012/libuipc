@@ -147,6 +147,8 @@ def run(args, output):
     config["newton"]["local_stencil"]["warm_start_relaxation"] = args.warm_relaxation
     config["newton"]["local_stencil"]["warm_start_max_iter"] = args.warm_max_iterations
     config["newton"]["local_stencil"]["warm_start_handoff"] = args.warm_handoff
+    for key in ["global_correction_interval", "global_correction_max_iter", "global_correction_tolerance"]:
+        config["newton"]["local_stencil"][key] = getattr(args, key)
     config["newton"]["local_stencil"]["restart_schedule_on_recover"] = int(source is not None)
     config["newton"]["semi_implicit"]["enable"] = False
     config["newton"]["velocity_tol"] = args.tolerance
@@ -220,6 +222,7 @@ def run(args, output):
         # Older manifests predate the explicit execution controls. Recover their
         # actual settings, not today's demo defaults, before checking equality.
         for key, value in dict(stopping="velocity", gradient_tolerance=1e-4,
+                               global_correction_interval=0, global_correction_max_iter=256, global_correction_tolerance=1e-4,
                                color_limit=8, color_coverage="primary", inner_sweeps=1,
                                hessian_product="assembled", barrier_model="ipc", barrier_activation="reference", barrier_stiffness="ipc",
                                merge_acceptance="monotone", hybrid_submission="frozen", warm_start=False, warm_inversion="iterative", warm_relaxation=1., warm_max_iterations=0, warm_handoff="legacy", iteration_limit_policy="error").items():
@@ -495,6 +498,10 @@ def main():
     parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="iterative")
     parser.add_argument("--warm-max-iterations", type=int, default=0, help="Auxiliary warm-pass budget; 0 requires warm residual convergence; final tolerance is unchanged")
     parser.add_argument("--warm-start", action="store_true")
+    parser.add_argument("--global-correction-interval", type=int, default=0,
+                        help="Experimental global correction every N full-elastic outer rounds; 0 keeps SoS only")
+    parser.add_argument("--global-correction-max-iter", type=int, default=256)
+    parser.add_argument("--global-correction-tolerance", type=float, default=1e-4)
     parser.add_argument("--warm-handoff", choices=["legacy", "full_objective"], default="legacy",
                         help="Experimental initializer selection: compare the feasible warm path with frame origin using full elastic/contact energy")
     parser.add_argument("--frames", type=int, default=120)
@@ -525,13 +532,15 @@ def main():
     parser.add_argument("--checkpoint-frame", type=int, default=0)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.global_correction_interval < 0 or args.global_correction_max_iter < 1 or not 0 < args.global_correction_tolerance < 1:
+        parser.error("Invalid global correction interval, CG budget or linear tolerance")
     if args.iteration_limit_policy != "error" and args.solver not in {"sos", "local_stencil"}:
         parser.error("Iteration-limit acceptance requires --solver sos")
     if args.warm_max_iterations < 0:
         parser.error("warm-max-iterations must be nonnegative")
     if args.solver in {"global", "both"} and (args.barrier_model != "ipc" or args.warm_start or args.warm_max_iterations != 0 or args.warm_inversion != "iterative" or args.warm_relaxation != 1 or args.warm_handoff != "legacy"
             or args.hessian_product != "assembled" or args.merge_acceptance != "monotone"
-            or args.hybrid_submission != "frozen"):
+            or args.hybrid_submission != "frozen" or args.global_correction_interval != 0):
         parser.error("Custom SoS controls require --solver sos; compare separate runs with explicitly matched accuracy")
     if args.solver == "sos":
         args.solver = "local_stencil"

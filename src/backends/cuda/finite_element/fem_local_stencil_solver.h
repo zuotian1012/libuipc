@@ -5,6 +5,7 @@
 #include <finite_element/local_stencil_contact.h>
 #include <finite_element/local_stencil_barrier.h>
 #include <finite_element/local_stencil_packed.h>
+#include <finite_element/local_stencil_global.h>
 #include <finite_element/sos_barrier_history.h>
 #include <utils/dump_utils.h>
 
@@ -26,7 +27,7 @@ class HalfPlaneVertexReporter;
 // Local solves are color-blind. Frozen submission composes independently
 // filtered directions; sequential submission searches the unowned Jacobi part
 // at the committed GS state. The engine certifies the combined geometry and
-// applies the selected energy policy. No global linear solve is performed.
+// applies the selected energy policy. Global corrections are optional controls.
 class FEMLocalStencilSolver final : public SimSystem
 {
   public:
@@ -41,7 +42,12 @@ class FEMLocalStencilSolver final : public SimSystem
     }
     bool accepts_local_merges() const
     {
-        return m_local_merge_acceptance && !guarded_warm_handoff();
+        return m_local_merge_acceptance && !guarded_warm_handoff() && !m_global_correction_active;
+    }
+    bool global_correction_active() const { return m_global_correction_active; }
+    IndexT global_linear_iterations() const
+    {
+        return m_global_linear_iterations;
     }
     bool  prepare_global_objective(Float alpha);
     Float objective_energy();
@@ -55,20 +61,22 @@ class FEMLocalStencilSolver final : public SimSystem
     }
 
   private:
-    void                         do_build() override;
-    void                         init();
-    void                         init_elastic();
-    void                         prepare_contacts();
-    void                         prepare_custom_contacts(Float alpha);
-    void                         build_custom_barriers();
-    bool                         begin_warm_start();
-    bool                         warm_budget_exhausted() const;
-    bool                         residual_converged() const;
-    void                         solve_sweep(bool first);
-    void                         refresh_frozen_contacts();
-    bool                         accept_inner_step(const char* stage = "batch");
-    void                         cap_combined_elastic_step();
-    void                         project_warm_guess_locally();
+    void do_build() override;
+    void init();
+    void init_elastic();
+    void prepare_contacts();
+    void prepare_custom_contacts(Float alpha);
+    void build_custom_barriers();
+    bool begin_warm_start();
+    bool warm_budget_exhausted() const;
+    bool residual_converged() const;
+    void solve_sweep(bool first);
+    void refresh_frozen_contacts();
+    void refresh_full_derivatives(bool assemble_hessian);
+    void solve_global_correction();
+    bool accept_inner_step(const char* stage = "batch");
+    void cap_combined_elastic_step();
+    void project_warm_guess_locally();
     fem::LocalStencilContactView contact_view() const;
     void init_coloring(span<const Vector4i> elements, const vector<vector<IndexT>>& incident);
     void prepare_gs_coloring();
@@ -91,21 +99,29 @@ class FEMLocalStencilSolver final : public SimSystem
     bool                              m_sequential_hybrid = false;
     cuda_tool::DeviceBuffer<Vector12> m_unfiltered_directions;
     cuda_tool::DeviceBuffer<Vector3>  m_hybrid_start, m_hybrid_gradient;
-    bool                              m_jacobi                 = false;
-    bool                              m_gs                     = false;
-    bool                              m_local_filter           = true;
-    bool                              m_inertial_guess         = false;
-    bool                              m_gradient_stopping      = false;
-    bool                              m_primary_coverage       = false;
-    bool                              m_restart_schedule       = false;
-    bool                              m_convert_ipc_stiffness  = true;
-    bool                              m_expand_barriers_only   = false;
-    GlobalSimplicialSurfaceManager*   m_surface                = nullptr;
-    Float                             m_warm_relaxation        = 1;
-    bool                              m_local_merge_acceptance = false;
-    bool                              m_custom_barriers        = false;
-    bool                              m_history_changed        = false;
-    SizeT                             m_history_frame          = ~SizeT{0};
+    bool                              m_jacobi                      = false;
+    bool                              m_gs                          = false;
+    bool                              m_local_filter                = true;
+    bool                              m_inertial_guess              = false;
+    bool                              m_gradient_stopping           = false;
+    bool                              m_primary_coverage            = false;
+    bool                              m_restart_schedule            = false;
+    bool                              m_convert_ipc_stiffness       = true;
+    bool                              m_expand_barriers_only        = false;
+    GlobalSimplicialSurfaceManager*   m_surface                     = nullptr;
+    Float                             m_warm_relaxation             = 1;
+    bool                              m_local_merge_acceptance      = false;
+    bool                              m_custom_barriers             = false;
+    bool                              m_global_correction_active    = false;
+    IndexT                            m_global_correction_interval  = 0;
+    IndexT                            m_global_correction_max_iter  = 256;
+    Float                             m_global_correction_tolerance = 1e-4;
+    IndexT                            m_global_linear_iterations    = 0;
+    SizeT                             m_full_solve_round            = 0;
+    SizeT                             m_correction_frame            = ~SizeT{0};
+    fem::GlobalStencilSolver          m_global_solver;
+    bool                              m_history_changed = false;
+    SizeT                             m_history_frame   = ~SizeT{0};
     bool m_warm_enabled = false, m_warm_active = false;
     bool m_warm_post_inversion = false, m_warm_finishing = false;
     bool m_warm_needs_rebase      = false;

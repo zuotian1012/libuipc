@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+2026-10-21: optional same-objective global truncated-PCG correction is implemented
+with unique primitive assembly, strict energy/geometry acceptance and unchanged
+physical tolerance. 24 small arms converge; 19 independent frozen-state linear
+audits and 229 CUDA assertions pass. The small bunny/cloth scene completes 120
+strict frames in 249.711 s advance, maximum 33 outer rounds, zero truncations;
+121 saved-state surface/geometry checks pass. This is an experimental hybrid,
+not a paper SoS speedup or dense-scene validation. Interval 0 preserves the
+original path. See [30](30-sos-global-correction.md) for commands and provenance.
+
 2026-10-20 follow-up: opt-in `warm_start_handoff=full_objective` rebases warm
 candidates to the physical origin and requires full-energy backtracking under
 the same contact history, including local-merge mode. Converged impact controls:

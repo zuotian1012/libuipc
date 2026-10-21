@@ -145,6 +145,11 @@ supersedes the earlier implementation-first preference for this investigation.
 
 ## Task-scoped (recorded for context, not general policy)
 
+- SoS global correction (2026-10-20, continued 2026-10-21): implement and test
+  the next same-objective global-correction experiment after warm handoff.
+  Preserve the original SoS-only control and final accuracy; distinguish this
+  experimental hybrid from reproduction of the paper's algorithm.
+
 - SoS investigation order (2026-10-20): modify and validate warm-start handoff
   first, then investigate global error correction. Preserve controlled small
   comparisons and distinguish initializer quality from final convergence.

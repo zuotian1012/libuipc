@@ -135,7 +135,12 @@ def worker(args):
             color_coverage="independent", initial_guess="inertial",
             warm_start=int(warm), warm_start_inversion=args.warm_inversion,
             warm_start_handoff=args.warm_handoff,
+            global_correction_interval=args.global_correction_interval,
+            global_correction_max_iter=args.global_correction_max_iter,
+            global_correction_tolerance=args.global_correction_tolerance,
             warm_start_max_iter=10, iteration_limit_policy="accept_last_valid")
+    if args.global_audit:
+        os.environ["UIPC_STENCIL_GLOBAL_AUDIT"] = str((args.output / "global-audit").resolve())
     scene = Scene(config)
     scene.contact_tabular().default_model(0., 1e8)
     element = scene.contact_tabular().default_element()
@@ -195,8 +200,14 @@ def worker(args):
 
 
 def log_metrics(path):
-    stages, residuals, handoffs = {}, [], []
+    stages, residuals, handoffs, corrections, accepted_corrections = {}, [], [], [], []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        for marker, records in (("SoS global correction: ", corrections),
+                                ("SoS global correction accepted: ", accepted_corrections)):
+            if marker in line:
+                fields = dict(item.split("=", 1) for item in line.split(marker)[1].split(", "))
+                records.append({k: v == "true" if v in {"true", "false"} else float(v)
+                                for k, v in fields.items()})
         if "SoS full-objective handoff: " in line:
             fields = dict(item.split("=", 1) for item in line.split("SoS full-objective handoff: ")[1].split(", "))
             record = {k: float(v) for k, v in fields.items() if k != "rejected"}
@@ -220,6 +231,7 @@ def log_metrics(path):
         row["max_change"] = max(row["max_change"], change)
     return dict(stage_energy=stages, full_elastic_outer_trace=residuals,
                 warm_handoffs=handoffs,
+                global_corrections=corrections, accepted_global_corrections=accepted_corrections,
                 color_passes=sum(row["color_passes"] for row in residuals))
 
 
@@ -236,7 +248,13 @@ def main():
                         help="Global backtracking budget; use 1 to exercise guarded initializer rejection")
     parser.add_argument("--warm-handoff", choices=["legacy", "full_objective"], default="legacy")
     parser.add_argument("--warm-inversion", choices=["iterative", "after", "after_local"], default="after_local")
+    parser.add_argument("--global-correction-interval", type=int, default=0)
+    parser.add_argument("--global-correction-max-iter", type=int, default=256)
+    parser.add_argument("--global-correction-tolerance", type=float, default=1e-4)
+    parser.add_argument("--global-audit", action="store_true")
     args = parser.parse_args()
+    if args.global_correction_interval < 0 or args.global_correction_max_iter < 1 or not 0 < args.global_correction_tolerance < 1:
+        parser.error("Invalid global correction interval, CG budget or linear tolerance")
     if args.rounds <= 0 or args.timeout <= 0 or args.resolution <= 0 or args.line_search_trials <= 0 or args.impact_speed < 0:
         parser.error("rounds, timeout, resolution and line-search-trials must be positive; impact-speed must be nonnegative")
     if args.case:
@@ -260,7 +278,12 @@ def main():
                    "--impact-speed", str(args.impact_speed),
                    "--warm-handoff", args.warm_handoff, "--warm-inversion", args.warm_inversion,
                    "--line-search-trials", str(args.line_search_trials),
+                   "--global-correction-interval", str(args.global_correction_interval),
+                   "--global-correction-max-iter", str(args.global_correction_max_iter),
+                   "--global-correction-tolerance", str(args.global_correction_tolerance),
                    "--output", str((args.output/name).resolve())]
+        if args.global_audit:
+            command.append("--global-audit")
         log = args.output / (name + ".log")
         start = time.perf_counter()
         with log.open("w", encoding="utf-8") as stream:

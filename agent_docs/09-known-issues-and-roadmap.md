@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+2026-10-21 global-correction control: the optional same-objective hybrid reduces
+729-vertex beam/impact counts from 46/52 to 5/10 outer rounds. A small bunny/cloth
+trajectory completes 120 strictly converged frames with independent saved-state
+geometry checks. Dense validation and paper-equivalent speedup remain open.
+Negative-curvature and capped linear solves occur and retain normal geometry/
+energy acceptance; do not claim every PCG call meets its target. Keep the SoS-only
+control distinct from the new hybrid. Details in [30](30-sos-global-correction.md).
+
 2026-10-20 warm handoff: optional full-objective backtracking improves converged
 cube impact controls (108 to 48 rounds on 729 vertices, cold 52), but does not
 resolve dense propagation. Six-frame bunny/cloth arms both truncate frames 3-6;

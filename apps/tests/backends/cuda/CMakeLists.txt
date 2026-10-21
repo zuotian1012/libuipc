@@ -16,7 +16,8 @@ file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "*.cpp" "*.h" "*.cu" ".inl")
 uipc_add_test(backend_cuda ${SOURCE})
 target_sources(backend_cuda PRIVATE
     "${PROJECT_SOURCE_DIR}/src/backends/cuda/finite_element/sos_barrier_history.cu"
-    "${PROJECT_SOURCE_DIR}/src/backends/cuda/finite_element/local_stencil_packed.cu")
+    "${PROJECT_SOURCE_DIR}/src/backends/cuda/finite_element/local_stencil_packed.cu"
+    "${PROJECT_SOURCE_DIR}/src/backends/cuda/finite_element/local_stencil_global.cu")
 target_link_libraries(backend_cuda PRIVATE uipc::backend::cuda)
 target_compile_options(backend_cuda PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028>)
